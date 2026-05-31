@@ -1,10 +1,12 @@
 # Dependencies - huge, and regenrated anytime via 'npm install'. nevver commit
 node_modules/
 
+
 #secret - connection strings, API keys, etc. never commit
 .env
 .env.*
 !.env.example
+.env.example
 
 #build output - generated from sources, no need to track.
 dist/
