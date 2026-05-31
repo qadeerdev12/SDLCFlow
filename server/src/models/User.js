@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema(
     {
         name: {
             type: String,
-            required: [ture, 'Name is required'],
+            required: [true, 'Name is required'],
             trim: true,   //strips accidental leading/trailing spaces
         }, 
         email: {
@@ -30,6 +30,6 @@ userSchema.methods.comparePassword = function(candidatePassword) {
     return bycrypt.compare(candidatePassword, this.passwordHash);
 };
 
-const User = moongoose.model('User', userSchema);
+const User = mongoose.model('User', userSchema);
 
 export default User;
