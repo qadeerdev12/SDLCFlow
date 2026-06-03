@@ -111,3 +111,16 @@ export async function login(req, res)  {
         });
     }
 }
+
+// GET /api/v1/auth/me
+// (This route is protected by the auth middleware, so req.user will be set if the token is valid)
+export async function getMe(req, res) {
+    // if we reach here, 'Proteect' already verififed the token and set req.user
+    return res.status(200).json({
+        data: {
+            id: req.user._id,
+            name: req.user.name,
+            email: req.user.email
+        }
+    });
+}   

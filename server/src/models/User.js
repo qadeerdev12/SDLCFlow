@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema(
 userSchema.methods.comparePassword = function(candidatePassword) {
     return bycrypt.compare(candidatePassword, this.passwordHash);
 };
-
+ 
 const User = mongoose.model('User', userSchema);
 
 export default User;
