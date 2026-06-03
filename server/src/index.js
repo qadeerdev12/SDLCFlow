@@ -4,10 +4,15 @@ import {createServer} from 'http'; //for real-time features later (socket.io)
 import { Server } from 'socket.io';
 import { connectDB } from './config/db.js'; //import the DB connection function
 import authRoutes from './routes/authRoutes.js'; //import our auth routes
+import cors from 'cors'; //import CORS middleware to allow cross-origin requests (from our React client)
   
 
 const app = express();  //create the Express application
 const httpServer = createServer(app); //create an HTTP server instance
+app.use(cors({
+    origin: 'http://localhost:5173', //allow requests from our React dev server
+    credentials: true //allow cookies and auth headers
+})); //enable CORS for all routes
 
 // Attach Socket.IO to that same HTTP server.
 // The `cors` block lets our (future) React client connect from its own origin.
