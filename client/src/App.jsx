@@ -1,15 +1,17 @@
-function App( ) {
-  return(
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-indigo-400">
-          CollabBoard
-        </h1>
-        <p className="mt-3 text-slate-400">
-          Front end is alive. 🎉
-        </p>
-      </div>
-    </div>
+import { Routes, Route, Navigate } from 'react-router-dom'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import DashboardPage from './pages/DashboardPage'
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/dashboard" element={<DashboardPage />} />
+      {/* Any unknown path (including "/") redirects to login */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   )
 }
 
