@@ -1,4 +1,3 @@
-import bcryp from "bcryptjs";   
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
@@ -27,7 +26,7 @@ export async function register(req, res) {
         const existing = await User.findOne({email});
         if (existing) {
             return res.status(409).json({
-                error: {code: 'EMAIL_TAEKN', message: "An account with this email already exists"},
+                error: {code: 'EMAIL_TAKEN', message: "An account with this email already exists"},
             });
         }
 
@@ -57,6 +56,58 @@ export async function register(req, res) {
         console.error(error);
         res.status(500).json({
             error: {code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while registering the user'}
+        });
+    }
+}
+
+export async function login(req, res)  {
+    try {
+        const {email, password } = req.body;
+        
+        //1. Basic validation
+        if (!email || !password) {
+            return res.status(400).json({
+                error: {code: 'VALIDATION', message: 'Email and password are required'},
+            });
+        }
+        //2. Find the user by email and include the passwordHash field.
+        const user = await User.findOne({email}).select('+passwordHash');
+
+        // 3. If user not found, or password doesn't match, return error.
+        if (!user) {
+            return res.status(401).json({
+                error: {code: 'INVALID_CREDENTIALS', message: 'Invalid email or password'},
+            });
+        }
+
+        // 4. Compare the provided password with the stored hash using the instance method.
+        // If User model exposes comparePassword helper use it, otherwise compare manually
+        const isMatch = typeof user.comparePassword === 'function'
+            ? await user.comparePassword(password)
+            : await bcrypt.compare(password, user.passwordHash);
+
+        // 5. Wrong password? same error as user not found, to avoid giving hints to attackers.
+        if (!isMatch) {
+            return res.status(401).json({
+                error: {code: 'INVALID_CREDENTIALS', message: 'Invalid email or password'},
+            });
+        }
+        //6. Success! Generate a JWT and send it back with user data.
+        const token = generateToken(user._id);
+        return res.status(200).json({
+            data: {
+                token,
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email
+                }
+            }
+         });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            error: {code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while logging in'},
         });
     }
 }
