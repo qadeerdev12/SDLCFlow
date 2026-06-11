@@ -6,7 +6,7 @@ const BASE_URL = "http://localhost:5050/api/v1";
 //  - attaches the auth token if we have one
 //  - parses the JSON response and throws on errors
 
-async function request(endpoint, {mehtod = 'GET'. body, token } = {}) {
+async function request(endpoint, {method = 'GET', body, token } = {}) {
     const headers = {'Content-Type': 'application/json'};
 
     // if a token was passed, attach it way our 'Protect' middleware expects.

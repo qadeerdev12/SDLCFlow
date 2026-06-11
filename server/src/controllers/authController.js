@@ -45,11 +45,9 @@ export async function register(req, res) {
 
         //6. Send the token and user data in the response.
         res.status(201).json({
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email
+            data: {
+                token,
+                user: { id: user._id, name: user.name, email: user.email }
             }
         });
     } catch (error) {
@@ -97,11 +95,7 @@ export async function login(req, res)  {
         return res.status(200).json({
             data: {
                 token,
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email
-                }
+                user: { id: user._id, name: user.name, email: user.email}
             }
          });
     } catch (error) {

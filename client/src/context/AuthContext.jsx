@@ -16,7 +16,7 @@ export function AuthProvider({children}) {
             if (token) {
                 try {
                     const data = await authApi.getMe(token);
-                    setUser(res.data.user ?? res.data); // Handle both {user} and direct user object responses  
+                    setUser(data.data?.user ?? data.data ?? data); // Handle both {user} and direct user object responses
                 } catch (err) {
                     // Token is invalid or expired, clear it out.
                     console.error('Token validation failed:', err);
@@ -41,6 +41,7 @@ export function AuthProvider({children}) {
     //5. The register function: call the API, set the user and token.
     async function register(name, email, password) {
         const res = await authApi.register(name, email, password);
+        console.log('register response:', res);  
         const { token: newToken, user: newUser } = res.data;
         localStorage.setItem('token', newToken);
         setToken(newToken);
