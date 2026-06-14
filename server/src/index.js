@@ -5,7 +5,7 @@ import { Server } from 'socket.io';
 import { connectDB } from './config/db.js'; //import the DB connection function
 import authRoutes from './routes/authRoutes.js'; //import our auth routes
 import cors from 'cors'; //import CORS middleware to allow cross-origin requests (from our React client)
-  
+import boardRoutes from './routes/boardRoutes.js'; //import our board routes
 
 const app = express();  //create the Express application
 const httpServer = createServer(app); //create an HTTP server instance
@@ -26,6 +26,7 @@ const io = new Server(httpServer, {
 await connectDB();
 app.use(express.json()); // middleware to parse JSON request bodies into req.body
 app.use('/api/v1/auth', authRoutes); //use the auth routes for any request to /api/v1/auth
+app.use('/api/v1/boards', boardRoutes); //use the board routes for any request to /api/v1/boards
 
 
 //Health-check route: a trivival endpoint to confirm the server is alive.
