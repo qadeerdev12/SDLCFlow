@@ -2,6 +2,9 @@
 import express from 'express';
 import { createBoard, getMyBoards, getBoard } from '../controllers/boardController.js';
 import { protect } from '../middleware/auth.js';
+import { createList, updateList, deleteList } from '../controllers/listController.js';
+import { createCard, updateCard, deleteCard } from '../controllers/cardController.js';
+
 
 
 const router = express.Router();
@@ -11,6 +14,16 @@ router.use(protect);
 
 router.post('/', createBoard);    // POST   /api/v1/boards
 router.get('/', getMyBoards); 
-router.get('/:boardId', getBoard);    // GET    /api/v1/boards/:boardId
+router.get('/:boardId', getBoard); // GET    /api/v1/boards/:boardId
+
+// Lists (nested under a board)
+router.post('/:boardId/lists', createList);
+router.patch('/:boardId/lists/:listId', updateList);
+router.delete('/:boardId/lists/:listId', deleteList);
+
+// Cards (nested under a board)
+router.post('/:boardId/cards', createCard);
+router.patch('/:boardId/cards/:cardId', updateCard);
+router.delete('/:boardId/cards/:cardId', deleteCard);
 
 export default router;
