@@ -39,3 +39,35 @@ export async function getMyBoards(req, res) {
     return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
   }
 }
+
+// GET /api/v1/boards/:boardId  (protected)
+export async function getBoard(req, res) {
+  try {
+    const board = await Board.findById(req.params.boardId);
+
+    // Not found at all → 404.
+    if (!board) {
+      return res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'Board not found.' },
+      });
+    }
+
+    // Authorization: is the requester a member of this board?
+    // .some() returns true if ANY member's user id matches the requester.
+    const isMember = board.members.some(
+      (m) => m.user.toString() === req.user._id.toString()
+    );
+
+    // Not a member → 404 (NOT 403 — don't reveal the board exists).
+    if (!isMember) {
+      return res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'Board not found.' },
+      });
+    }
+
+    return res.status(200).json({ data: { board } });
+  } catch (err) {
+    console.error('Get board error:', err.message);
+    return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+  }
+}

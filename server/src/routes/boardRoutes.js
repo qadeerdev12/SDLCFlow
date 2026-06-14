@@ -1,7 +1,8 @@
 // server/src/routes/boardRoutes.js
 import express from 'express';
-import { createBoard, getMyBoards } from '../controllers/boardController.js';
+import { createBoard, getMyBoards, getBoard } from '../controllers/boardController.js';
 import { protect } from '../middleware/auth.js';
+
 
 const router = express.Router();
 
@@ -9,6 +10,7 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/', createBoard);    // POST   /api/v1/boards
-router.get('/', getMyBoards);     // GET    /api/v1/boards
+router.get('/', getMyBoards); 
+router.get('/:boardId', getBoard);    // GET    /api/v1/boards/:boardId
 
 export default router;
