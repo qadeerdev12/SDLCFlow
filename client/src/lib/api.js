@@ -50,3 +50,14 @@ export const authApi = {
             token
         }),
 }
+
+export const boardApi = {
+  list: (token) =>
+    request('/boards', { token }),
+
+  getOne: (boardId, token) =>
+    request(`/boards/${boardId}`, { token }),
+
+  create: (name, token) =>
+    request('/boards', { method: 'POST', body: { name }, token }),
+}
