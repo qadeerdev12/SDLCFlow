@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { boardApi } from '../lib/api'
 
 export default function DashboardPage() {
   const { user, token, logout } = useAuth()
+  const { dark, toggle } = useTheme()
   const navigate = useNavigate()
 
   const [boards, setBoards] = useState([])
@@ -12,7 +14,6 @@ export default function DashboardPage() {
   const [newBoardName, setNewBoardName] = useState('')
   const [error, setError] = useState('')
 
-  // Fetch the user's boards when the page loads.
   useEffect(() => {
     async function loadBoards() {
       try {
@@ -32,7 +33,7 @@ export default function DashboardPage() {
     if (!newBoardName.trim()) return
     try {
       const res = await boardApi.create(newBoardName, token)
-      setBoards([res.data.board, ...boards])   // add the new board to the top of the list
+      setBoards([res.data.board, ...boards])
       setNewBoardName('')
     } catch (err) {
       setError(err.message)
@@ -45,47 +46,48 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-8">
+    <div className={`min-h-screen p-8 ${dark ? 'bg-slate-900 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
       <header className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-indigo-400">CollabBoard</h1>
-        <div className="flex items-center gap-4 text-sm">
-          <span className="text-slate-400">{user?.name}</span>
-          <button onClick={handleLogout} className="px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600">
+        <h1 className={`text-2xl font-bold ${dark ? 'text-indigo-400' : 'text-indigo-600'}`}>CollabBoard</h1>
+        <div className="flex items-center gap-3 text-sm">
+          <span className={dark ? 'text-slate-400' : 'text-gray-500'}>{user?.name}</span>
+          <button onClick={toggle} className={`p-2 rounded-full ${dark ? 'bg-slate-700 text-yellow-300 hover:bg-slate-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
+            {dark ? '☀️' : '🌙'}
+          </button>
+          <button onClick={handleLogout} className={`px-3 py-1.5 rounded ${dark ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-200 hover:bg-gray-300'}`}>
             Log out
           </button>
         </div>
       </header>
 
-      {/* Create-board form */}
       <form onSubmit={handleCreate} className="flex gap-2 mb-8 max-w-md">
         <input
           value={newBoardName}
           onChange={(e) => setNewBoardName(e.target.value)}
           placeholder="New board name..."
-          className="flex-1 px-3 py-2 rounded bg-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+          className={`flex-1 px-3 py-2 rounded border outline-none focus:ring-2 focus:ring-indigo-500 ${dark ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400'}`}
         />
-        <button type="submit" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 font-medium">
+        <button type="submit" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 font-medium text-white">
           Create
         </button>
       </form>
 
-      {error && <p className="text-red-400 mb-4">{error}</p>}
+      {error && <p className={`mb-4 ${dark ? 'text-red-400' : 'text-red-600'}`}>{error}</p>}
 
-      {/* Boards grid */}
       {loading ? (
-        <p className="text-slate-400">Loading boards...</p>
+        <p className={dark ? 'text-slate-400' : 'text-gray-500'}>Loading boards...</p>
       ) : boards.length === 0 ? (
-        <p className="text-slate-400">No boards yet. Create one above to get started.</p>
+        <p className={dark ? 'text-slate-400' : 'text-gray-500'}>No boards yet. Create one above to get started.</p>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {boards.map((board) => (
             <button
               key={board._id}
               onClick={() => navigate(`/boards/${board._id}`)}
-              className="text-left p-5 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
+              className={`text-left p-5 rounded-xl border transition ${dark ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : 'bg-white border-gray-200 hover:bg-gray-50 shadow-sm'}`}
             >
-              <h2 className="font-semibold text-indigo-300">{board.name}</h2>
-              <p className="text-xs text-slate-500 mt-1">{board.members.length} member(s)</p>
+              <h2 className={`font-semibold ${dark ? 'text-indigo-300' : 'text-indigo-600'}`}>{board.name}</h2>
+              <p className={`text-xs mt-1 ${dark ? 'text-slate-500' : 'text-gray-400'}`}>{board.members.length} member(s)</p>
             </button>
           ))}
         </div>

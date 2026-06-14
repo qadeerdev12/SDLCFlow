@@ -60,4 +60,13 @@ export const boardApi = {
 
   create: (name, token) =>
     request('/boards', { method: 'POST', body: { name }, token }),
+
+  createList: (boardId, title, position, token) =>
+    request(`/boards/${boardId}/lists`, { method: 'POST', body: { title, position }, token }),
+
+  createCard: (boardId, title, listId, position, token) =>
+    request(`/boards/${boardId}/cards`, { method: 'POST', body: { title, listId, position }, token }),
+
+  
 }
+

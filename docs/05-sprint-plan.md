@@ -57,11 +57,11 @@ A lightweight **Scrum-flavoured** process adapted for a solo developer. The poin
 
 ### Sprint 2 — Boards, lists, cards via REST (Epics B, C — no real-time yet)
 **Goal:** full CRUD and a board that renders from the REST API.
-- [ ] Board, List, Card models + indexes.
-- [ ] Board CRUD + membership endpoints; creator becomes owner.
-- [ ] List & Card CRUD endpoints with fractional `position`.
-- [ ] `GET /boards/:id` returns board + lists + cards (initial load).
-- [ ] Client: board list page; board view rendering lists & cards (static).
+- [x] Board, List, Card models + indexes.
+- [x] Board CRUD + membership endpoints; creator becomes owner.
+- [x] List & Card CRUD endpoints with fractional `position`.
+- [x] `GET /boards/:id` returns board + lists + cards (initial load).
+- [x] Client: board list page; board view rendering lists & cards (static).
 **Acceptance:** create a board, add lists/cards, reload — data persists and renders.
 
 ### Sprint 3 — Drag & drop + card detail (Epic C continued)

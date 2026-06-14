@@ -1,64 +1,69 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 export default function LoginPage() {
-  // Form fields — one piece of state per input (a "controlled form").
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const { login } = useAuth()   // the login function from our context
-  const navigate = useNavigate()   // lets us redirect after success
+  const { login } = useAuth()
+  const { dark, toggle } = useTheme()
+  const navigate = useNavigate()
 
   async function handleSubmit(e) {
-    e.preventDefault()             // stop the browser's default full-page form submit
+    e.preventDefault()
     setError('')
     setSubmitting(true)
     try {
-      await login(email, password)  // context → api → server → DB
-      navigate('/dashboard')         // success! go to the dashboard
+      await login(email, password)
+      navigate('/dashboard')
     } catch (err) {
-      setError(err.message)         // show the server's error message
+      setError(err.message)
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-100">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm p-8 bg-slate-800 rounded-xl">
-        <h1 className="text-2xl font-bold text-indigo-400 mb-6">Log in to your account</h1>
+    <div className={`min-h-screen flex items-center justify-center ${dark ? 'bg-slate-900 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
+      <button onClick={toggle} className={`fixed top-4 right-4 p-2 rounded-full ${dark ? 'bg-slate-700 text-yellow-300 hover:bg-slate-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
+        {dark ? '☀️' : '🌙'}
+      </button>
+
+      <form onSubmit={handleSubmit} className={`w-full max-w-sm p-8 rounded-xl border ${dark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
+        <h1 className={`text-2xl font-bold mb-6 ${dark ? 'text-indigo-400' : 'text-indigo-600'}`}>Log in to your account</h1>
 
         {error && (
-          <p className="mb-4 text-sm text-red-400 bg-red-950/40 rounded p-2">{error}</p>
+          <p className={`mb-4 text-sm rounded p-2 ${dark ? 'text-red-400 bg-red-950/40' : 'text-red-600 bg-red-50'}`}>{error}</p>
         )}
 
-        <label className="block text-sm mb-1">Email</label>
+        <label className={`block text-sm mb-1 ${dark ? 'text-slate-300' : 'text-gray-600'}`}>Email</label>
         <input
           type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-          className="w-full mb-4 px-3 py-2 rounded bg-slate-700 text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+          className={`w-full mb-4 px-3 py-2 rounded border outline-none focus:ring-2 focus:ring-indigo-500 ${dark ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
           required
         />
 
-        <label className="block text-sm mb-1">Password</label>
+        <label className={`block text-sm mb-1 ${dark ? 'text-slate-300' : 'text-gray-600'}`}>Password</label>
         <input
           type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-          className="w-full mb-4 px-3 py-2 rounded bg-slate-700 text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+          className={`w-full mb-4 px-3 py-2 rounded border outline-none focus:ring-2 focus:ring-indigo-500 ${dark ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
           required
         />
 
         <button
           type="submit" disabled={submitting}
-          className="w-full py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 font-medium"
+          className="w-full py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 font-medium text-white"
         >
-          {submitting ? 'logging in...' : 'Log in'}
+          {submitting ? 'Logging in...' : 'Log in'}
         </button>
 
-        <p className="mt-4 text-sm text-slate-400 text-center">
+        <p className={`mt-4 text-sm text-center ${dark ? 'text-slate-400' : 'text-gray-500'}`}>
           Don't have an account?{' '}
-          <Link to="/register" className="text-indigo-400 hover:underline">Register</Link>
+          <Link to="/register" className={`hover:underline ${dark ? 'text-indigo-400' : 'text-indigo-600'}`}>Register</Link>
         </p>
       </form>
     </div>
