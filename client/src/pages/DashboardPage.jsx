@@ -81,7 +81,7 @@ export default function DashboardPage() {
           {boards.map((board) => (
             <button
               key={board._id}
-              onClick={() => navigate(`/board/${board._id}`)}
+              onClick={() => navigate(`/boards/${board._id}`)}
               className="text-left p-5 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
             >
               <h2 className="font-semibold text-indigo-300">{board.name}</h2>
