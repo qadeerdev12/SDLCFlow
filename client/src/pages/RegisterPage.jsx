@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import Logo from '../components/Logo'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -35,7 +36,10 @@ export default function RegisterPage() {
       </button>
 
       <form onSubmit={handleSubmit} className={`w-full max-w-sm p-8 rounded-xl border ${dark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
-        <h1 className={`text-2xl font-bold mb-6 ${dark ? 'text-indigo-400' : 'text-indigo-600'}`}>Create your account</h1>
+        <div className="flex justify-center mb-6">
+          <Link to="/"><Logo size="md" /></Link>
+        </div>
+        <h1 className={`text-xl font-bold mb-6 ${dark ? 'text-slate-200' : 'text-gray-800'}`}>Create your account</h1>
 
         {error && (
           <p className={`mb-4 text-sm rounded p-2 ${dark ? 'text-red-400 bg-red-950/40' : 'text-red-600 bg-red-50'}`}>{error}</p>

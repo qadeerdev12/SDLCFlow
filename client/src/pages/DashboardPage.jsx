@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { boardApi } from '../lib/api'
+import Logo from '../components/Logo'
 
 export default function DashboardPage() {
   const { user, token, logout } = useAuth()
@@ -48,7 +49,7 @@ export default function DashboardPage() {
   return (
     <div className={`min-h-screen p-8 ${dark ? 'bg-slate-900 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
       <header className="flex items-center justify-between mb-8">
-        <h1 className={`text-2xl font-bold ${dark ? 'text-indigo-400' : 'text-indigo-600'}`}>CollabBoard</h1>
+        <Logo size="md" />
         <div className="flex items-center gap-3 text-sm">
           <span className={dark ? 'text-slate-400' : 'text-gray-500'}>{user?.name}</span>
           <button onClick={toggle} className={`p-2 rounded-full ${dark ? 'bg-slate-700 text-yellow-300 hover:bg-slate-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>

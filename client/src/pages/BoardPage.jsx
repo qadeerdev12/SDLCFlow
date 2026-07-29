@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { boardApi } from '../lib/api'
+import Logo from '../components/Logo'
 
 export default function BoardPage() {
     const { boardId } = useParams()
@@ -83,10 +84,11 @@ export default function BoardPage() {
         <div className={`min-h-screen p-6 ${dark ? 'bg-slate-900 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
             <header className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/dashboard')} className={`text-sm ${dark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'}`}>
-                        ← Boards
+                    <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1">
+                        <Logo size="sm" />
                     </button>
-                    <h1 className={`text-xl font-bold ${dark ? 'text-indigo-400' : 'text-indigo-600'}`}>{board?.name}</h1>
+                    <span className={`text-sm ${dark ? 'text-slate-600' : 'text-gray-300'}`}>/</span>
+                    <h1 className={`text-lg font-semibold ${dark ? 'text-slate-200' : 'text-gray-800'}`}>{board?.name}</h1>
                 </div>
                 <div className="flex items-center gap-3">
                     <form onSubmit={handleAddList} className="flex gap-2">
