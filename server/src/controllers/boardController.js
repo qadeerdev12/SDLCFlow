@@ -3,13 +3,16 @@ import Board from '../models/Board.js';
 import List from '../models/List.js';
 import Card from '../models/Card.js';
 
+// Keep in sync with the Board schema's color enum.
+const BOARD_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
+
 
 
 // POST /api/v1/boards  (protected)
 // Creates a board; the creator automatically becomes the owner + first member.
 export async function createBoard(req, res) {
   try {
-    const { name } = req.body;
+    const { name, emoji, color } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -17,9 +20,16 @@ export async function createBoard(req, res) {
       });
     }
 
+    // Only accept a color from the known palette; otherwise fall back to the
+    // schema default. This keeps a bad value from throwing a validation error.
+    const safeColor = BOARD_COLORS.includes(color) ? color : undefined;
+    const safeEmoji = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : undefined;
+
     // req.user was set by the `protect` middleware — that's who's creating this.
     const board = await Board.create({
       name,
+      ...(safeEmoji && { emoji: safeEmoji }),
+      ...(safeColor && { color: safeColor }),
       owner: req.user._id,
       members: [{ user: req.user._id, role: 'owner' }], // creator is the owner-member
     });

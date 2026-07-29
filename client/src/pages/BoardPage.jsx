@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { boardApi } from '../lib/api'
 import Logo from '../components/Logo'
+import BoardSwitcher from '../components/BoardSwitcher'
 
 export default function BoardPage() {
     const { boardId } = useParams()
@@ -88,7 +89,7 @@ export default function BoardPage() {
                         <Logo size="sm" />
                     </button>
                     <span className={`text-sm ${dark ? 'text-slate-600' : 'text-gray-300'}`}>/</span>
-                    <h1 className={`text-lg font-semibold ${dark ? 'text-slate-200' : 'text-gray-800'}`}>{board?.name}</h1>
+                    <BoardSwitcher currentBoard={board} />
                 </div>
                 <div className="flex items-center gap-3">
                     <form onSubmit={handleAddList} className="flex gap-2">

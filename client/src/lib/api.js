@@ -58,8 +58,8 @@ export const boardApi = {
   getOne: (boardId, token) =>
     request(`/boards/${boardId}`, { token }),
 
-  create: (name, token) =>
-    request('/boards', { method: 'POST', body: { name }, token }),
+  create: (name, token, { emoji, color } = {}) =>
+    request('/boards', { method: 'POST', body: { name, emoji, color }, token }),
 
   createList: (boardId, title, position, token) =>
     request(`/boards/${boardId}/lists`, { method: 'POST', body: { title, position }, token }),

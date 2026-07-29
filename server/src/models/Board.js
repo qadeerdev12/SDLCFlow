@@ -26,6 +26,19 @@ const boardSchema = new mongoose.Schema(
       required: [true, 'Board name is required'],
       trim: true,
     },
+    // Optional visual identity so personal project boards are distinguishable.
+    // emoji is free-form (any single emoji); color is one of a fixed palette.
+    emoji: {
+      type: String,
+      trim: true,
+      default: '📋',
+      maxlength: 16,   // generous: emoji can span several UTF-16 code units
+    },
+    color: {
+      type: String,
+      enum: ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'],
+      default: 'indigo',
+    },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
