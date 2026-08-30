@@ -62,7 +62,7 @@ export default function BoardColumn({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex max-h-[calc(100vh-136px)] w-[310px] shrink-0 flex-col rounded-lg border border-zinc-200 bg-zinc-100/70 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+      className="flex max-h-[calc(100dvh-246px)] w-[min(84vw,320px)] shrink-0 flex-col rounded-lg border border-zinc-200 bg-zinc-100/70 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:w-[310px] md:max-h-[calc(100dvh-216px)] lg:max-h-[calc(100dvh-176px)]"
     >
       <div className="relative flex items-start justify-between gap-3 border-b border-zinc-200 px-3 py-3 dark:border-zinc-800">
         <div className="min-w-0">

@@ -30,6 +30,95 @@ function memberUserId(member) {
   return member.user?.id || member.user?._id || member.user
 }
 
+function BoardLoadingSkeleton() {
+  return (
+    <div className="min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
+      <header className="border-b border-zinc-200 bg-stone-50/90 dark:border-zinc-800 dark:bg-zinc-950/90">
+        <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <Logo size="sm" />
+            <div className="space-y-2">
+              <div className="h-4 w-44 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-3 w-28 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800/70" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-10 w-24 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+            <div className="h-10 w-44 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-4 mt-4 h-[66px] animate-pulse rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" />
+
+      <div className="flex gap-4 overflow-hidden px-4 py-4">
+        {Array.from({ length: 4 }).map((_, columnIndex) => (
+          <div key={columnIndex} className="flex h-[480px] w-[min(84vw,320px)] shrink-0 flex-col rounded-lg border border-zinc-200 bg-zinc-100/70 p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:w-[310px]">
+            <div className="h-4 w-32 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+            <div className="mt-2 h-3 w-16 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800/70" />
+            <div className="mt-5 space-y-3">
+              {Array.from({ length: columnIndex === 1 ? 2 : 3 }).map((_, cardIndex) => (
+                <div key={cardIndex} className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="flex justify-between">
+                    <div className="h-5 w-16 animate-pulse rounded-md bg-zinc-100 dark:bg-zinc-800" />
+                    <div className="h-3 w-20 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
+                  </div>
+                  <div className="mt-4 h-4 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+                  <div className="mt-2 h-4 w-2/3 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800/70" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function BoardLoadError({ message, onRetry, onBack }) {
+  return (
+    <div className="grid min-h-screen place-items-center bg-stone-50 px-4 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
+      <div className="w-full max-w-md rounded-lg border border-red-200 bg-white p-6 text-center shadow-xl shadow-red-900/5 dark:border-red-500/30 dark:bg-zinc-900 dark:shadow-black/20">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </div>
+        <h1 className="mt-4 text-lg font-bold">Could not load this board</h1>
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{message}</p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <button type="button" onClick={onRetry} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500">
+            Try again
+          </button>
+          <button type="button" onClick={onBack} className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-800">
+            Back to dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BoardEmptyState({ boardName }) {
+  return (
+    <div className="grid min-h-[360px] w-full place-items-center rounded-lg border border-dashed border-zinc-300 bg-white px-4 text-center dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="max-w-sm">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M4 6h16" />
+            <path d="M4 12h10" />
+            <path d="M4 18h7" />
+          </svg>
+        </div>
+        <p className="mt-4 font-semibold text-zinc-900 dark:text-zinc-100">{boardName} is ready for its first workflow.</p>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Create lists like Backlog, Next, In Progress, and Review from the top bar.</p>
+      </div>
+    </div>
+  )
+}
+
 export default function BoardPage() {
   const { boardId } = useParams()
   const { user, token } = useAuth()
@@ -55,7 +144,7 @@ export default function BoardPage() {
   const currentRole = members.find((m) => String(memberUserId(m)) === String(user?.id))?.role
   const canEditBoard = ['owner', 'admin'].includes(currentRole)
   const canDeleteBoard = currentRole === 'owner'
-  const { connected, emitWithAck, onSocketEvent } = useSocket(token)
+  const { connected, connectionError, emitWithAck, onSocketEvent } = useSocket(token)
 
   const totalCardCount = useMemo(
     () => Object.values(cardsByList).reduce((sum, cards) => sum + cards.length, 0),
@@ -551,12 +640,18 @@ export default function BoardPage() {
   // --- render --------------------------------------------------------------
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-stone-50 text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">Loading board...</div>
+    return <BoardLoadingSkeleton />
   }
   // Full-screen error only when the board never loaded. Transient errors (a
   // failed drag persist, etc.) show as an inline banner below so the board stays put.
   if (error && !board) {
-    return <div className="flex min-h-screen items-center justify-center bg-stone-50 text-red-600 dark:bg-zinc-950 dark:text-red-300">{error}</div>
+    return (
+      <BoardLoadError
+        message={error}
+        onRetry={() => loadBoard()}
+        onBack={() => navigate('/dashboard')}
+      />
+    )
   }
 
   return (
@@ -583,7 +678,7 @@ export default function BoardPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
             <button
               type="button"
               onClick={() => setManagingMembers(true)}
@@ -629,7 +724,7 @@ export default function BoardPage() {
                 )}
               </div>
             )}
-            <form onSubmit={handleAddList} className="flex min-w-0 gap-2">
+            <form onSubmit={handleAddList} className="flex min-w-0 gap-2 sm:w-auto">
               <input
                 value={newListTitle}
                 onChange={(e) => setNewListTitle(e.target.value)}
@@ -729,10 +824,27 @@ export default function BoardPage() {
         </div>
       </section>
 
+      {connectionError && !connected && (
+        <div className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="mt-0.5 shrink-0">
+            <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+          </svg>
+          <span>Realtime is offline: {connectionError}. Changes will use REST where possible.</span>
+        </div>
+      )}
+
       {error && (
-        <p className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
-          {error}
-        </p>
+        <div className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+          <span>{error}</span>
+          <button type="button" onClick={() => setError('')} className="grid h-6 w-6 shrink-0 place-items-center rounded-md hover:bg-red-100 dark:hover:bg-red-500/10" aria-label="Dismiss error">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
       )}
 
       <DndContext
@@ -742,7 +854,7 @@ export default function BoardPage() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex min-h-[calc(100vh-112px)] gap-4 overflow-x-auto px-4 py-4">
+        <div className="flex min-h-[calc(100dvh-238px)] gap-4 overflow-x-auto px-4 py-4 sm:min-h-[calc(100dvh-204px)] lg:min-h-[calc(100dvh-164px)]">
           <SortableContext items={lists.map((l) => l._id)} strategy={horizontalListSortingStrategy}>
             {lists.map((list) => (
               <BoardColumn
@@ -762,12 +874,7 @@ export default function BoardPage() {
           </SortableContext>
 
           {lists.length === 0 && (
-            <div className="grid min-h-[360px] w-full place-items-center rounded-lg border border-dashed border-zinc-300 bg-white text-center dark:border-zinc-800 dark:bg-zinc-900">
-              <div>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">This board has no lists yet.</p>
-                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Add Backlog, Next, In Progress, Review, or whatever matches your flow.</p>
-              </div>
-            </div>
+            <BoardEmptyState boardName={board.name} />
           )}
         </div>
 
