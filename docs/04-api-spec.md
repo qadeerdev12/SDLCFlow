@@ -48,8 +48,11 @@ Defines the contract between client and server: the REST API (request/response w
 | POST | `/auth/register` | – | `{ name, email, password }` | `201 { user, token }` |
 | POST | `/auth/login` | – | `{ email, password }` | `200 { user, token }` |
 | GET | `/auth/me` | ✅ | – | `200 { user }` |
+| GET | `/auth/profile` | ✅ | – | `200 { user, stats }` |
+| DELETE | `/auth/me` | ✅ | `{ password }` | `200 { deleted: true }` |
 
 `user` never includes `passwordHash`.
+Deleting an account removes owned boards and their lists/cards/comments/activity, removes the user from shared boards, clears their card assignments, and deletes their comments/activity records.
 
 ### 2.2 Boards
 

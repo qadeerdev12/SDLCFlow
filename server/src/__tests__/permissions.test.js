@@ -282,6 +282,69 @@ describe.sequential('REST board permissions', () => {
     await expect(Comment.countDocuments({ board: board._id })).resolves.toBe(1);
   });
 
+  it('loads profile stats and deletes an account with related personal data', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const user = await register(app, 'User', 'user@example.com');
+    const ownedBoard = await createBoardWithOwner(app, user.token, 'Personal project');
+    const sharedBoard = await createBoardWithOwner(app, owner.token, 'Shared project');
+    await addMember(app, owner.token, sharedBoard._id, user.user.email, 'member');
+
+    const ownedList = await createListForBoard(app, user.token, ownedBoard._id);
+    await request(app)
+      .post(`/api/v1/boards/${ownedBoard._id}/cards`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ listId: ownedList._id, title: 'Owned card', position: 1000 })
+      .expect(201);
+
+    const sharedList = await createListForBoard(app, owner.token, sharedBoard._id);
+    const sharedCard = await request(app)
+      .post(`/api/v1/boards/${sharedBoard._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ listId: sharedList._id, title: 'Shared card', position: 1000, assignee: user.user.id })
+      .expect(201);
+    await request(app)
+      .post(`/api/v1/boards/${sharedBoard._id}/cards/${sharedCard.body.data.card._id}/comments`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ body: 'Leaving a note before account deletion.' })
+      .expect(201);
+
+    const profile = await request(app)
+      .get('/api/v1/auth/profile')
+      .set('Authorization', `Bearer ${user.token}`)
+      .expect(200);
+
+    expect(profile.body.data.user.email).toBe(user.user.email);
+    expect(profile.body.data.stats.boards).toBe(2);
+    expect(profile.body.data.stats.ownedBoards).toBe(1);
+    expect(profile.body.data.stats.assignedCards).toBe(1);
+    expect(profile.body.data.stats.comments).toBe(1);
+
+    await request(app)
+      .delete('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ password: 'wrong-password' })
+      .expect(401);
+
+    await request(app)
+      .delete('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ password: 'password123' })
+      .expect(200);
+
+    await expect(User.exists({ _id: user.user.id })).resolves.toBeNull();
+    await expect(Board.exists({ _id: ownedBoard._id })).resolves.toBeNull();
+    await expect(List.countDocuments({ board: ownedBoard._id })).resolves.toBe(0);
+    await expect(Card.countDocuments({ board: ownedBoard._id })).resolves.toBe(0);
+    await expect(Comment.countDocuments({ author: user.user.id })).resolves.toBe(0);
+    await expect(Activity.countDocuments({ actor: user.user.id })).resolves.toBe(0);
+
+    const remainingBoard = await Board.findById(sharedBoard._id);
+    expect(remainingBoard.members.some((member) => member.user.toString() === user.user.id)).toBe(false);
+    const remainingCard = await Card.findById(sharedCard.body.data.card._id);
+    expect(remainingCard.assignee).toBeNull();
+  });
+
   it('keeps owner-only actions out of admin hands', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

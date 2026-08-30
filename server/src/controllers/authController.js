@@ -1,6 +1,11 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
+import Board from "../models/Board.js";
+import List from "../models/List.js";
+import Card from "../models/Card.js";
+import Comment from "../models/Comment.js";
+import Activity from "../models/Activity.js";
 
 //Helper: create a signed JWT carrying the user's id.
 // The token is signed with our secret so it can't be forged.
@@ -117,4 +122,103 @@ export async function getMe(req, res) {
             email: req.user.email
         }
     });
-}   
+}
+
+// GET /api/v1/auth/profile
+// Returns account details plus lightweight workspace stats for the profile page.
+export async function getProfile(req, res) {
+    try {
+        const [boards, ownedBoards, assignedCards, comments] = await Promise.all([
+            Board.countDocuments({ 'members.user': req.user._id }),
+            Board.countDocuments({ owner: req.user._id }),
+            Card.countDocuments({ assignee: req.user._id }),
+            Comment.countDocuments({ author: req.user._id }),
+        ]);
+
+        return res.status(200).json({
+            data: {
+                user: {
+                    id: req.user._id,
+                    name: req.user.name,
+                    email: req.user.email,
+                    createdAt: req.user.createdAt,
+                    updatedAt: req.user.updatedAt,
+                },
+                stats: {
+                    boards,
+                    ownedBoards,
+                    sharedBoards: Math.max(boards - ownedBoards, 0),
+                    assignedCards,
+                    comments,
+                },
+            },
+        });
+    } catch (error) {
+        console.error('Get profile error:', error);
+        return res.status(500).json({
+            error: { code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while loading the profile' },
+        });
+    }
+}
+
+// DELETE /api/v1/auth/me
+// Deletes the signed-in user and removes their personal footprint from boards.
+export async function deleteAccount(req, res) {
+    try {
+        const { password } = req.body;
+        if (!password) {
+            return res.status(400).json({
+                error: { code: 'VALIDATION', message: 'Password is required to delete your account.' },
+            });
+        }
+
+        const user = await User.findById(req.user._id).select('+passwordHash');
+        if (!user) {
+            return res.status(404).json({
+                error: { code: 'NOT_FOUND', message: 'User not found.' },
+            });
+        }
+
+        const passwordMatches = await user.comparePassword(password);
+        if (!passwordMatches) {
+            return res.status(401).json({
+                error: { code: 'INVALID_CREDENTIALS', message: 'Password is incorrect.' },
+            });
+        }
+
+        const ownedBoards = await Board.find({ owner: user._id }).select('_id');
+        const ownedBoardIds = ownedBoards.map((board) => board._id);
+
+        // Owned boards depend on the owner account for administration. Deleting
+        // them keeps private project data from becoming orphaned after account removal.
+        await Promise.all([
+            Comment.deleteMany({ board: { $in: ownedBoardIds } }),
+            Card.deleteMany({ board: { $in: ownedBoardIds } }),
+            List.deleteMany({ board: { $in: ownedBoardIds } }),
+            Activity.deleteMany({ board: { $in: ownedBoardIds } }),
+            Board.deleteMany({ _id: { $in: ownedBoardIds } }),
+        ]);
+
+        // For boards this user only joined, remove membership and clear task ownership.
+        await Promise.all([
+            Board.updateMany(
+                { owner: { $ne: user._id }, 'members.user': user._id },
+                { $pull: { members: { user: user._id } } }
+            ),
+            Card.updateMany(
+                { board: { $nin: ownedBoardIds }, assignee: user._id },
+                { $set: { assignee: null } }
+            ),
+            Comment.deleteMany({ author: user._id }),
+            Activity.deleteMany({ actor: user._id }),
+            User.deleteOne({ _id: user._id }),
+        ]);
+
+        return res.status(200).json({ data: { deleted: true } });
+    } catch (error) {
+        console.error('Delete account error:', error);
+        return res.status(500).json({
+            error: { code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while deleting the account' },
+        });
+    }
+}

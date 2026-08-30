@@ -49,6 +49,18 @@ export const authApi = {
         request('/auth/me', {
             token
         }),
+
+    getProfile: (token) =>
+        request('/auth/profile', {
+            token
+        }),
+
+    deleteAccount: (password, token) =>
+        request('/auth/me', {
+            method: 'DELETE',
+            body: { password },
+            token
+        }),
 }
 
 export const boardApi = {

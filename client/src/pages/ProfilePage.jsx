@@ -1,0 +1,204 @@
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import AppHeader from '../components/AppHeader'
+import { useAuth } from '../context/useAuth'
+import { authApi } from '../lib/api'
+
+function formatDate(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Not available'
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
+function initials(name) {
+  if (!name) return '?'
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || '?'
+}
+
+export default function ProfilePage() {
+  const { user, token, logout } = useAuth()
+  const navigate = useNavigate()
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadProfile() {
+      try {
+        setLoading(true)
+        setError('')
+        const res = await authApi.getProfile(token)
+        if (!cancelled) setProfile(res.data)
+      } catch (err) {
+        if (!cancelled) setError(err.message)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    loadProfile()
+    return () => { cancelled = true }
+  }, [token])
+
+  const account = profile?.user || user || {}
+  const stats = profile?.stats || {}
+  const canDelete = password && confirmText === account.email && !deleting
+
+  const statCards = [
+    { label: 'Boards', value: stats.boards ?? '-' },
+    { label: 'Owned boards', value: stats.ownedBoards ?? '-' },
+    { label: 'Shared boards', value: stats.sharedBoards ?? '-' },
+    { label: 'Assigned cards', value: stats.assignedCards ?? '-' },
+    { label: 'Comments', value: stats.comments ?? '-' },
+  ]
+
+  async function handleDeleteAccount(e) {
+    e.preventDefault()
+    if (!canDelete) return
+
+    const confirmed = window.confirm('Delete your account permanently? This cannot be undone.')
+    if (!confirmed) return
+
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await authApi.deleteAccount(password, token)
+      logout()
+      navigate('/register')
+    } catch (err) {
+      setDeleteError(err.message)
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
+      <AppHeader />
+
+      <main className="mx-auto max-w-5xl px-5 py-6 sm:px-6">
+        <div className="mb-6">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Account</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Profile</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+            Review your account details, workspace footprint, and account deletion options.
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
+        <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
+          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <div className="grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-teal-700 text-2xl font-bold text-white">
+                {initials(account.name)}
+              </div>
+              <div className="min-w-0">
+                <h2 className="truncate text-xl font-semibold text-zinc-950 dark:text-zinc-100">
+                  {loading ? 'Loading profile...' : account.name}
+                </h2>
+                <p className="mt-1 truncate text-sm text-zinc-500 dark:text-zinc-400">{account.email}</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Info label="Joined" value={formatDate(account.createdAt)} />
+                  <Info label="Last updated" value={formatDate(account.updatedAt)} />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {statCards.map((stat) => (
+                <div key={stat.label} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <p className="text-2xl font-semibold text-zinc-950 dark:text-white">{loading ? '-' : stat.value}</p>
+                  <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside className="rounded-lg border border-zinc-200 bg-zinc-950 p-5 text-white shadow-sm dark:border-zinc-800">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Workspace footprint</p>
+            <h2 className="mt-4 text-lg font-semibold">Your project context in one place.</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              These stats help you see how much of CollabBoard is yours, shared, or actively assigned to you.
+            </p>
+          </aside>
+        </section>
+
+        <section className="mt-4 rounded-lg border border-red-200 bg-white p-5 shadow-sm dark:border-red-500/30 dark:bg-zinc-900">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-red-600 dark:text-red-300">Danger zone</p>
+              <h2 className="mt-2 text-lg font-semibold">Delete account</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                This removes your account, owned boards, comments, activity records, and assignments. Shared boards you do not own will remain for other members.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleDeleteAccount} className="mt-5 grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <label>
+              <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Confirm email</span>
+              <input
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={account.email || 'you@example.com'}
+                className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              />
+            </label>
+
+            <label>
+              <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={!canDelete}
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </form>
+
+          {deleteError && (
+            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">
+              {deleteError}
+            </p>
+          )}
+        </section>
+      </main>
+    </div>
+  )
+}
+
+function Info({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
+      <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">{value}</p>
+    </div>
+  )
+}

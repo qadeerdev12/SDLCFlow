@@ -65,6 +65,12 @@ export default function AppHeader() {
           >
             Activity
           </NavLink>
+          <NavLink
+            to="/profile"
+            className={({ isActive }) => `rounded-md px-3 py-1.5 font-medium ${isActive ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
+          >
+            Profile
+          </NavLink>
         </div>
 
         <div className="flex items-center gap-2">
@@ -112,6 +118,20 @@ export default function AppHeader() {
                   <p className="truncate text-sm font-semibold text-zinc-950 dark:text-zinc-100">{user?.name}</p>
                   <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user?.email}</p>
                 </div>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false)
+                    navigate('/profile')
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21a8 8 0 1 0-16 0" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  Profile
+                </button>
                 <button
                   role="menuitem"
                   onClick={handleLogout}
