@@ -1,5 +1,7 @@
 import Card from '../models/Card.js';
 import List from '../models/List.js';
+import Board from '../models/Board.js';
+import mongoose from 'mongoose';
 
 const CARD_TAGS = ['Task', 'Feature', 'Bug', 'Design', 'Research', 'Docs', 'Chore'];
 const CARD_STATUSES = ['Todo', 'In Progress', 'Review', 'Blocked', 'Done'];
@@ -29,6 +31,47 @@ function safeEnumValue(value, allowed, fieldName) {
   err.statusCode = 400;
   err.code = 'VALIDATION';
   throw err;
+}
+
+function safeDueDate(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    const err = new Error('Due date is invalid.');
+    err.statusCode = 400;
+    err.code = 'VALIDATION';
+    throw err;
+  }
+
+  return date;
+}
+
+async function safeAssignee(boardId, userId) {
+  if (userId === undefined) return undefined;
+  if (userId === null || userId === '') return null;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('Assignee is invalid.');
+    err.statusCode = 400;
+    err.code = 'VALIDATION';
+    throw err;
+  }
+
+  const board = await Board.findOne({ _id: boardId, 'members.user': userId }).select('_id');
+  if (!board) {
+    const err = new Error('Assignee must be a board member.');
+    err.statusCode = 400;
+    err.code = 'VALIDATION';
+    throw err;
+  }
+
+  return userId;
+}
+
+async function populateCardPeople(card) {
+  return card.populate('assignee', 'name email');
 }
 
 export async function createList({ boardId, title, position }) {
@@ -92,7 +135,7 @@ export async function deleteList({ boardId, listId }) {
   return true;
 }
 
-export async function createCard({ boardId, title, listId, position, tag, status }) {
+export async function createCard({ boardId, title, listId, position, tag, status, assignee, dueDate }) {
   const safeTitle = typeof title === 'string' ? title.trim() : '';
   if (!safeTitle || !listId) {
     const err = new Error('Card title and listId are required.');
@@ -102,15 +145,21 @@ export async function createCard({ boardId, title, listId, position, tag, status
   }
 
   await assertListBelongsToBoard(boardId, listId);
+  const safeAssigneeId = await safeAssignee(boardId, assignee);
+  const safeCardDueDate = safeDueDate(dueDate);
 
-  return Card.create({
+  const card = await Card.create({
     board: boardId,
     list: listId,
     title: safeTitle,
     ...(tag !== undefined && { tag: safeEnumValue(tag, CARD_TAGS, 'Card tag') }),
     ...(status !== undefined && { status: safeEnumValue(status, CARD_STATUSES, 'Card status') }),
+    ...(safeAssigneeId !== undefined && { assignee: safeAssigneeId }),
+    ...(safeCardDueDate !== undefined && { dueDate: safeCardDueDate }),
     position: position ?? 1000,
   });
+
+  return populateCardPeople(card);
 }
 
 export async function updateCard({ boardId, cardId, updates }) {
@@ -128,6 +177,8 @@ export async function updateCard({ boardId, cardId, updates }) {
   if (updates.description !== undefined) safeUpdates.description = updates.description;
   if (updates.tag !== undefined) safeUpdates.tag = safeEnumValue(updates.tag, CARD_TAGS, 'Card tag');
   if (updates.status !== undefined) safeUpdates.status = safeEnumValue(updates.status, CARD_STATUSES, 'Card status');
+  if (updates.assignee !== undefined) safeUpdates.assignee = await safeAssignee(boardId, updates.assignee);
+  if (updates.dueDate !== undefined) safeUpdates.dueDate = safeDueDate(updates.dueDate);
   if (updates.position !== undefined) safeUpdates.position = updates.position;
   if (updates.list !== undefined) {
     await assertListBelongsToBoard(boardId, updates.list);
@@ -138,7 +189,7 @@ export async function updateCard({ boardId, cardId, updates }) {
     { _id: cardId, board: boardId },
     safeUpdates,
     { returnDocument: 'after', runValidators: true }
-  );
+  ).populate('assignee', 'name email');
 
   if (!card) {
     const err = new Error('Card not found.');

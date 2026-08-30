@@ -111,7 +111,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | Event | Payload | Ack data |
 |---|---|---|
 | `board:join` | `{ boardId }` | `{ boardId, presence }` |
-| `card:create` | `{ boardId, title, listId, position }` | `{ card, activity }` |
+| `card:create` | `{ boardId, title, listId, position, tag?, status?, assignee?, dueDate? }` | `{ card, activity }` |
 | `card:update` | `{ boardId, cardId, updates }` | `{ card, activity }` |
 | `card:move` | `{ boardId, cardId, list, position }` | `{ card, activity }` |
 | `card:delete` | `{ boardId, cardId }` | `{ deleted: true, activity }` |
@@ -138,6 +138,8 @@ The client helper `emitWithAck` rejects the Promise when:
 | `board:error` | `{ code, message }` | emitted only when an event was sent without an ack callback |
 
 Broadcasts use `socket.to(roomName(board._id)).emit(...)`, so the sender is excluded. The sender updates its own UI from the ack response.
+
+Card mutation payloads share the REST validation path. `updates.assignee` must be empty/null or a member of the board, and `updates.dueDate` must be a valid date string or null.
 
 ---
 

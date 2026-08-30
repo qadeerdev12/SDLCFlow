@@ -71,7 +71,9 @@ export async function getBoard(req, res) {
 
     // Fetch this board's lists and cards, ordered by position.
     const lists = await List.find({ board: board._id }).sort({ position: 1 });
-    const cards = await Card.find({ board: board._id }).sort({ position: 1 });
+    const cards = await Card.find({ board: board._id })
+      .sort({ position: 1 })
+      .populate('assignee', 'name email');
 
     await board.populate('members.user', 'name email');
     return res.status(200).json({ data: { board, lists, cards } });

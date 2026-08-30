@@ -137,10 +137,11 @@ Membership is **embedded** (small, always read with the board).
 | `list` | ObjectId → List | required, indexed |
 | `title` | String | required |
 | `description` | String | optional |
+| `tag` | String | enum: Task, Feature, Bug, Design, Research, Docs, Chore |
+| `status` | String | enum: Todo, In Progress, Review, Blocked, Done |
 | `position` | Number (float) | fractional ordering within its list |
-| `assignee` | ObjectId → User | optional (stretch) |
-| `labels` | Array<String> | optional (stretch) |
-| `dueDate` | Date | optional (stretch) |
+| `assignee` | ObjectId → User | optional; must reference a board member |
+| `dueDate` | Date | optional |
 | `createdAt` / `updatedAt` | Date | timestamps |
 
 ```json
@@ -150,8 +151,11 @@ Membership is **embedded** (small, always read with the board).
   "list": "l_1",
   "title": "Wire up Socket.IO rooms",
   "description": "Join board room on open, verify membership",
+  "tag": "Feature",
+  "status": "In Progress",
+  "assignee": "u_2",
+  "dueDate": "2026-09-02T00:00:00.000Z",
   "position": 1.5,
-  "labels": ["backend"]
 }
 ```
 

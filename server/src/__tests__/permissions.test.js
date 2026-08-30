@@ -193,6 +193,56 @@ describe.sequential('REST board permissions', () => {
       .expect(404);
   });
 
+  it('only allows cards to be assigned to board members', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const teammate = await register(app, 'Teammate', 'teammate@example.com');
+    const outsider = await register(app, 'Outsider', 'outsider@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    const list = await createListForBoard(app, owner.token, board._id);
+    await addMember(app, owner.token, board._id, teammate.user.email, 'member');
+
+    const assigned = await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        listId: list._id,
+        title: 'Assigned task',
+        position: 1000,
+        assignee: teammate.user.id,
+        dueDate: '2026-09-02',
+      })
+      .expect(201);
+
+    expect(assigned.body.data.card.assignee._id).toBe(teammate.user.id);
+    expect(assigned.body.data.card.dueDate).toBeTruthy();
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        listId: list._id,
+        title: 'Wrong assignee',
+        position: 2000,
+        assignee: outsider.user.id,
+      })
+      .expect(400);
+
+    await request(app)
+      .patch(`/api/v1/boards/${board._id}/cards/${assigned.body.data.card._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ assignee: outsider.user.id })
+      .expect(400);
+
+    await request(app)
+      .patch(`/api/v1/boards/${board._id}/cards/${assigned.body.data.card._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ assignee: null, dueDate: null })
+      .expect(200);
+
+    await expect(Card.countDocuments({ board: board._id })).resolves.toBe(1);
+  });
+
   it('keeps owner-only actions out of admin hands', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

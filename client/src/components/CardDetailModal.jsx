@@ -1,11 +1,36 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CARD_STATUSES, CARD_TAGS, statusDotStyle, tagStyle } from '../lib/cardMeta'
 
-export default function CardDetailModal({ card, lists, onClose, onSave, onDelete }) {
+function memberUserId(member) {
+  return member.user?.id || member.user?._id || member.user
+}
+
+function memberLabel(member) {
+  const user = member.user || {}
+  return user.name || user.email || 'Board member'
+}
+
+function cardAssigneeId(card) {
+  return card.assignee?._id || card.assignee?.id || card.assignee || ''
+}
+
+function dateInputValue(date) {
+  if (!date) return ''
+  const isoDate = String(date).match(/^(\d{4}-\d{2}-\d{2})/)
+  if (isoDate) return isoDate[1]
+
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString().slice(0, 10)
+}
+
+export default function CardDetailModal({ card, lists, members = [], onClose, onSave, onDelete }) {
   const [title, setTitle] = useState(card.title || '')
   const [description, setDescription] = useState(card.description || '')
   const [tag, setTag] = useState(card.tag || 'Task')
   const [status, setStatus] = useState(card.status || 'Todo')
+  const [assignee, setAssignee] = useState(cardAssigneeId(card))
+  const [dueDate, setDueDate] = useState(dateInputValue(card.dueDate))
   const [listId, setListId] = useState(card.list)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -37,6 +62,8 @@ export default function CardDetailModal({ card, lists, onClose, onSave, onDelete
         description,
         tag,
         status,
+        assignee: assignee || null,
+        dueDate: dueDate || null,
         list: listId,
       })
       onClose()
@@ -144,6 +171,34 @@ export default function CardDetailModal({ card, lists, onClose, onSave, onDelete
                   <option key={option} value={option}>{option}</option>
                 ))}
               </select>
+            </label>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Assignee</span>
+              <select
+                value={assignee}
+                onChange={(e) => setAssignee(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              >
+                <option value="">Unassigned</option>
+                {members.map((member) => (
+                  <option key={memberUserId(member)} value={memberUserId(member)}>
+                    {memberLabel(member)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Due date</span>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              />
             </label>
           </div>
 

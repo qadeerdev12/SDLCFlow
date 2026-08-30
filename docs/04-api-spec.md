@@ -98,11 +98,12 @@ Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
-| POST | `/boards/:boardId/cards` | member | `{ listId, title, position, tag?, status? }` | `201 { card, activity }` |
-| PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, tag?, status?, list?, position? }` | `200 { card, activity }` |
+| POST | `/boards/:boardId/cards` | member | `{ listId, title, position, tag?, status?, assignee?, dueDate? }` | `201 { card, activity }` |
+| PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, tag?, status?, assignee?, dueDate?, list?, position? }` | `200 { card, activity }` |
 | DELETE | `/boards/:boardId/cards/:cardId` | member | – | `200 { deleted: true, activity }` |
 
 > Card **move** = a `PATCH` changing `listId` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
+> `assignee` must be `null`, empty, or a user id that already belongs to the board. `dueDate` accepts an ISO date/date-time string or `null`.
 
 ---
 
@@ -136,7 +137,7 @@ Errors use:
 | Event | Payload | Server action | Ack data |
 |---|---|---|---|
 | `board:join` | `{ boardId }` | verify membership → join room | `{ boardId, presence }` |
-| `card:create` | `{ boardId, listId, title, position, tag?, status? }` | verify membership, persist, broadcast | `{ card, activity }` |
+| `card:create` | `{ boardId, listId, title, position, tag?, status?, assignee?, dueDate? }` | verify membership, persist, broadcast | `{ card, activity }` |
 | `card:move` | `{ boardId, cardId, list, position }` | verify membership, persist, broadcast | `{ card, activity }` |
 | `card:update` | `{ boardId, cardId, updates }` | verify membership, persist, broadcast | `{ card, activity }` |
 | `card:delete` | `{ boardId, cardId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |

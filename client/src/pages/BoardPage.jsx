@@ -964,6 +964,7 @@ export default function BoardPage() {
         <CardDetailModal
           card={selectedCard}
           lists={lists}
+          members={members}
           onClose={() => setSelectedCard(null)}
           onSave={handleUpdateCard}
           onDelete={handleDeleteCard}

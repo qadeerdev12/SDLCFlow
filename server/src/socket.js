@@ -218,9 +218,9 @@ export function configureSockets(io) {
       }
     });
 
-    registerMutation(socket, 'card:create', async ({ boardId, title, listId, position, tag, status }) => {
+    registerMutation(socket, 'card:create', async ({ boardId, title, listId, position, tag, status, assignee, dueDate }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
-      const card = await createCard({ boardId: board._id, title, listId, position, tag, status });
+      const card = await createCard({ boardId: board._id, title, listId, position, tag, status, assignee, dueDate });
       const activity = await recordActivity({
         socket,
         boardId: board._id,

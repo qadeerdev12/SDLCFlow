@@ -34,6 +34,16 @@ const cardSchema = new mongoose.Schema(
       enum: ['Todo', 'In Progress', 'Review', 'Blocked', 'Done'],
       default: 'Todo',
     },
+    assignee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true,
+    },
+    dueDate: {
+      type: Date,
+      default: null,
+    },
     position: {
       type: Number,
       required: true,

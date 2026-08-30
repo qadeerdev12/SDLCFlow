@@ -8,6 +8,7 @@ The client is responsible for:
 - landing page and dashboard
 - kanban board UI
 - card search, tag filtering, and status filtering
+- card assignee and due date editing
 - global and board-specific activity pages
 - recent activity panel
 - drag-and-drop with dnd-kit
