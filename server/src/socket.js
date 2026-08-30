@@ -3,7 +3,7 @@ import User from './models/User.js';
 import Card from './models/Card.js';
 import List from './models/List.js';
 import Comment from './models/Comment.js';
-import { getBoardIfMember, getBoardIfRole } from './utils/boardAccess.js';
+import { getBoardIfMember, getBoardIfRole, getMemberRole } from './utils/boardAccess.js';
 import {
   createCard,
   updateCard,
@@ -13,7 +13,7 @@ import {
   deleteList,
 } from './services/boardMutationService.js';
 import { recordActivity } from './services/activityService.js';
-import { createBoardMessage } from './services/chatService.js';
+import { clearBoardMessages, createBoardMessage, deleteBoardMessage } from './services/chatService.js';
 
 const presenceByBoard = new Map();
 const presenceTimers = new Map();
@@ -344,6 +344,55 @@ export function configureSockets(io) {
         message,
       });
       return { message };
+    });
+
+    registerMutation(socket, 'message:delete', async ({ boardId, messageId }) => {
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
+      const message = await deleteBoardMessage({
+        boardId: board._id,
+        messageId,
+        actorId: socket.data.user._id,
+        actorRole: getMemberRole(board, socket.data.user._id),
+      });
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: 'message.deleted',
+        targetType: 'message',
+        targetId: message._id,
+        targetTitle: 'Chat message',
+      });
+
+      socket.to(roomName(board._id)).emit('message:deleted', {
+        boardId: board._id.toString(),
+        message,
+      });
+      return { message, activity };
+    });
+
+    registerMutation(socket, 'chat:clear', async ({ boardId }) => {
+      const board = await requireBoardRole(socket, boardId, ['owner']);
+      const deletedCount = await clearBoardMessages({
+        boardId: board._id,
+        actorId: socket.data.user._id,
+      });
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: 'chat.cleared',
+        targetType: 'board',
+        targetId: board._id,
+        targetTitle: board.name,
+        metadata: { deletedCount },
+      });
+
+      socket.to(roomName(board._id)).emit('chat:cleared', {
+        boardId: board._id.toString(),
+        deletedCount,
+      });
+      return { deletedCount, activity };
     });
 
     registerMutation(socket, 'list:create', async ({ boardId, title, position }) => {

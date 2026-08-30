@@ -108,6 +108,12 @@ export const boardApi = {
   createMessage: (boardId, body, token) =>
     request(`/boards/${boardId}/messages`, { method: 'POST', body: { body }, token }),
 
+  deleteMessage: (boardId, messageId, token) =>
+    request(`/boards/${boardId}/messages/${messageId}`, { method: 'DELETE', token }),
+
+  clearMessages: (boardId, token) =>
+    request(`/boards/${boardId}/messages`, { method: 'DELETE', token }),
+
   addMember: (boardId, email, role, token) =>
     request(`/boards/${boardId}/members`, { method: 'POST', body: { email, role }, token }),
 

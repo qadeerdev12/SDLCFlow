@@ -9,6 +9,8 @@ const ACTION_LABELS = {
   'card.moved': 'moved a card',
   'card.deleted': 'deleted a card',
   'comment.created': 'commented on a card',
+  'message.deleted': 'deleted a chat message',
+  'chat.cleared': 'cleared board chat',
   'member.added': 'added a member',
   'member.role_updated': 'changed a member role',
   'member.removed': 'removed a member',

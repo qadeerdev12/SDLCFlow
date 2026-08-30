@@ -98,8 +98,16 @@ Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle
 |---|---|---|---|---|
 | GET | `/boards/:boardId/messages` | member | – | `200 { messages }` |
 | POST | `/boards/:boardId/messages` | member | `{ body }` | `201 { message }` |
+| DELETE | `/boards/:boardId/messages/:messageId` | member/owner/admin | – | `200 { message, activity }` |
+| DELETE | `/boards/:boardId/messages` | owner | – | `200 { deletedCount, activity }` |
 
-Messages are scoped to a board and populated with `sender { name, email }`. Chat is stored separately from activity so conversation does not flood the audit timeline.
+Messages are scoped to a board and populated with `sender { name, email }`.
+Regular members can delete their own messages. Admins and owners can delete any
+message. Deleted messages remain as placeholders with `deletedAt/deletedBy`, so
+open clients keep a stable conversation shape. Owners can clear the full board
+chat; cleared messages are hidden from future history loads. Normal chat is
+stored separately from activity so conversation does not flood the audit
+timeline, but moderation actions create activity records.
 
 ### 2.6 Lists
 
@@ -167,6 +175,8 @@ Errors use:
 | `card:delete` | `{ boardId, cardId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |
 | `comment:create` | `{ boardId, cardId, body }` | verify membership, persist, broadcast | `{ comment, activity }` |
 | `message:create` | `{ boardId, body }` | verify membership, persist, broadcast | `{ message }` |
+| `message:delete` | `{ boardId, messageId }` | verify role/ownership, soft-delete, broadcast | `{ message, activity }` |
+| `chat:clear` | `{ boardId }` | verify owner, clear visible history, broadcast | `{ deletedCount, activity }` |
 | `list:create` | `{ boardId, title, position }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:move` | `{ boardId, listId, position }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:update` | `{ boardId, listId, updates }` | verify membership, persist, broadcast | `{ list, activity }` |
@@ -182,6 +192,8 @@ Errors use:
 | `card:deleted` | `{ boardId, cardId }` | a card was removed |
 | `comment:created` | `{ boardId, cardId, comment }` | a card comment was added |
 | `message:created` | `{ boardId, message }` | a board chat message was added |
+| `message:deleted` | `{ boardId, message }` | a board chat message was deleted |
+| `chat:cleared` | `{ boardId, deletedCount }` | visible board chat history was cleared |
 | `list:created` | `{ boardId, list }` | a list was added |
 | `list:moved` | `{ boardId, list }` | a list moved |
 | `list:updated` | `{ boardId, list }` | a list changed |

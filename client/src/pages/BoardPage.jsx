@@ -421,6 +421,17 @@ export default function BoardPage() {
       if (!chatPanelOpen) setUnreadMessages((count) => Math.min(count + 1, 99))
     }
 
+    function onMessageDeleted(payload) {
+      if (payload.boardId !== boardId) return
+      updateMessage(payload.message)
+    }
+
+    function onChatCleared(payload) {
+      if (payload.boardId !== boardId) return
+      setMessages([])
+      setUnreadMessages(0)
+    }
+
     const cleanups = [
       onSocketEvent('presence:update', onPresenceUpdate),
       onSocketEvent('card:created', onCardCreated),
@@ -434,6 +445,8 @@ export default function BoardPage() {
       onSocketEvent('members:updated', onMembersUpdated),
       onSocketEvent('activity:created', onActivityCreated),
       onSocketEvent('message:created', onMessageCreated),
+      onSocketEvent('message:deleted', onMessageDeleted),
+      onSocketEvent('chat:cleared', onChatCleared),
     ]
 
     return () => {
@@ -510,6 +523,11 @@ export default function BoardPage() {
       if (prev.some((item) => item._id === message._id)) return prev
       return [...prev, message].slice(-100)
     })
+  }
+
+  function updateMessage(message) {
+    if (!message?._id) return
+    setMessages((prev) => prev.map((item) => (item._id === message._id ? message : item)))
   }
 
   function closeActivityPanel() {
@@ -719,6 +737,41 @@ export default function BoardPage() {
     } catch (err) {
       setMessagesError(err.message)
       toast.error('Could not send message', err.message)
+      throw err
+    }
+  }
+
+  async function handleDeleteMessage(message) {
+    try {
+      const data = await realtimeOrRest(
+        'message:delete',
+        { boardId, messageId: message._id },
+        async () => (await boardApi.deleteMessage(boardId, message._id, token)).data
+      )
+      updateMessage(data.message)
+      prependActivity(data.activity)
+      toast.success('Message deleted')
+    } catch (err) {
+      setMessagesError(err.message)
+      toast.error('Could not delete message', err.message)
+      throw err
+    }
+  }
+
+  async function handleClearMessages() {
+    try {
+      const data = await realtimeOrRest(
+        'chat:clear',
+        { boardId },
+        async () => (await boardApi.clearMessages(boardId, token)).data
+      )
+      setMessages([])
+      setUnreadMessages(0)
+      prependActivity(data.activity)
+      toast.success('Chat cleared', `${data.deletedCount || 0} messages cleared`)
+    } catch (err) {
+      setMessagesError(err.message)
+      toast.error('Could not clear chat', err.message)
       throw err
     }
   }
@@ -1178,9 +1231,12 @@ export default function BoardPage() {
           error={messagesError}
           currentUserId={user?.id}
           connected={connected}
+          currentRole={currentRole}
           onRetry={loadMessages}
           onClose={closeChatPanel}
           onSendMessage={handleSendMessage}
+          onDeleteMessage={handleDeleteMessage}
+          onClearMessages={handleClearMessages}
         />
       )}
     </div>

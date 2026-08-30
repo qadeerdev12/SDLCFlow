@@ -27,10 +27,10 @@ This document explains how SDLCFlow's Socket.IO layer works today. It is meant f
 | `server/src/socket.js` | JWT socket auth, `board:join`, presence tracking, card/list realtime events |
 | `server/src/services/boardMutationService.js` | Shared card/list write logic used by both REST controllers and socket handlers |
 | `server/src/services/activityService.js` | Shared board activity logging and realtime activity broadcast |
-| `server/src/services/chatService.js` | Shared board chat message validation and persistence |
+| `server/src/services/chatService.js` | Shared board chat validation, persistence, deletion, and clearing |
 | `server/src/controllers/cardController.js` | REST card endpoints, delegated to the shared mutation service |
 | `server/src/controllers/listController.js` | REST list endpoints, delegated to the shared mutation service |
-| `server/src/controllers/messageController.js` | REST board chat history and message creation |
+| `server/src/controllers/messageController.js` | REST board chat history, message creation, and moderation |
 | `client/src/hooks/useSocket.js` | Socket.IO client lifecycle, ack-based emits, event subscription helper |
 | `client/src/pages/BoardPage.jsx` | Joins board rooms, applies incoming events, emits local card/list mutations |
 
@@ -119,6 +119,8 @@ The client helper `emitWithAck` rejects the Promise when:
 | `card:delete` | `{ boardId, cardId }` | `{ deleted: true, activity }` |
 | `comment:create` | `{ boardId, cardId, body }` | `{ comment, activity }` |
 | `message:create` | `{ boardId, body }` | `{ message }` |
+| `message:delete` | `{ boardId, messageId }` | `{ message, activity }` |
+| `chat:clear` | `{ boardId }` | `{ deletedCount, activity }` |
 | `list:create` | `{ boardId, title, position }` | `{ list, activity }` |
 | `list:update` | `{ boardId, listId, updates }` | `{ list, activity }` |
 | `list:move` | `{ boardId, listId, position }` | `{ list, activity }` |
@@ -135,6 +137,8 @@ The client helper `emitWithAck` rejects the Promise when:
 | `card:deleted` | `{ boardId, cardId }` | emitted after DB delete |
 | `comment:created` | `{ boardId, cardId, comment }` | emitted after DB create |
 | `message:created` | `{ boardId, message }` | emitted after DB create |
+| `message:deleted` | `{ boardId, message }` | emitted after soft-delete |
+| `chat:cleared` | `{ boardId, deletedCount }` | emitted after owner clears visible history |
 | `list:created` | `{ boardId, list }` | emitted after DB create |
 | `list:updated` | `{ boardId, list }` | emitted after DB update |
 | `list:moved` | `{ boardId, list }` | emitted after DB update |
@@ -162,8 +166,10 @@ Every board work mutation follows this order:
 
 If persistence fails, the server returns a negative ack and does not broadcast.
 
-Chat messages follow the same persist-then-broadcast rule, but they do not record
-activity because chat is conversational rather than an audit event.
+Chat messages follow the same persist-then-broadcast rule. Normal chat messages
+do not record activity because chat is conversational rather than an audit
+event. Moderation actions do record activity: `message.deleted` for individual
+message deletes and `chat.cleared` when an owner clears visible chat history.
 
 ---
 
@@ -209,6 +215,11 @@ history, errors, and unread counts. When a `message:created` event arrives while
 the drawer is closed, the board header badge increments; opening the drawer
 resets that count. The chat composer sends on Enter and keeps Shift+Enter for
 multiline messages.
+
+Individual deletes are soft deletes: the message keeps its timestamp and sender
+but renders as a deleted placeholder. Clear-chat marks the existing messages as
+cleared so the drawer empties for open clients and future history loads start
+fresh.
 
 ---
 

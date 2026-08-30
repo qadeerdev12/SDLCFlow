@@ -9,7 +9,7 @@ The client is responsible for:
 - kanban board UI
 - card search, tag filtering, and status filtering
 - card comment threads
-- board chat drawer with realtime messages, unread counts, and keyboard send
+- board chat drawer with realtime messages, unread counts, moderation, and keyboard send
 - card assignee and due date editing
 - global and board-specific activity pages
 - user profile editing, password changes, and account deletion
