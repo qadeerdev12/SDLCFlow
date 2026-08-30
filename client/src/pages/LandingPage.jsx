@@ -7,59 +7,69 @@ const previewColumns = [
     title: 'Backlog',
     count: 8,
     cards: [
-      { title: 'Map project milestones', tag: 'Planning', status: 'Ready', tone: 'teal' },
-      { title: 'Collect customer notes', tag: 'Research', status: 'Draft', tone: 'amber' },
-      { title: 'Scope mobile board view', tag: 'Design', status: 'Next', tone: 'cyan' },
+      { title: 'Map project milestones', tag: 'Planning', status: 'Ready', assignee: 'QA', due: 'Aug 31', tone: 'teal' },
+      { title: 'Collect customer notes', tag: 'Research', status: 'Draft', assignee: 'MK', due: 'Sep 2', tone: 'amber' },
+      { title: 'Scope mobile board view', tag: 'Design', status: 'Next', assignee: 'AR', due: 'Sep 4', tone: 'cyan' },
     ],
   },
   {
     title: 'In Progress',
     count: 3,
     cards: [
-      { title: 'Realtime drag persistence', tag: 'Core', status: 'Today', tone: 'teal' },
-      { title: 'Dashboard filters', tag: 'UI', status: 'Review', tone: 'rose' },
+      { title: 'Realtime drag persistence', tag: 'Core', status: 'Today', assignee: 'QA', due: 'Today', tone: 'teal' },
+      { title: 'Dashboard filters', tag: 'UI', status: 'Review', assignee: 'MK', due: 'Sep 1', tone: 'rose' },
     ],
   },
   {
     title: 'Done',
     count: 12,
     cards: [
-      { title: 'Auth and board access', tag: 'API', status: 'Shipped', tone: 'cyan' },
-      { title: 'List ordering system', tag: 'Core', status: 'Shipped', tone: 'teal' },
+      { title: 'Auth and board access', tag: 'API', status: 'Shipped', assignee: 'AR', due: 'Done', tone: 'cyan' },
+      { title: 'List ordering system', tag: 'Core', status: 'Shipped', assignee: 'QA', due: 'Done', tone: 'teal' },
     ],
   },
 ]
 
 const features = [
   {
-    title: 'Realtime project boards',
-    text: 'Move work from idea to shipped while everyone sees the same board state.',
+    title: 'Realtime board sync',
+    text: 'Move cards, edit tasks, and update lists while every board viewer stays in sync.',
     icon: 'layout',
   },
   {
-    title: 'Jira-style flow, less noise',
+    title: 'Task detail modal',
+    text: 'Capture descriptions, comments, tags, status, assignees, and due dates on each card.',
+    icon: 'detail',
+  },
+  {
+    title: 'Activity timeline',
+    text: 'Track board changes from one global activity view or inside a specific project.',
+    icon: 'activity',
+  },
+  {
+    title: 'Jira-style flow',
     text: 'Use Backlog, Next, In Progress, Review, and Done without a heavy process layer.',
     icon: 'flow',
   },
   {
-    title: 'Personal project cockpit',
-    text: 'Keep your solo builds, experiments, and client work separated by board.',
+    title: 'Search and filters',
+    text: 'Focus boards by task title, tag, or status when the project starts to fill up.',
+    icon: 'filter',
+  },
+  {
+    title: 'Role-based spaces',
+    text: 'Invite members by email and manage owner, admin, and member permissions.',
+    icon: 'shield',
+  },
+  {
+    title: 'Personal cockpit',
+    text: 'Review owned, shared, and assigned work from a profile-aware workspace.',
     icon: 'target',
   },
   {
-    title: 'Fast drag planning',
-    text: 'Reorder lists and cards directly on the board when priorities shift.',
-    icon: 'move',
-  },
-  {
-    title: 'Team-ready spaces',
-    text: 'Invite collaborators later without changing how your projects are organised.',
-    icon: 'users',
-  },
-  {
-    title: 'Dark mode workspace',
-    text: 'Switch between a bright planning desk and a quiet night-build view.',
-    icon: 'moon',
+    title: 'Board management',
+    text: 'Rename or delete boards, lists, and cards as your project shape changes.',
+    icon: 'settings',
   },
 ]
 
@@ -67,8 +77,15 @@ const workflow = ['Capture', 'Prioritise', 'Build', 'Review', 'Ship']
 
 const activity = [
   { person: 'QA', action: 'moved Realtime drag persistence to Review', time: '2m ago' },
-  { person: 'MK', action: 'added API error states to Backlog', time: '9m ago' },
-  { person: 'AR', action: 'completed List ordering system', time: '18m ago' },
+  { person: 'MK', action: 'commented on Dashboard filters', time: '9m ago' },
+  { person: 'AR', action: 'assigned Auth and board access to QA', time: '18m ago' },
+]
+
+const taskHighlights = [
+  { label: 'Status', value: 'In Review', tone: 'teal' },
+  { label: 'Tag', value: 'Realtime', tone: 'cyan' },
+  { label: 'Assignee', value: 'Qadeer', tone: 'amber' },
+  { label: 'Due date', value: 'Today', tone: 'rose' },
 ]
 
 export default function LandingPage() {
@@ -126,12 +143,49 @@ export default function LandingPage() {
             </div>
             <div className="landing-rise landing-delay-4 mt-10 grid grid-cols-3 gap-5 border-t border-zinc-200 pt-6 dark:border-zinc-800">
               <Stat value="Live" label="updates" />
-              <Stat value="Kanban" label="workflow" />
-              <Stat value="Solo+" label="team ready" />
+              <Stat value="RBAC" label="roles" />
+              <Stat value="Activity" label="timeline" />
             </div>
           </div>
 
           <HeroBoard />
+        </section>
+
+        <section className="border-y border-zinc-200 bg-stone-100 py-20 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="mx-auto grid max-w-7xl gap-8 px-5 sm:px-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-700 dark:text-cyan-300">Task detail</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-white">Every card can carry the context behind the work.</h2>
+              <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                Open a task to add the details that keep delivery moving: what it means, who owns it, when it is due, what status it is in, and what changed recently.
+              </p>
+            </div>
+
+            <div className="landing-feature rounded-xl border border-zinc-200 bg-white p-5 shadow-xl shadow-zinc-300/30 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30">
+              <div className="flex items-start justify-between gap-4 border-b border-zinc-200 pb-4 dark:border-zinc-800">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Card detail</p>
+                  <h3 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">Ship realtime board events</h3>
+                </div>
+                <span className="landing-pulse rounded-full bg-teal-100 px-2.5 py-1 text-xs font-bold text-teal-800 dark:bg-teal-400 dark:text-zinc-950">Synced</span>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                Persist socket mutations, broadcast updates to board members, and recover missed changes after reconnect.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {taskHighlights.map((item) => (
+                  <div key={item.label} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{item.label}</p>
+                    <p className={`mt-1 text-sm font-semibold ${highlightClass(item.tone)}`}>{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Comments</p>
+                <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">Ready for review once reconnect fallback is tested.</p>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section id="features" className="relative border-y border-zinc-200 bg-white py-20 dark:border-zinc-800 dark:bg-zinc-900/60">
@@ -214,7 +268,7 @@ export default function LandingPage() {
           <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Ready</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white">Start with one project board.</h2>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white">Start with one software project board.</h2>
             </div>
             <Link to="/register" className="landing-button rounded-lg bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500">
               Create workspace
@@ -264,6 +318,10 @@ function HeroBoard() {
                     <span className="text-[11px] text-zinc-400">{card.status}</span>
                   </div>
                   <p className="text-sm font-medium leading-5 text-zinc-900 dark:text-zinc-100">{card.title}</p>
+                  <div className="mt-4 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+                    <span className="grid h-6 w-6 place-items-center rounded-full bg-zinc-900 font-semibold text-white dark:bg-white dark:text-zinc-950">{card.assignee}</span>
+                    <span>{card.due}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -273,6 +331,9 @@ function HeroBoard() {
 
       <div className="landing-cursor absolute right-[34%] top-[42%] hidden rounded-lg bg-zinc-950 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg dark:bg-white dark:text-zinc-950 md:block">
         Qadeer editing
+      </div>
+      <div className="absolute bottom-5 left-5 hidden rounded-lg border border-teal-200 bg-white px-3 py-2 text-xs font-semibold text-teal-800 shadow-lg dark:border-teal-500/20 dark:bg-zinc-950 dark:text-teal-300 sm:block">
+        3 members online
       </div>
     </div>
   )
@@ -296,9 +357,11 @@ function FeatureIcon({ type }) {
     layout: <><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></>,
     flow: <><path d="M5 6h9a4 4 0 0 1 0 8H8" /><path d="m8 10-4 4 4 4" /></>,
     target: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></>,
-    move: <><path d="M12 2v20" /><path d="M2 12h20" /><path d="m5 9-3 3 3 3" /><path d="m19 9 3 3-3 3" /><path d="m9 5 3-3 3 3" /><path d="m9 19 3 3 3-3" /></>,
-    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
-    moon: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />,
+    detail: <><path d="M8 4h8l4 4v12H4V4h4Z" /><path d="M14 4v5h5" /><path d="M8 13h8" /><path d="M8 17h5" /></>,
+    activity: <><path d="M3 12h4l3-7 4 14 3-7h4" /></>,
+    filter: <><path d="M4 5h16" /><path d="M7 12h10" /><path d="M10 19h4" /></>,
+    shield: <><path d="M12 3 20 7v5c0 5-3.4 8.1-8 9-4.6-.9-8-4-8-9V7l8-4Z" /><path d="m9 12 2 2 4-5" /></>,
+    settings: <><path d="M4 7h16" /><path d="M4 17h16" /><path d="M8 4v6" /><path d="M16 14v6" /></>,
   }
 
   return <svg {...common}>{icons[type]}</svg>
@@ -331,6 +394,17 @@ function tagClass(tone) {
   }
 
   return `rounded-md px-2 py-0.5 text-[11px] font-semibold ${tones[tone]}`
+}
+
+function highlightClass(tone) {
+  const tones = {
+    teal: 'text-teal-700 dark:text-teal-300',
+    amber: 'text-amber-700 dark:text-amber-300',
+    cyan: 'text-cyan-700 dark:text-cyan-300',
+    rose: 'text-rose-700 dark:text-rose-300',
+  }
+
+  return tones[tone]
 }
 
 function ThemeIcon({ dark }) {
