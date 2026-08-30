@@ -1,5 +1,6 @@
 // server/src/controllers/listController.js
 import List from '../models/List.js';
+import Card from '../models/Card.js';
 import { getBoardIfMember } from '../utils/boardAccess.js';
 
 // POST /api/v1/boards/:boardId/lists
@@ -67,7 +68,7 @@ export async function deleteList(req, res) {
     if (!list) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'List not found.' } });
     }
-    // Note: cards in this list still exist — we'll handle cascade cleanup shortly.
+    await Card.deleteMany({ board: board._id, list: list._id });
     return res.status(200).json({ data: { deleted: true } });
   } catch (err) {
     console.error('Delete list error:', err.message);

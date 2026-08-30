@@ -20,10 +20,12 @@ import { positionBetween, positionForIndex } from '../lib/position'
 import Logo from '../components/Logo'
 import BoardSwitcher from '../components/BoardSwitcher'
 import BoardColumn from '../components/BoardColumn'
+import CardDetailModal from '../components/CardDetailModal'
+import NewBoardModal from '../components/NewBoardModal'
 
 export default function BoardPage() {
   const { boardId } = useParams()
-  const { token } = useAuth()
+  const { user, token } = useAuth()
   const { dark, toggle } = useTheme()
   const navigate = useNavigate()
 
@@ -35,6 +37,9 @@ export default function BoardPage() {
   const [newListTitle, setNewListTitle] = useState('')
   const [cardDrafts, setCardDrafts] = useState({})
   const [activeCard, setActiveCard] = useState(null)  // card being dragged (for overlay)
+  const [selectedCard, setSelectedCard] = useState(null)
+  const [editingBoard, setEditingBoard] = useState(false)
+  const canManageBoard = String(board?.owner) === String(user?.id)
 
   // Refs mirror state so drag handlers always read the freshest value even
   // across the re-renders that onDragOver triggers mid-drag.
@@ -106,6 +111,25 @@ export default function BoardPage() {
     setCardDrafts((prev) => ({ ...prev, [listId]: value }))
   }
 
+  function replaceCard(updatedCard) {
+    setCardsByList((prev) => {
+      const next = {}
+      for (const listId in prev) {
+        next[listId] = prev[listId].filter((card) => card._id !== updatedCard._id)
+      }
+      next[updatedCard.list] = [...(next[updatedCard.list] || []), updatedCard].sort((a, b) => a.position - b.position)
+      return next
+    })
+    setSelectedCard(updatedCard)
+  }
+
+  function removeCard(card) {
+    setCardsByList((prev) => ({
+      ...prev,
+      [card.list]: (prev[card.list] || []).filter((c) => c._id !== card._id),
+    }))
+  }
+
   // --- add list / card -----------------------------------------------------
 
   async function handleAddCard(e, listId) {
@@ -134,6 +158,72 @@ export default function BoardPage() {
       setLists([...lists, res.data.list])
       setCardsByList((prev) => ({ ...prev, [res.data.list._id]: [] }))
       setNewListTitle('')
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function handleUpdateCard(card, updates) {
+    const fromListId = card.list
+    const toListId = updates.list || fromListId
+    const payload = { ...updates }
+
+    if (toListId !== fromListId) {
+      const targetCards = (cardsRef.current[toListId] || []).filter((c) => c._id !== card._id)
+      const last = targetCards[targetCards.length - 1]
+      payload.position = positionBetween(last?.position, undefined)
+    }
+
+    const res = await boardApi.updateCard(boardId, card._id, payload, token)
+    replaceCard(res.data.card)
+  }
+
+  async function handleDeleteCard(card) {
+    await boardApi.deleteCard(boardId, card._id, token)
+    removeCard(card)
+  }
+
+  async function handleRenameList(list, title) {
+    if (title === list.title) return
+    try {
+      const res = await boardApi.updateList(boardId, list._id, { title }, token)
+      setLists((prev) => prev.map((l) => (l._id === list._id ? res.data.list : l)))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function handleDeleteList(list) {
+    const count = cardsRef.current[list._id]?.length || 0
+    const suffix = count ? ` and ${count} ${count === 1 ? 'card' : 'cards'}` : ''
+    const confirmed = window.confirm(`Delete "${list.title}"${suffix}?`)
+    if (!confirmed) return
+
+    try {
+      await boardApi.deleteList(boardId, list._id, token)
+      setLists((prev) => prev.filter((l) => l._id !== list._id))
+      setCardsByList((prev) => {
+        const next = { ...prev }
+        delete next[list._id]
+        return next
+      })
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function handleUpdateBoard(name, options) {
+    const res = await boardApi.update(boardId, { name, ...options }, token)
+    setBoard(res.data.board)
+  }
+
+  async function handleDeleteBoard() {
+    const confirmed = window.confirm(`Delete "${board.name}" and all of its lists and cards?`)
+    if (!confirmed) return
+
+    try {
+      await boardApi.delete(boardId, token)
+      navigate('/dashboard')
     } catch (err) {
       setError(err.message)
     }
@@ -273,6 +363,33 @@ export default function BoardPage() {
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            {canManageBoard && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingBoard(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteBoard}
+                  className="grid h-10 w-10 place-items-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:bg-zinc-900 dark:text-red-300 dark:hover:bg-red-500/10"
+                  aria-label="Delete board"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                  </svg>
+                </button>
+              </div>
+            )}
             <form onSubmit={handleAddList} className="flex min-w-0 gap-2">
               <input
                 value={newListTitle}
@@ -331,6 +448,9 @@ export default function BoardPage() {
                 draft={cardDrafts[list._id]}
                 onDraftChange={setDraftForList}
                 onAddCard={handleAddCard}
+                onCardOpen={setSelectedCard}
+                onListRename={handleRenameList}
+                onListDelete={handleDeleteList}
               />
             ))}
           </SortableContext>
@@ -356,6 +476,24 @@ export default function BoardPage() {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {selectedCard && (
+        <CardDetailModal
+          card={selectedCard}
+          lists={lists}
+          onClose={() => setSelectedCard(null)}
+          onSave={handleUpdateCard}
+          onDelete={handleDeleteCard}
+        />
+      )}
+
+      {editingBoard && (
+        <NewBoardModal
+          board={board}
+          onClose={() => setEditingBoard(false)}
+          onCreate={handleUpdateBoard}
+        />
+      )}
     </div>
   )
 }

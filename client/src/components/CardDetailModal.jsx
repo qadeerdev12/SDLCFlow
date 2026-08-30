@@ -1,0 +1,170 @@
+import { useEffect, useMemo, useState } from 'react'
+
+export default function CardDetailModal({ card, lists, onClose, onSave, onDelete }) {
+  const [title, setTitle] = useState(card.title || '')
+  const [description, setDescription] = useState(card.description || '')
+  const [listId, setListId] = useState(card.list)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  const currentList = useMemo(
+    () => lists.find((list) => list._id === listId),
+    [listId, lists]
+  )
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    const nextTitle = title.trim()
+    if (!nextTitle || saving || deleting) return
+
+    setSaving(true)
+    setError('')
+    try {
+      await onSave(card, {
+        title: nextTitle,
+        description,
+        list: listId,
+      })
+      onClose()
+    } catch (err) {
+      setError(err.message)
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (saving || deleting) return
+    const confirmed = window.confirm(`Delete "${card.title}"?`)
+    if (!confirmed) return
+
+    setDeleting(true)
+    setError('')
+    try {
+      await onDelete(card)
+      onClose()
+    } catch (err) {
+      setError(err.message)
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4 backdrop-blur-sm dark:bg-black/70"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Card details"
+        className="w-full max-w-2xl overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">
+              {currentList?.title || 'Card'}
+            </p>
+            <h2 className="mt-1 truncate text-lg font-semibold text-zinc-950 dark:text-zinc-100">Card details</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="grid gap-5 px-5 py-5">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Title</span>
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              required
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Workflow list</span>
+            <select
+              value={listId}
+              onChange={(e) => setListId(e.target.value)}
+              className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              {lists.map((list) => (
+                <option key={list._id} value={list._id}>{list.title}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Description</span>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={8}
+              placeholder="Add acceptance criteria, links, notes, or implementation details."
+              className="w-full resize-y rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm leading-6 text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+            />
+          </label>
+
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 px-5 py-4 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving || deleting}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18" />
+              <path d="M8 6V4h8v2" />
+              <path d="M19 6l-1 14H6L5 6" />
+            </svg>
+            {deleting ? 'Deleting...' : 'Delete card'}
+          </button>
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!title.trim() || saving || deleting}
+              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-600/20 transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save changes'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  )
+}

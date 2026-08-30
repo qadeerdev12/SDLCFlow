@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
+  const [editingBoard, setEditingBoard] = useState(null)
 
   useEffect(() => {
     async function loadBoards() {
@@ -55,6 +56,23 @@ export default function DashboardPage() {
   async function handleCreate(name, options) {
     const res = await boardApi.create(name, token, options)
     setBoards((prev) => [res.data.board, ...prev])
+  }
+
+  async function handleUpdate(board, name, options) {
+    const res = await boardApi.update(board._id, { name, ...options }, token)
+    setBoards((prev) => prev.map((b) => (b._id === board._id ? res.data.board : b)))
+  }
+
+  async function handleDelete(board) {
+    const confirmed = window.confirm(`Delete "${board.name}" and all of its lists and cards?`)
+    if (!confirmed) return
+
+    try {
+      await boardApi.delete(board._id, token)
+      setBoards((prev) => prev.filter((b) => b._id !== board._id))
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   const firstName = user?.name?.split(' ')[0]
@@ -177,7 +195,10 @@ export default function DashboardPage() {
                 key={board._id}
                 board={board}
                 role={roleFor(board)}
+                canManage={roleFor(board) === 'owner'}
                 onOpen={() => navigate(`/boards/${board._id}`)}
+                onEdit={setEditingBoard}
+                onDelete={handleDelete}
               />
             ))}
 
@@ -196,6 +217,13 @@ export default function DashboardPage() {
       </main>
 
       {creating && <NewBoardModal onClose={() => setCreating(false)} onCreate={handleCreate} />}
+      {editingBoard && (
+        <NewBoardModal
+          board={editingBoard}
+          onClose={() => setEditingBoard(null)}
+          onCreate={(name, options) => handleUpdate(editingBoard, name, options)}
+        />
+      )}
     </div>
   )
 }

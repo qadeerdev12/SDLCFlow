@@ -1,6 +1,6 @@
 // server/src/routes/boardRoutes.js
 import express from 'express';
-import { createBoard, getMyBoards, getBoard } from '../controllers/boardController.js';
+import { createBoard, getMyBoards, getBoard, updateBoard, deleteBoard } from '../controllers/boardController.js';
 import { protect } from '../middleware/auth.js';
 import { createList, updateList, deleteList } from '../controllers/listController.js';
 import { createCard, updateCard, deleteCard } from '../controllers/cardController.js';
@@ -15,6 +15,8 @@ router.use(protect);
 router.post('/', createBoard);    // POST   /api/v1/boards
 router.get('/', getMyBoards); 
 router.get('/:boardId', getBoard); // GET    /api/v1/boards/:boardId
+router.patch('/:boardId', updateBoard);
+router.delete('/:boardId', deleteBoard);
 
 // Lists (nested under a board)
 router.post('/:boardId/lists', createList);

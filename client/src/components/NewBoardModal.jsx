@@ -12,10 +12,11 @@ import {
 // The dashboard mounts this only while open, so the form starts clean every
 // time and needs no reset. `onCreate` returns a promise; we stay open and show
 // the message if it rejects.
-export default function NewBoardModal({ onClose, onCreate }) {
-  const [name, setName] = useState('')
-  const [emoji, setEmoji] = useState(DEFAULT_EMOJI)
-  const [color, setColor] = useState(DEFAULT_COLOR)
+export default function NewBoardModal({ board, onClose, onCreate }) {
+  const editing = Boolean(board)
+  const [name, setName] = useState(board?.name || '')
+  const [emoji, setEmoji] = useState(board?.emoji || DEFAULT_EMOJI)
+  const [color, setColor] = useState(board?.color || DEFAULT_COLOR)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -52,14 +53,18 @@ export default function NewBoardModal({ onClose, onCreate }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Create a board"
+        aria-label={editing ? 'Edit board' : 'Create a board'}
         className="w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900"
       >
         <form onSubmit={handleSubmit}>
           <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
             <div>
-              <h2 className="font-semibold text-zinc-950 dark:text-zinc-100">Create project board</h2>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Set the space your tasks will live in.</p>
+              <h2 className="font-semibold text-zinc-950 dark:text-zinc-100">
+                {editing ? 'Edit project board' : 'Create project board'}
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {editing ? 'Update the board name and visual identity.' : 'Set the space your tasks will live in.'}
+              </p>
             </div>
             <button
               type="button"
@@ -160,7 +165,7 @@ export default function NewBoardModal({ onClose, onCreate }) {
               disabled={!name.trim() || submitting}
               className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-600/20 transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? 'Creating…' : 'Create board'}
+              {submitting ? (editing ? 'Saving...' : 'Creating...') : (editing ? 'Save changes' : 'Create board')}
             </button>
           </div>
         </form>

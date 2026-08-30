@@ -35,9 +35,10 @@ export async function updateCard(req, res) {
             return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
         }
 
-        const { title, position, list } = req.body;
+        const { title, description, position, list } = req.body;
         const updates = {};
         if (title !== undefined) updates.title = title;
+        if (description !== undefined) updates.description = description;
         if (position !== undefined) updates.position = position;
         if (list !== undefined) updates.list = list;
 

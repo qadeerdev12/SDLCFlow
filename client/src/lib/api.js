@@ -61,19 +61,30 @@ export const boardApi = {
   create: (name, token, { emoji, color } = {}) =>
     request('/boards', { method: 'POST', body: { name, emoji, color }, token }),
 
+  update: (boardId, updates, token) =>
+    request(`/boards/${boardId}`, { method: 'PATCH', body: updates, token }),
+
+  delete: (boardId, token) =>
+    request(`/boards/${boardId}`, { method: 'DELETE', token }),
+
   createList: (boardId, title, position, token) =>
     request(`/boards/${boardId}/lists`, { method: 'POST', body: { title, position }, token }),
 
   createCard: (boardId, title, listId, position, token) =>
     request(`/boards/${boardId}/cards`, { method: 'POST', body: { title, listId, position }, token }),
 
-  // Partial update — pass any of { title, position, list } for a card.
+  // Partial update — pass any of { title, description, position, list } for a card.
   // Used by drag & drop to persist a card's new order / column.
   updateCard: (boardId, cardId, updates, token) =>
     request(`/boards/${boardId}/cards/${cardId}`, { method: 'PATCH', body: updates, token }),
 
+  deleteCard: (boardId, cardId, token) =>
+    request(`/boards/${boardId}/cards/${cardId}`, { method: 'DELETE', token }),
+
   // Partial update — pass any of { title, position } for a list.
   updateList: (boardId, listId, updates, token) =>
     request(`/boards/${boardId}/lists/${listId}`, { method: 'PATCH', body: updates, token }),
-}
 
+  deleteList: (boardId, listId, token) =>
+    request(`/boards/${boardId}/lists/${listId}`, { method: 'DELETE', token }),
+}

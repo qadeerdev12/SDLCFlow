@@ -79,3 +79,73 @@ export async function getBoard(req, res) {
     return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
   }
 }
+
+// PATCH /api/v1/boards/:boardId  (protected)
+export async function updateBoard(req, res) {
+  try {
+    const board = await Board.findById(req.params.boardId);
+    if (!board) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
+    }
+
+    if (board.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Only the board owner can update this board.' } });
+    }
+
+    const { name, emoji, color } = req.body;
+    const updates = {};
+
+    if (name !== undefined) {
+      const safeName = typeof name === 'string' ? name.trim() : '';
+      if (!safeName) {
+        return res.status(400).json({ error: { code: 'VALIDATION', message: 'Board name is required.' } });
+      }
+      updates.name = safeName;
+    }
+
+    if (emoji !== undefined) {
+      updates.emoji = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : '📋';
+    }
+
+    if (color !== undefined) {
+      if (!BOARD_COLORS.includes(color)) {
+        return res.status(400).json({ error: { code: 'VALIDATION', message: 'Board color is invalid.' } });
+      }
+      updates.color = color;
+    }
+
+    const updatedBoard = await Board.findByIdAndUpdate(
+      board._id,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({ data: { board: updatedBoard } });
+  } catch (err) {
+    console.error('Update board error:', err.message);
+    return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+  }
+}
+
+// DELETE /api/v1/boards/:boardId  (protected)
+export async function deleteBoard(req, res) {
+  try {
+    const board = await Board.findById(req.params.boardId);
+    if (!board) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
+    }
+
+    if (board.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Only the board owner can delete this board.' } });
+    }
+
+    await Card.deleteMany({ board: board._id });
+    await List.deleteMany({ board: board._id });
+    await Board.deleteOne({ _id: board._id });
+
+    return res.status(200).json({ data: { deleted: true } });
+  } catch (err) {
+    console.error('Delete board error:', err.message);
+    return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+  }
+}
