@@ -302,102 +302,113 @@ function HeroBoard() {
         </div>
       </div>
 
-      <div className="grid gap-3 p-4 md:grid-cols-3">
-        {previewColumns.map((column, columnIndex) => (
-          <div key={column.title} className="min-h-[380px] rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-600 dark:text-zinc-300">{column.title}</h2>
-              <span className="rounded-md bg-white px-2 py-0.5 text-xs text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
-                {column.count}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {column.cards.map((card, cardIndex) => (
-                <div
-                  key={card.title}
-                  className="landing-card rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-                  style={{ animationDelay: `${columnIndex * 140 + cardIndex * 110}ms` }}
-                >
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className={tagClass(card.tone)}>{card.tag}</span>
-                    <span className="text-[11px] text-zinc-400">{card.status}</span>
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="grid gap-3 p-4 md:grid-cols-3">
+          {previewColumns.map((column, columnIndex) => (
+            <div key={column.title} className="min-h-[380px] rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-600 dark:text-zinc-300">{column.title}</h2>
+                <span className="rounded-md bg-white px-2 py-0.5 text-xs text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+                  {column.count}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {column.cards.map((card, cardIndex) => (
+                  <div
+                    key={card.title}
+                    className="landing-card rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                    style={{ animationDelay: `${columnIndex * 140 + cardIndex * 110}ms` }}
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span className={tagClass(card.tone)}>{card.tag}</span>
+                      <span className="text-[11px] text-zinc-400">{card.status}</span>
+                    </div>
+                    <p className="text-sm font-medium leading-5 text-zinc-900 dark:text-zinc-100">{card.title}</p>
+                    <div className="mt-4 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <span className="grid h-6 w-6 place-items-center rounded-full bg-zinc-900 font-semibold text-white dark:bg-white dark:text-zinc-950">{card.assignee}</span>
+                      <span>{card.due}</span>
+                    </div>
                   </div>
-                  <p className="text-sm font-medium leading-5 text-zinc-900 dark:text-zinc-100">{card.title}</p>
-                  <div className="mt-4 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
-                    <span className="grid h-6 w-6 place-items-center rounded-full bg-zinc-900 font-semibold text-white dark:bg-white dark:text-zinc-950">{card.assignee}</span>
-                    <span>{card.due}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        <div className="hidden min-h-[412px] flex-col border-l border-zinc-200 bg-white text-xs dark:border-zinc-800 dark:bg-zinc-950 lg:flex">
+          <LandingChatPreview />
+        </div>
       </div>
 
       <div className="landing-cursor absolute right-[34%] top-[42%] hidden rounded-lg bg-zinc-950 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg dark:bg-white dark:text-zinc-950 md:block">
         John editing
       </div>
-      <div className="absolute bottom-4 left-4 hidden w-72 overflow-hidden rounded-lg border border-zinc-200 bg-white text-xs shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 lg:block">
-        <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-3 py-3 dark:border-zinc-800">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Board chat</p>
-            <p className="mt-0.5 truncate font-semibold text-zinc-950 dark:text-zinc-100">Product rebuild</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-              <span className="landing-pulse h-1.5 w-1.5 rounded-full bg-teal-500" />
-              Live messages active
-            </p>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="rounded-md px-1.5 py-1 font-semibold text-zinc-500 dark:text-zinc-400">Clear</span>
-            <span className="grid h-6 w-6 place-items-center rounded-md text-zinc-400">x</span>
+    </div>
+  )
+}
+
+function LandingChatPreview() {
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-3 py-3 dark:border-zinc-800">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Board chat</p>
+          <p className="mt-0.5 truncate font-semibold text-zinc-950 dark:text-zinc-100">Product rebuild</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+            <span className="landing-pulse h-1.5 w-1.5 rounded-full bg-teal-500" />
+            Live messages active
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="rounded-md px-1.5 py-1 font-semibold text-zinc-500 dark:text-zinc-400">Clear</span>
+          <span className="grid h-6 w-6 place-items-center rounded-md text-zinc-400">x</span>
+        </div>
+      </div>
+      <div className="flex-1 space-y-3 px-3 py-3">
+        <div className="flex items-center gap-2">
+          <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+          <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">Today</span>
+          <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+        </div>
+        <div className="flex items-end gap-2">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-zinc-950 text-[10px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-950">AL</span>
+          <div className="max-w-[78%] rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+            <div className="mb-1 flex items-center justify-between gap-3 text-[10px] text-zinc-500 dark:text-zinc-400">
+              <span className="font-semibold">Alex Lee</span>
+              <span>10:24</span>
+            </div>
+            <p>API task is ready for review.</p>
           </div>
         </div>
-        <div className="space-y-3 px-3 py-3">
-          <div className="flex items-center gap-2">
-            <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-            <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">Today</span>
-            <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-zinc-950 text-[10px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-950">AL</span>
-            <div className="max-w-[78%] rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
-              <div className="mb-1 flex items-center justify-between gap-3 text-[10px] text-zinc-500 dark:text-zinc-400">
-                <span className="font-semibold">Alex Lee</span>
-                <span>10:24</span>
-              </div>
-              <p>API task is ready for review.</p>
+        <div className="flex justify-end">
+          <div className="max-w-[78%] rounded-lg border border-teal-600 bg-teal-600 px-2.5 py-2 text-white">
+            <div className="mb-1 flex items-center justify-between gap-3 text-[10px] text-teal-50/80">
+              <span className="font-semibold">You</span>
+              <span className="flex items-center gap-1.5">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="m19 6-1 14H6L5 6" />
+                </svg>
+                10:25
+              </span>
             </div>
-          </div>
-          <div className="flex justify-end">
-            <div className="max-w-[78%] rounded-lg border border-teal-600 bg-teal-600 px-2.5 py-2 text-white">
-              <div className="mb-1 flex items-center justify-between gap-3 text-[10px] text-teal-50/80">
-                <span className="font-semibold">You</span>
-                <span className="flex items-center gap-1.5">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 6h18" />
-                    <path d="M8 6V4h8v2" />
-                    <path d="m19 6-1 14H6L5 6" />
-                  </svg>
-                  10:25
-                </span>
-              </div>
-              <p className="font-medium">Moving it to Review now.</p>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-zinc-200 p-2 dark:border-zinc-800">
-          <div className="flex items-end gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900">
-            <span className="min-h-8 flex-1 px-1 py-1 text-zinc-400">Message this board</span>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-teal-600 text-white">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m22 2-7 20-4-9-9-4Z" />
-                <path d="M22 2 11 13" />
-              </svg>
-            </span>
+            <p className="font-medium">Moving it to Review now.</p>
           </div>
         </div>
       </div>
-    </div>
+      <div className="border-t border-zinc-200 p-2 dark:border-zinc-800">
+        <div className="flex items-end gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900">
+          <span className="min-h-8 flex-1 px-1 py-1 text-zinc-400">Message this board</span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-teal-600 text-white">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m22 2-7 20-4-9-9-4Z" />
+              <path d="M22 2 11 13" />
+            </svg>
+          </span>
+        </div>
+      </div>
+    </>
   )
 }
 
