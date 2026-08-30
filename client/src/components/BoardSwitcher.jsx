@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { boardApi } from '../lib/api'
 import { DEFAULT_EMOJI } from '../lib/boardColors'
+import BoardIcon from './BoardIcon'
 
 // A dropdown in the board header that lists all of the user's boards and lets
 // them jump straight to another one — no trip back to the dashboard.
@@ -58,7 +59,7 @@ export default function BoardSwitcher({ currentBoard }) {
         onClick={() => setOpen((v) => !v)}
         className="flex max-w-[min(56vw,420px)] items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-left text-base font-semibold text-zinc-950 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-zinc-700 sm:text-lg"
       >
-        {currentBoard && <span className="text-base leading-none">{currentBoard.emoji || DEFAULT_EMOJI}</span>}
+        {currentBoard && <BoardIcon value={currentBoard.emoji || DEFAULT_EMOJI} className="h-4 w-4 shrink-0" />}
         <span className="truncate">{currentBoard?.name || 'Board'}</span>
         <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className={`transition-transform ${open ? 'rotate-180' : ''}`}>
           <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -88,7 +89,7 @@ export default function BoardSwitcher({ currentBoard }) {
                     className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-zinc-50 dark:hover:bg-zinc-800 ${isCurrent ? 'text-teal-700 dark:text-teal-300' : 'text-zinc-800 dark:text-zinc-200'}`}
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="text-base leading-none">{b.emoji || DEFAULT_EMOJI}</span>
+                      <BoardIcon value={b.emoji || DEFAULT_EMOJI} className="h-4 w-4 shrink-0" />
                       <span className="truncate">{b.name}</span>
                     </span>
                     {isCurrent && (

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { colorClasses, DEFAULT_EMOJI } from '../lib/boardColors'
 import { relativeTime } from '../lib/time'
+import BoardIcon from './BoardIcon'
 
 const ROLE_BADGE = {
   owner: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
@@ -34,10 +35,10 @@ export default function BoardCard({ board, role, canEdit, canDelete, onOpen, onE
           <button
             type="button"
             onClick={onOpen}
-            className={`pointer-events-auto grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-lg shadow-sm ${c.gradient}`}
+            className={`pointer-events-auto grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white shadow-sm ${c.gradient}`}
             aria-label={`Open ${board.name}`}
           >
-            {board.emoji || DEFAULT_EMOJI}
+            <BoardIcon value={board.emoji || DEFAULT_EMOJI} className="h-5 w-5" />
           </button>
           <div className="pointer-events-auto relative" ref={menuRef}>
             {canEdit || canDelete ? (

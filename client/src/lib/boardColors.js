@@ -7,7 +7,7 @@
 //
 //   dot / swatch — solid fill for pickers and indicators
 //   accent       — left border on a board card
-//   gradient     — the emoji tile on a board card
+//   gradient     — the icon tile on a board card
 //   glow         — hover border + shadow tint, so a card lights up in its own color
 export const BOARD_COLORS = {
   slate: {
@@ -63,10 +63,22 @@ export const BOARD_COLORS = {
 
 export const BOARD_COLOR_KEYS = Object.keys(BOARD_COLORS)
 export const DEFAULT_COLOR = 'indigo'
-export const DEFAULT_EMOJI = '📋'
+export const DEFAULT_EMOJI = 'code'
 
-// The emoji options offered when creating a board.
-export const EMOJI_CHOICES = ['📋', '🧵', '⏱️', '📊', '🗂️', '🚀', '🐛', '💡', '🎨', '🔧']
+// Board visual choices. These values are stored in the existing `emoji` field
+// for backward compatibility with earlier boards that used literal emojis.
+export const EMOJI_CHOICES = [
+  { value: 'code', label: 'Codebase' },
+  { value: 'api', label: 'API' },
+  { value: 'database', label: 'Database' },
+  { value: 'bug', label: 'Bug fixes' },
+  { value: 'deploy', label: 'Deployment' },
+  { value: 'security', label: 'Security' },
+  { value: 'cloud', label: 'Cloud' },
+  { value: 'mobile', label: 'Mobile app' },
+  { value: 'analytics', label: 'Analytics' },
+  { value: 'experiment', label: 'Experiment' },
+]
 
 // Resolve a board's color to its class set, tolerating missing/legacy values.
 export function colorClasses(color) {

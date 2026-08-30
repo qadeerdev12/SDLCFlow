@@ -7,6 +7,7 @@ import {
   colorClasses,
 } from '../lib/boardColors'
 import { useToast } from '../context/useToast'
+import BoardIcon from './BoardIcon'
 
 // Board creation lives in a dialog rather than a permanent form at the top of
 // the dashboard — creating a board is occasional, browsing them is constant.
@@ -85,8 +86,8 @@ export default function NewBoardModal({ board, onClose, onCreate }) {
           <div className="space-y-5 px-5 py-5">
             {/* Live preview of the tile that will land in the grid. */}
             <div className="flex items-center gap-3 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
-              <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-xl shadow-sm ${c.gradient}`}>
-                {emoji}
+              <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white shadow-sm ${c.gradient}`}>
+                <BoardIcon value={emoji} className="h-5 w-5" />
               </span>
               <span className={`truncate font-semibold ${name.trim() ? 'text-zinc-950 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-600'}`}>
                 {name.trim() || 'Project board name'}
@@ -112,17 +113,19 @@ export default function NewBoardModal({ board, onClose, onCreate }) {
               <div className="flex flex-wrap gap-1">
                 {EMOJI_CHOICES.map((choice) => (
                   <button
-                    key={choice}
+                    key={choice.value}
                     type="button"
-                    onClick={() => setEmoji(choice)}
-                    aria-pressed={emoji === choice}
-                    className={`h-9 w-9 rounded-lg text-base leading-none transition ${
-                      emoji === choice
+                    onClick={() => setEmoji(choice.value)}
+                    aria-label={choice.label}
+                    title={choice.label}
+                    aria-pressed={emoji === choice.value}
+                    className={`grid h-9 w-9 place-items-center rounded-lg text-zinc-600 transition dark:text-zinc-300 ${
+                      emoji === choice.value
                         ? 'bg-teal-50 ring-2 ring-teal-600 dark:bg-teal-500/15 dark:ring-teal-400'
                         : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
                     }`}
                   >
-                    {choice}
+                    <BoardIcon value={choice.value} className="h-[18px] w-[18px]" />
                   </button>
                 ))}
               </div>

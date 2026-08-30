@@ -27,12 +27,13 @@ const boardSchema = new mongoose.Schema(
       trim: true,
     },
     // Optional visual identity so personal project boards are distinguishable.
-    // emoji is free-form (any single emoji); color is one of a fixed palette.
+    // The field is still named emoji for API compatibility, but new clients
+    // store a board icon key here. Older boards with literal emojis still work.
     emoji: {
       type: String,
       trim: true,
-      default: '📋',
-      maxlength: 16,   // generous: emoji can span several UTF-16 code units
+      default: 'code',
+      maxlength: 24,
     },
     color: {
       type: String,

@@ -104,7 +104,7 @@ export async function updateBoard(req, res) {
     }
 
     if (emoji !== undefined) {
-      updates.emoji = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : '📋';
+      updates.emoji = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : 'code';
     }
 
     if (color !== undefined) {
