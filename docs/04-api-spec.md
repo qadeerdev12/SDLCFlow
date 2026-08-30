@@ -65,9 +65,18 @@ Defines the contract between client and server: the REST API (request/response w
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
-| POST | `/boards/:boardId/members` | admin | `{ email, role }` | `200 { board }` |
-| PATCH | `/boards/:boardId/members/:userId` | owner | `{ role }` | `200 { board }` |
-| DELETE | `/boards/:boardId/members/:userId` | admin | – | `200 { board }` |
+| GET | `/boards/:boardId/members` | member | – | `200 { members }` |
+| POST | `/boards/:boardId/members` | admin | `{ email, role? }` | `201 { members }` |
+| PATCH | `/boards/:boardId/members/:userId` | owner | `{ role }` | `200 { members }` |
+| DELETE | `/boards/:boardId/members/:userId` | admin | – | `200 { members }` |
+
+Member rules:
+- Owners and admins can add members.
+- Admins can only add regular members; owners can add members or admins.
+- Only owners can change roles.
+- Ownership transfer is not available yet.
+- Admins cannot remove owners.
+- A board must keep at least one owner.
 
 ### 2.4 Lists
 
@@ -140,6 +149,7 @@ Errors use:
 | `list:moved` | `{ boardId, list }` | a list moved |
 | `list:updated` | `{ boardId, list }` | a list changed |
 | `list:deleted` | `{ boardId, listId }` | a list was removed |
+| `members:updated` | `{ boardId, members }` | board membership changed |
 | `presence:update` | `{ boardId, users: [{ user, socketCount, lastSeen }] }` | who is currently on the board |
 | `board:error` | `{ code, message }` | a server-side problem with a prior event sent without ack |
 

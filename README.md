@@ -11,8 +11,11 @@ The app currently supports:
 - card detail editing with descriptions
 - list/card rename and delete
 - board rename and delete
+- board member management by email
+- owner/admin/member role controls
 - Socket.IO-powered board rooms
 - realtime card/list sync between collaborators
+- realtime member-list updates
 - presence indicators for who is viewing a board
 
 ---

@@ -4,6 +4,7 @@ import { createBoard, getMyBoards, getBoard, updateBoard, deleteBoard } from '..
 import { protect } from '../middleware/auth.js';
 import { createList, updateList, deleteList } from '../controllers/listController.js';
 import { createCard, updateCard, deleteCard } from '../controllers/cardController.js';
+import { getMembers, addMember, updateMemberRole, removeMember } from '../controllers/memberController.js';
 
 
 
@@ -17,6 +18,12 @@ router.get('/', getMyBoards);
 router.get('/:boardId', getBoard); // GET    /api/v1/boards/:boardId
 router.patch('/:boardId', updateBoard);
 router.delete('/:boardId', deleteBoard);
+
+// Members
+router.get('/:boardId/members', getMembers);
+router.post('/:boardId/members', addMember);
+router.patch('/:boardId/members/:userId', updateMemberRole);
+router.delete('/:boardId/members/:userId', removeMember);
 
 // Lists (nested under a board)
 router.post('/:boardId/lists', createList);

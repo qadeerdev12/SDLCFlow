@@ -31,6 +31,7 @@ const io = new Server(httpServer, {
         methods: ['GET', 'POST']
     }
 });
+app.set('io', io);
 
 await connectDB();
 app.use(express.json()); // middleware to parse JSON request bodies into req.body

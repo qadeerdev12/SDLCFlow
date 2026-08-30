@@ -67,6 +67,18 @@ export const boardApi = {
   delete: (boardId, token) =>
     request(`/boards/${boardId}`, { method: 'DELETE', token }),
 
+  getMembers: (boardId, token) =>
+    request(`/boards/${boardId}/members`, { token }),
+
+  addMember: (boardId, email, role, token) =>
+    request(`/boards/${boardId}/members`, { method: 'POST', body: { email, role }, token }),
+
+  updateMemberRole: (boardId, userId, role, token) =>
+    request(`/boards/${boardId}/members/${userId}`, { method: 'PATCH', body: { role }, token }),
+
+  removeMember: (boardId, userId, token) =>
+    request(`/boards/${boardId}/members/${userId}`, { method: 'DELETE', token }),
+
   createList: (boardId, title, position, token) =>
     request(`/boards/${boardId}/lists`, { method: 'POST', body: { title, position }, token }),
 

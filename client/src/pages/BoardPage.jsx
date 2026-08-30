@@ -23,6 +23,11 @@ import BoardSwitcher from '../components/BoardSwitcher'
 import BoardColumn from '../components/BoardColumn'
 import CardDetailModal from '../components/CardDetailModal'
 import NewBoardModal from '../components/NewBoardModal'
+import MembersPanel from '../components/MembersPanel'
+
+function memberUserId(member) {
+  return member.user?.id || member.user?._id || member.user
+}
 
 export default function BoardPage() {
   const { boardId } = useParams()
@@ -40,8 +45,10 @@ export default function BoardPage() {
   const [activeCard, setActiveCard] = useState(null)  // card being dragged (for overlay)
   const [selectedCard, setSelectedCard] = useState(null)
   const [editingBoard, setEditingBoard] = useState(false)
+  const [managingMembers, setManagingMembers] = useState(false)
   const [presence, setPresence] = useState([])
-  const currentRole = board?.members?.find((m) => String(m.user) === String(user?.id))?.role
+  const [members, setMembers] = useState([])
+  const currentRole = members.find((m) => String(memberUserId(m)) === String(user?.id))?.role
   const canEditBoard = ['owner', 'admin'].includes(currentRole)
   const canDeleteBoard = currentRole === 'owner'
   const { connected, emitWithAck, onSocketEvent } = useSocket(token)
@@ -76,6 +83,7 @@ export default function BoardPage() {
       }
       for (const id in byList) byList[id].sort((a, b) => a.position - b.position)
       setBoard(res.data.board)
+      setMembers(res.data.board.members || [])
       setLists(sortedLists)
       setCardsByList(byList)
       setError('')
@@ -173,6 +181,18 @@ export default function BoardPage() {
       setSelectedCard((current) => (current?.list === payload.listId ? null : current))
     }
 
+    function onMembersUpdated(payload) {
+      if (payload.boardId !== boardId) return
+      const stillMember = payload.members?.some((member) => String(memberUserId(member)) === String(user?.id))
+      if (!stillMember) {
+        navigate('/dashboard')
+        return
+      }
+
+      setMembers(payload.members || [])
+      setBoard((current) => current ? { ...current, members: payload.members || [] } : current)
+    }
+
     const cleanups = [
       onSocketEvent('presence:update', onPresenceUpdate),
       onSocketEvent('card:created', onCardCreated),
@@ -183,12 +203,13 @@ export default function BoardPage() {
       onSocketEvent('list:updated', onListChanged),
       onSocketEvent('list:moved', onListChanged),
       onSocketEvent('list:deleted', onListDeleted),
+      onSocketEvent('members:updated', onMembersUpdated),
     ]
 
     return () => {
       cleanups.forEach((cleanup) => cleanup())
     }
-  }, [boardId, connected, onSocketEvent])
+  }, [boardId, connected, navigate, onSocketEvent, user?.id])
 
   // --- helpers -------------------------------------------------------------
 
@@ -368,6 +389,24 @@ export default function BoardPage() {
     }
   }
 
+  async function handleAddMember(email, role) {
+    const res = await boardApi.addMember(boardId, email, role, token)
+    setMembers(res.data.members)
+    setBoard((current) => current ? { ...current, members: res.data.members } : current)
+  }
+
+  async function handleChangeMemberRole(memberId, role) {
+    const res = await boardApi.updateMemberRole(boardId, memberId, role, token)
+    setMembers(res.data.members)
+    setBoard((current) => current ? { ...current, members: res.data.members } : current)
+  }
+
+  async function handleRemoveMember(memberId) {
+    const res = await boardApi.removeMember(boardId, memberId, token)
+    setMembers(res.data.members)
+    setBoard((current) => current ? { ...current, members: res.data.members } : current)
+  }
+
   // --- drag & drop ---------------------------------------------------------
 
   function handleDragStart(event) {
@@ -513,6 +552,20 @@ export default function BoardPage() {
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setManagingMembers(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              <div className="flex -space-x-1">
+                {members.slice(0, 3).map((member) => (
+                  <span key={memberUserId(member)} className="grid h-5 w-5 place-items-center rounded-full border border-white bg-zinc-950 text-[9px] font-bold text-white dark:border-zinc-900 dark:bg-white dark:text-zinc-950">
+                    {(member.user?.name || member.user?.email || '?')[0]?.toUpperCase()}
+                  </span>
+                ))}
+              </div>
+              Members
+            </button>
             {(canEditBoard || canDeleteBoard) && (
               <div className="flex gap-2">
                 {canEditBoard && (
@@ -646,6 +699,20 @@ export default function BoardPage() {
           board={board}
           onClose={() => setEditingBoard(false)}
           onCreate={handleUpdateBoard}
+        />
+      )}
+
+      {managingMembers && (
+        <MembersPanel
+          board={board}
+          members={members}
+          presence={presence}
+          currentUserId={user?.id}
+          currentRole={currentRole}
+          onClose={() => setManagingMembers(false)}
+          onAddMember={handleAddMember}
+          onChangeRole={handleChangeMemberRole}
+          onRemoveMember={handleRemoveMember}
         />
       )}
     </div>

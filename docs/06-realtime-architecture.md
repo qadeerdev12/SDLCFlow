@@ -131,6 +131,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | `list:updated` | `{ boardId, list }` | emitted after DB update |
 | `list:moved` | `{ boardId, list }` | emitted after DB update |
 | `list:deleted` | `{ boardId, listId }` | emitted after DB delete |
+| `members:updated` | `{ boardId, members }` | emitted after REST member changes |
 | `board:error` | `{ code, message }` | emitted only when an event was sent without an ack callback |
 
 Broadcasts use `socket.to(roomName(board._id)).emit(...)`, so the sender is excluded. The sender updates its own UI from the ack response.
@@ -182,6 +183,8 @@ Incoming events update local state only when the event belongs to the current `b
 
 On reconnect, the board re-joins its room and re-fetches the full board snapshot. That keeps the UI correct even if events were missed while offline.
 
+Member management currently happens through REST endpoints. Those endpoints broadcast `members:updated` to the board room so open board pages update their members panel and permissions live. If the current user is removed from a board, the client redirects them back to the dashboard.
+
 ---
 
 ## Adding a New Realtime Mutation
@@ -198,6 +201,6 @@ On reconnect, the board re-joins its room and re-fetches the full board snapshot
 
 ## Known Follow-ups
 
-- Add member endpoints and member management UI.
+- Add ownership transfer if boards need multiple owner workflows.
 - Move presence to a shared adapter if the app runs more than one server instance.
 - Add tests for REST/socket permission matrices and cross-board mutation attempts.

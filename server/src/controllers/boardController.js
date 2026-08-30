@@ -72,6 +72,7 @@ export async function getBoard(req, res) {
     const lists = await List.find({ board: board._id }).sort({ position: 1 });
     const cards = await Card.find({ board: board._id }).sort({ position: 1 });
 
+    await board.populate('members.user', 'name email');
     return res.status(200).json({ data: { board, lists, cards } });
   } catch (err) {
     console.error('Get board error:', err.message);
