@@ -7,25 +7,25 @@ const previewColumns = [
     title: 'Backlog',
     count: 8,
     cards: [
-      { title: 'Map project milestones', tag: 'Planning', status: 'Ready', assignee: 'QA', due: 'Aug 31', tone: 'teal' },
-      { title: 'Collect customer notes', tag: 'Research', status: 'Draft', assignee: 'MK', due: 'Sep 2', tone: 'amber' },
-      { title: 'Scope mobile board view', tag: 'Design', status: 'Next', assignee: 'AR', due: 'Sep 4', tone: 'cyan' },
+      { title: 'Map project milestones', tag: 'Planning', status: 'Ready', assignee: 'JS', due: 'Aug 31', tone: 'teal' },
+      { title: 'Collect customer notes', tag: 'Research', status: 'Draft', assignee: 'AL', due: 'Sep 2', tone: 'amber' },
+      { title: 'Scope mobile board view', tag: 'Design', status: 'Next', assignee: 'DK', due: 'Sep 4', tone: 'cyan' },
     ],
   },
   {
     title: 'In Progress',
     count: 3,
     cards: [
-      { title: 'Realtime drag persistence', tag: 'Core', status: 'Today', assignee: 'QA', due: 'Today', tone: 'teal' },
-      { title: 'Dashboard filters', tag: 'UI', status: 'Review', assignee: 'MK', due: 'Sep 1', tone: 'rose' },
+      { title: 'Realtime drag persistence', tag: 'Core', status: 'Today', assignee: 'JS', due: 'Today', tone: 'teal' },
+      { title: 'Dashboard filters', tag: 'UI', status: 'Review', assignee: 'AL', due: 'Sep 1', tone: 'rose' },
     ],
   },
   {
     title: 'Done',
     count: 12,
     cards: [
-      { title: 'Auth and board access', tag: 'API', status: 'Shipped', assignee: 'AR', due: 'Done', tone: 'cyan' },
-      { title: 'List ordering system', tag: 'Core', status: 'Shipped', assignee: 'QA', due: 'Done', tone: 'teal' },
+      { title: 'Auth and board access', tag: 'API', status: 'Shipped', assignee: 'DK', due: 'Done', tone: 'cyan' },
+      { title: 'List ordering system', tag: 'Core', status: 'Shipped', assignee: 'JS', due: 'Done', tone: 'teal' },
     ],
   },
 ]
@@ -76,15 +76,15 @@ const features = [
 const workflow = ['Capture', 'Prioritise', 'Build', 'Review', 'Ship']
 
 const activity = [
-  { person: 'QA', action: 'moved Realtime drag persistence to Review', time: '2m ago' },
-  { person: 'MK', action: 'commented on Dashboard filters', time: '9m ago' },
-  { person: 'AR', action: 'assigned Auth and board access to QA', time: '18m ago' },
+  { person: 'JS', action: 'moved Realtime drag persistence to Review', time: '2m ago' },
+  { person: 'AL', action: 'commented on Dashboard filters', time: '9m ago' },
+  { person: 'DK', action: 'assigned Auth and board access to John Smith', time: '18m ago' },
 ]
 
 const taskHighlights = [
   { label: 'Status', value: 'In Review', tone: 'teal' },
   { label: 'Tag', value: 'Realtime', tone: 'cyan' },
-  { label: 'Assignee', value: 'Qadeer', tone: 'amber' },
+  { label: 'Assignee', value: 'John Smith', tone: 'amber' },
   { label: 'Due date', value: 'Today', tone: 'rose' },
 ]
 
@@ -289,7 +289,7 @@ function HeroBoard() {
           <p className="text-xs text-zinc-500 dark:text-zinc-400">Sprint board · 18 open tasks</p>
         </div>
         <div className="flex -space-x-2">
-          {['QA', 'MK', 'AR'].map((person) => (
+          {['JS', 'AL', 'DK'].map((person) => (
             <span key={person} className="grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-zinc-900 text-[11px] font-semibold text-white dark:border-zinc-900">
               {person}
             </span>
@@ -330,7 +330,7 @@ function HeroBoard() {
       </div>
 
       <div className="landing-cursor absolute right-[34%] top-[42%] hidden rounded-lg bg-zinc-950 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg dark:bg-white dark:text-zinc-950 md:block">
-        Qadeer editing
+        John editing
       </div>
       <div className="absolute bottom-5 left-5 hidden rounded-lg border border-teal-200 bg-white px-3 py-2 text-xs font-semibold text-teal-800 shadow-lg dark:border-teal-500/20 dark:bg-zinc-950 dark:text-teal-300 sm:block">
         3 members online
