@@ -27,7 +27,7 @@ export function createApp({ io } = {}) {
 
   app.get('/', (req, res) => {
     res.json({
-      name: 'CollabBoard API',
+      name: 'SDLCFlow API',
       status: 'ok',
       health: '/health',
       apiBase: '/api/v1',

@@ -1,9 +1,9 @@
 # 06 - Realtime Architecture
 
-**Project:** CollabBoard
+**Project:** SDLCFlow
 **Status:** Implemented foundation
 
-This document explains how CollabBoard's Socket.IO layer works today. It is meant for future maintainers who need to add events, debug sync issues, or extend the board into multi-user project management.
+This document explains how SDLCFlow's Socket.IO layer works today. It is meant for future maintainers who need to add events, debug sync issues, or extend the board into multi-user project management.
 
 ---
 

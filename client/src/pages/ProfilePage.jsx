@@ -206,7 +206,7 @@ export default function ProfilePage() {
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Workspace footprint</p>
             <h2 className="mt-4 text-lg font-semibold">Your project context in one place.</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
-              These stats help you see how much of CollabBoard is yours, shared, or actively assigned to you.
+              These stats help you see how much of SDLCFlow is yours, shared, or actively assigned to you.
             </p>
           </aside>
         </section>

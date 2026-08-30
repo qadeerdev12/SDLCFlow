@@ -1,6 +1,6 @@
 # 04 — API Specification
 
-**Project:** CollabBoard
+**Project:** SDLCFlow
 **Status:** Draft v1.0
 
 Defines the contract between client and server: the REST API (request/response work) and the Socket.IO event protocol (live updates). Building to this contract first means the front-end and back-end can be developed against a shared, stable interface.

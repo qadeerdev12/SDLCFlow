@@ -1,6 +1,6 @@
-# CollabBoard
+# SDLCFlow
 
-CollabBoard is a real-time project management board for planning and shipping work with a focused Jira-style workflow.
+SDLCFlow is a real-time project management board for planning and shipping work with a focused Jira-style workflow.
 
 The app currently supports:
 

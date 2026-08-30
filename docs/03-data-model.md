@@ -1,6 +1,6 @@
 # 03 — Data Model
 
-**Project:** CollabBoard
+**Project:** SDLCFlow
 **Database:** MongoDB (Mongoose)
 **Status:** Draft v1.0
 

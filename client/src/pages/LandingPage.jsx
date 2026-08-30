@@ -114,7 +114,7 @@ export default function LandingPage() {
               Bring your projects into one live board.
             </h1>
             <p className="landing-rise landing-delay-2 mt-5 text-lg leading-8 text-zinc-600 dark:text-zinc-300">
-              CollabBoard gives you a focused Jira-style workspace for planning, prioritising, and shipping the projects you are building now.
+              SDLCFlow gives you a focused Jira-style workspace for planning, prioritising, and shipping the projects you are building now.
             </p>
             <div className="landing-rise landing-delay-3 mt-8 flex flex-wrap gap-3">
               <Link to="/register" className="landing-button rounded-lg bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500">
@@ -181,7 +181,7 @@ export default function LandingPage() {
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Realtime collaboration</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">See momentum as it happens.</h2>
               <p className="mt-4 text-sm leading-6 text-zinc-300">
-                CollabBoard is designed around shared state: cards move, boards update, and collaborators stay oriented without refreshing or asking what changed.
+                SDLCFlow is designed around shared state: cards move, boards update, and collaborators stay oriented without refreshing or asking what changed.
               </p>
               <div className="mt-8 grid grid-cols-3 gap-3">
                 <StatDark value="3" label="active members" />

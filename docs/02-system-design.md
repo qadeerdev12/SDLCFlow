@@ -1,6 +1,6 @@
 # 02 — System Design
 
-**Project:** CollabBoard
+**Project:** SDLCFlow
 **Status:** Draft v1.0
 
 This document captures the architecture and the design decisions that matter. It is deliberately honest about constraints: the goal is a well-reasoned MVP, **not** a production-perfect distributed system. Where something is simplified for MVP, the "what we'd do at scale" version is noted so the trade-off is explicit.
@@ -9,7 +9,7 @@ This document captures the architecture and the design decisions that matter. It
 
 ## 1. Architecture overview
 
-CollabBoard is a three-tier app: a React client, a Node API server that exposes **both** a REST API and a Socket.IO server, and a MongoDB database.
+SDLCFlow is a three-tier app: a React client, a Node API server that exposes **both** a REST API and a Socket.IO server, and a MongoDB database.
 
 ```mermaid
 flowchart TB

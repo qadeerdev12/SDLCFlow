@@ -1,6 +1,6 @@
 # 05 — Sprint Plan & SDLC
 
-**Project:** CollabBoard
+**Project:** SDLCFlow
 **Status:** Draft v1.0
 **Cadence:** 1-week sprints, part-time (~6–10 hrs/sprint) alongside certification study
 
@@ -12,7 +12,7 @@ A lightweight **Scrum-flavoured** process adapted for a solo developer. The poin
 
 - **Sprints:** 1 week each. Short cycles force small, shippable increments.
 - **Backlog:** the user stories from the PRD, broken into tasks.
-- **Board:** CollabBoard tracks its own development (use Trello/GitHub Projects until CollabBoard can dogfood itself).
+- **Board:** SDLCFlow tracks its own development (use Trello/GitHub Projects until SDLCFlow can dogfood itself).
 - **Solo ceremonies:**
   - *Planning* (15 min, start of sprint): pick the sprint goal + tasks.
   - *Review* (10 min, end): demo the increment to yourself; record a clip if it's demo-worthy.

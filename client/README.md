@@ -1,6 +1,6 @@
-# CollabBoard Client
+# SDLCFlow Client
 
-React + Vite front end for CollabBoard.
+React + Vite front end for SDLCFlow.
 
 The client is responsible for:
 

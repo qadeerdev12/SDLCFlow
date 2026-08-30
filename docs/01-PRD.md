@@ -1,6 +1,6 @@
 # 01 — Product Requirements Document (PRD)
 
-**Project:** CollabBoard
+**Project:** SDLCFlow
 **Status:** Draft v1.0
 **Owner:** Qadeer Afzal
 
@@ -8,10 +8,10 @@
 
 ## 1. Overview
 
-CollabBoard is a real-time collaborative Kanban board. Teams create boards, organise work into lists and cards, and see each other's changes instantly. It is built primarily as a portfolio piece to demonstrate real-time systems, authorization, and data modelling — so the engineering reasoning is treated as a first-class deliverable, not just the feature set.
+SDLCFlow is a real-time collaborative Kanban board. Teams create boards, organise work into lists and cards, and see each other's changes instantly. It is built primarily as a portfolio piece to demonstrate real-time systems, authorization, and data modelling — so the engineering reasoning is treated as a first-class deliverable, not just the feature set.
 
 ### Problem statement
-Small teams need a shared, live view of work in progress. A page-refresh-to-see-changes app breaks the collaborative experience. CollabBoard solves the narrow problem of **keeping every viewer's board in sync in real time**, with appropriate access controls.
+Small teams need a shared, live view of work in progress. A page-refresh-to-see-changes app breaks the collaborative experience. SDLCFlow solves the narrow problem of **keeping every viewer's board in sync in real time**, with appropriate access controls.
 
 ---
 

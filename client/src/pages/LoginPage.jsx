@@ -36,7 +36,7 @@ export default function LoginPage() {
         </Link>
         <div className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Welcome back</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-100">Log in to CollabBoard</h1>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-100">Log in to SDLCFlow</h1>
           <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">Return to your project boards and keep the work moving.</p>
         </div>
 
