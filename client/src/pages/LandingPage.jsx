@@ -125,10 +125,10 @@ export default function LandingPage() {
       </nav>
 
       <main>
-        <section className="relative mx-auto grid min-h-[calc(100vh-66px)] max-w-7xl items-center gap-10 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[0.86fr_1.14fr]">
+        <section className="relative mx-auto grid min-h-[calc(100vh-66px)] max-w-[92rem] items-center gap-10 px-5 pb-16 pt-10 sm:px-8 xl:grid-cols-[0.68fr_1.32fr] xl:gap-12">
           <div className="landing-grid" />
 
-          <div className="relative z-10 max-w-xl">
+          <div className="relative z-10 max-w-xl xl:max-w-lg">
             <p className="landing-rise mb-4 inline-flex rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300">
               Project command center
             </p>
@@ -287,7 +287,7 @@ export default function LandingPage() {
 
 function HeroBoard() {
   return (
-    <div className="landing-board relative z-10 min-w-0 rounded-xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-300/40 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40">
+    <div className="landing-board relative z-10 min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-300/40 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40">
       <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
         <div>
           <p className="text-sm font-semibold text-zinc-950 dark:text-white">Product rebuild</p>
@@ -302,10 +302,10 @@ function HeroBoard() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="grid gap-3 p-4 md:grid-cols-3">
           {previewColumns.map((column, columnIndex) => (
-            <div key={column.title} className="min-h-[380px] rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+            <div key={column.title} className="min-h-[420px] rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-600 dark:text-zinc-300">{column.title}</h2>
                 <span className="rounded-md bg-white px-2 py-0.5 text-xs text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
@@ -335,7 +335,7 @@ function HeroBoard() {
           ))}
         </div>
 
-        <div className="hidden min-h-[412px] flex-col border-l border-zinc-200 bg-white text-xs dark:border-zinc-800 dark:bg-zinc-950 lg:flex">
+        <div className="hidden min-h-[452px] flex-col border-l border-zinc-200 bg-white text-xs dark:border-zinc-800 dark:bg-zinc-950 lg:flex">
           <LandingChatPreview />
         </div>
       </div>
