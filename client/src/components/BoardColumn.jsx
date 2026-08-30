@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useDroppable } from '@dnd-kit/core'
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import SortableCard from './SortableCard'
@@ -28,6 +29,10 @@ export default function BoardColumn({
     transition,
     isDragging,
   } = useSortable({ id: list._id, data: { type: 'list' }, animateLayoutChanges: noLayoutAnimation })
+  const { setNodeRef: setCardDropRef, isOver: isCardDropOver } = useDroppable({
+    id: `card-drop-${list._id}`,
+    data: { type: 'card-container', listId: list._id },
+  })
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -126,7 +131,10 @@ export default function BoardColumn({
       </div>
 
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-        <div className="flex min-h-[80px] flex-1 flex-col gap-2 overflow-y-auto p-2">
+        <div
+          ref={setCardDropRef}
+          className={`flex min-h-[80px] flex-1 flex-col gap-2 overflow-y-auto p-2 transition ${isCardDropOver ? 'bg-teal-500/5' : ''}`}
+        >
           {cards.map((card) => (
             <SortableCard key={card._id} card={card} onOpen={onCardOpen} />
           ))}

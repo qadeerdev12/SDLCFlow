@@ -7,6 +7,7 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  pointerWithin,
 } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -205,6 +206,21 @@ export default function BoardPage() {
     // leaves room for a future "open card" click handler.
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   )
+  const collisionDetection = useCallback((args) => {
+    if (args.active.data.current?.type !== 'card') return closestCorners(args)
+
+    const pointerHits = pointerWithin(args)
+    if (pointerHits.length === 0) return closestCorners(args)
+
+    const getDropType = (id) => args.droppableContainers.find((container) => container.id === id)?.data.current?.type
+    const cardHit = pointerHits.find((hit) => getDropType(hit.id) === 'card')
+    if (cardHit) return [cardHit]
+
+    const cardContainerHit = pointerHits.find((hit) => getDropType(hit.id) === 'card-container')
+    if (cardContainerHit) return [cardContainerHit]
+
+    return pointerHits
+  }, [])
 
   const loadBoard = useCallback(async ({ keepLoading = false } = {}) => {
     try {
@@ -462,6 +478,15 @@ export default function BoardPage() {
       if (map[listId].some((c) => c._id === cardId)) return listId
     }
     return null
+  }
+
+  function listIdFromDropTarget(over) {
+    if (!over) return null
+
+    const overType = over.data.current?.type
+    if (overType === 'card') return over.data.current.listId ?? findCardListId(over.id)
+    if (overType === 'card-container') return over.data.current.listId
+    return over.id
   }
 
   function takeSnapshot() {
@@ -799,8 +824,7 @@ export default function BoardPage() {
 
     const activeId = active.id
     const fromList = findCardListId(activeId)
-    const overType = over.data.current?.type
-    const toList = overType === 'card' ? (over.data.current.listId ?? findCardListId(over.id)) : over.id
+    const toList = listIdFromDropTarget(over)
     if (!fromList || !toList || fromList === toList) return
 
     setCardsByList((prev) => {
@@ -811,7 +835,7 @@ export default function BoardPage() {
       const [moving] = fromArr.splice(movingIdx, 1)
       const moved = { ...moving, list: toList }
       let insertAt = toArr.length
-      if (overType === 'card') {
+      if (over.data.current?.type === 'card') {
         const overIdx = toArr.findIndex((c) => c._id === over.id)
         insertAt = overIdx === -1 ? toArr.length : overIdx
       }
@@ -862,31 +886,52 @@ export default function BoardPage() {
 
   function finishCardDrag(active, over) {
     const activeId = active.id
-    const container = findCardListId(activeId)
-    if (!container) return
+    const originContainer = findCardListId(activeId)
+    const targetContainer = listIdFromDropTarget(over) || originContainer
+    if (!originContainer || !targetContainer) return
 
-    const arr = [...cardsRef.current[container]]
+    let arr = [...(cardsRef.current[targetContainer] || [])]
+    let sourceWithoutMoving = null
+    if (originContainer !== targetContainer) {
+      const originArr = [...(cardsRef.current[originContainer] || [])]
+      const moving = originArr.find((c) => c._id === activeId)
+      if (!moving) return
+
+      sourceWithoutMoving = originArr.filter((c) => c._id !== activeId)
+      arr = arr.filter((c) => c._id !== activeId)
+      let insertAt = arr.length
+      if (over.data.current?.type === 'card') {
+        const overIdx = arr.findIndex((c) => c._id === over.id)
+        insertAt = overIdx === -1 ? arr.length : overIdx
+      }
+      arr.splice(insertAt, 0, { ...moving, list: targetContainer })
+    }
+
     const oldIndex = arr.findIndex((c) => c._id === activeId)
     let newIndex = oldIndex
-    if (over.data.current?.type === 'card') {
+    if (originContainer === targetContainer && over.data.current?.type === 'card') {
       const overIdx = arr.findIndex((c) => c._id === over.id)
       if (overIdx !== -1) newIndex = overIdx
     }
 
     const origin = dragOriginRef.current
-    const unchanged = origin?.type === 'card' && origin.listId === container && origin.index === newIndex
+    const unchanged = origin?.type === 'card' && origin.listId === targetContainer && origin.index === newIndex
     if (unchanged) return  // nothing actually moved — skip the write
 
     const finalArr = oldIndex === newIndex ? arr : arrayMove(arr, oldIndex, newIndex)
     const finalIndex = finalArr.findIndex((c) => c._id === activeId)
     const position = positionForIndex(finalArr, finalIndex)
-    const withPos = finalArr.map((c) => (c._id === activeId ? { ...c, list: container, position } : c))
-    setCardsByList((prev) => ({ ...prev, [container]: withPos }))
+    const withPos = finalArr.map((c) => (c._id === activeId ? { ...c, list: targetContainer, position } : c))
+    setCardsByList((prev) => {
+      const next = { ...prev, [targetContainer]: withPos }
+      if (sourceWithoutMoving) next[originContainer] = sourceWithoutMoving
+      return next
+    })
 
     realtimeOrRest(
       'card:move',
-      { boardId, cardId: activeId, position, list: container },
-      async () => (await boardApi.updateCard(boardId, activeId, { position, list: container }, token)).data
+      { boardId, cardId: activeId, position, list: targetContainer },
+      async () => (await boardApi.updateCard(boardId, activeId, { position, list: targetContainer }, token)).data
     )
       .then((data) => prependActivity(data.activity))
       .catch(() => {
@@ -1131,7 +1176,7 @@ export default function BoardPage() {
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
