@@ -13,6 +13,7 @@ import {
   deleteList,
 } from './services/boardMutationService.js';
 import { recordActivity } from './services/activityService.js';
+import { createBoardMessage } from './services/chatService.js';
 
 const presenceByBoard = new Map();
 const presenceTimers = new Map();
@@ -328,6 +329,21 @@ export function configureSockets(io) {
         comment,
       });
       return { comment, activity };
+    });
+
+    registerMutation(socket, 'message:create', async ({ boardId, body }) => {
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
+      const message = await createBoardMessage({
+        boardId: board._id,
+        senderId: socket.data.user._id,
+        body,
+      });
+
+      socket.to(roomName(board._id)).emit('message:created', {
+        boardId: board._id.toString(),
+        message,
+      });
+      return { message };
     });
 
     registerMutation(socket, 'list:create', async ({ boardId, title, position }) => {

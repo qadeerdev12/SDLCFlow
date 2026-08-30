@@ -3,6 +3,7 @@ import Board from '../models/Board.js';
 import List from '../models/List.js';
 import Card from '../models/Card.js';
 import Comment from '../models/Comment.js';
+import Message from '../models/Message.js';
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
 
@@ -147,6 +148,7 @@ export async function deleteBoard(req, res) {
 
     await Card.deleteMany({ board: board._id });
     await Comment.deleteMany({ board: board._id });
+    await Message.deleteMany({ board: board._id });
     await List.deleteMany({ board: board._id });
     await Board.deleteOne({ _id: board._id });
 

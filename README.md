@@ -58,8 +58,8 @@ instead of renumbering the column.
 ### Live collaboration, not polling
 
 Open the same board in two browsers and the second one keeps up. Card and list
-creates, edits, moves, deletes, and comments all travel over Socket.IO, and the
-header shows who else is currently looking at the board.
+creates, edits, moves, deletes, comments, and board chat messages all travel over
+Socket.IO, and the header shows who else is currently looking at the board.
 
 The handshake is where authorisation starts, not where it is bolted on:
 
@@ -137,6 +137,13 @@ across every board you belong to at `/activity`.
 <img src="docs/screenshots/activity.png" width="880" alt="The board activity panel listing recent comments, card updates and card creations with actor names and timestamps">
 
 </div>
+
+### Board chat for project conversation
+
+Every board has its own realtime chat drawer. Messages are persisted to MongoDB,
+loaded over REST when the drawer opens, and sent over Socket.IO when connected
+with REST fallback when the socket is unavailable. Only board members can read or
+send messages.
 
 ### Search, filters, and a dark mode that isn't an afterthought
 
@@ -237,11 +244,11 @@ members panel, and drag a card — that is the whole feature in one gesture.
 cd server && npm test
 ```
 
-Eleven integration tests run against an in-memory MongoDB and a real Socket.IO
+Twelve integration tests run against an in-memory MongoDB and a real Socket.IO
 server — no mocks standing in for the parts most likely to be wrong. They cover
 the permission matrix above, the handshake rejecting invalid JWTs, membership
 being checked before a room join, broadcasts reaching collaborators while acking
-the sender, assignee validation, comment scoping, and account deletion.
+the sender, assignee validation, comment/chat scoping, and account deletion.
 
 Client checks:
 
@@ -263,9 +270,9 @@ client/src/
 
 server/src/
   controllers/  REST handlers
-  services/     shared mutation + activity logic (REST and sockets both use this)
-  socket.js     handshake auth, rooms, presence, board events
-  models/       User, Board, List, Card, Comment, Activity
+  services/     shared mutation, chat and activity logic
+  socket.js     handshake auth, rooms, presence, board events, chat events
+  models/       User, Board, List, Card, Comment, Message, Activity
   utils/        board access and role resolution
 ```
 
@@ -312,4 +319,3 @@ intended hosts and the environment variables above are already wired for them.
 ## Licence
 
 MIT
-

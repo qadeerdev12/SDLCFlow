@@ -21,12 +21,15 @@ async function request(endpoint, {method = 'GET', body, token } = {}) {
     }
 
     const res = await fetch(`${BASE_URL}${endpoint}`, config);
-    const data = await res.json(); // parse the JSON response into a JS object
+    const contentType = res.headers.get('content-type') || '';
+    const data = contentType.includes('application/json')
+        ? await res.json()
+        : { error: { message: `Request failed with status ${res.status}` } };
 
     // Our Server returns {error: {code, message}} with a non-2xx status on failure.
     if (!res.ok) {
         // Surface the server's message so the UI can show it.
-        throw new Error(data?.error?.message || 'Something went wrong');
+        throw new Error(data?.error?.message || `Request failed with status ${res.status}`);
     }
 
     return data;
@@ -98,6 +101,12 @@ export const boardApi = {
 
   getActivities: (boardId, token) =>
     request(`/boards/${boardId}/activities`, { token }),
+
+  getMessages: (boardId, token) =>
+    request(`/boards/${boardId}/messages`, { token }),
+
+  createMessage: (boardId, body, token) =>
+    request(`/boards/${boardId}/messages`, { method: 'POST', body: { body }, token }),
 
   addMember: (boardId, email, role, token) =>
     request(`/boards/${boardId}/members`, { method: 'POST', body: { email, role }, token }),

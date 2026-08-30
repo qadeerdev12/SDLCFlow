@@ -7,6 +7,7 @@ import { createCard, updateCard, deleteCard } from '../controllers/cardControlle
 import { getMembers, addMember, updateMemberRole, removeMember } from '../controllers/memberController.js';
 import { getActivities } from '../controllers/activityController.js';
 import { getCardComments, createCardComment } from '../controllers/commentController.js';
+import { getBoardMessages, createBoardChatMessage } from '../controllers/messageController.js';
 
 
 
@@ -29,6 +30,10 @@ router.delete('/:boardId/members/:userId', removeMember);
 
 // Activity
 router.get('/:boardId/activities', getActivities);
+
+// Board chat
+router.get('/:boardId/messages', getBoardMessages);
+router.post('/:boardId/messages', createBoardChatMessage);
 
 // Lists (nested under a board)
 router.post('/:boardId/lists', createList);

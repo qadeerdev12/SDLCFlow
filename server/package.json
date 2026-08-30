@@ -7,7 +7,7 @@
   "scripts": {
     "test": "vitest run",
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon --watch src src/index.js"
   },
   "keywords": [],
   "author": "",

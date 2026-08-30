@@ -27,8 +27,10 @@ This document explains how SDLCFlow's Socket.IO layer works today. It is meant f
 | `server/src/socket.js` | JWT socket auth, `board:join`, presence tracking, card/list realtime events |
 | `server/src/services/boardMutationService.js` | Shared card/list write logic used by both REST controllers and socket handlers |
 | `server/src/services/activityService.js` | Shared board activity logging and realtime activity broadcast |
+| `server/src/services/chatService.js` | Shared board chat message validation and persistence |
 | `server/src/controllers/cardController.js` | REST card endpoints, delegated to the shared mutation service |
 | `server/src/controllers/listController.js` | REST list endpoints, delegated to the shared mutation service |
+| `server/src/controllers/messageController.js` | REST board chat history and message creation |
 | `client/src/hooks/useSocket.js` | Socket.IO client lifecycle, ack-based emits, event subscription helper |
 | `client/src/pages/BoardPage.jsx` | Joins board rooms, applies incoming events, emits local card/list mutations |
 
@@ -116,6 +118,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | `card:move` | `{ boardId, cardId, list, position }` | `{ card, activity }` |
 | `card:delete` | `{ boardId, cardId }` | `{ deleted: true, activity }` |
 | `comment:create` | `{ boardId, cardId, body }` | `{ comment, activity }` |
+| `message:create` | `{ boardId, body }` | `{ message }` |
 | `list:create` | `{ boardId, title, position }` | `{ list, activity }` |
 | `list:update` | `{ boardId, listId, updates }` | `{ list, activity }` |
 | `list:move` | `{ boardId, listId, position }` | `{ list, activity }` |
@@ -131,6 +134,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | `card:moved` | `{ boardId, card }` | emitted after DB update |
 | `card:deleted` | `{ boardId, cardId }` | emitted after DB delete |
 | `comment:created` | `{ boardId, cardId, comment }` | emitted after DB create |
+| `message:created` | `{ boardId, message }` | emitted after DB create |
 | `list:created` | `{ boardId, list }` | emitted after DB create |
 | `list:updated` | `{ boardId, list }` | emitted after DB update |
 | `list:moved` | `{ boardId, list }` | emitted after DB update |
@@ -147,7 +151,7 @@ Card mutation payloads share the REST validation path. `updates.assignee` must b
 
 ## Persistence Rule
 
-Every mutation follows this order:
+Every board work mutation follows this order:
 
 1. Verify the required board role.
 2. Call the shared mutation service.
@@ -157,6 +161,9 @@ Every mutation follows this order:
 6. Broadcast the persisted document and activity to the rest of the room.
 
 If persistence fails, the server returns a negative ack and does not broadcast.
+
+Chat messages follow the same persist-then-broadcast rule, but they do not record
+activity because chat is conversational rather than an audit event.
 
 ---
 
@@ -194,6 +201,8 @@ On reconnect, the board re-joins its room and re-fetches the full board snapshot
 Member management currently happens through REST endpoints. Those endpoints broadcast `members:updated` to the board room so open board pages update their members panel and permissions live. If the current user is removed from a board, the client redirects them back to the dashboard.
 
 Activity is fetched over REST on board load and then updated by `activity:created` socket events. Socket mutation senders receive activity in the ack response, while collaborators receive it through the board room broadcast.
+
+Board chat history is fetched over REST when the chat drawer opens. New messages use the same socket-first/fallback-to-REST pattern as board mutations. Chat messages are persisted and broadcast as `message:created`, but they are intentionally not recorded in the board activity log.
 
 ---
 

@@ -14,6 +14,7 @@ import List from '../models/List.js';
 import User from '../models/User.js';
 import Activity from '../models/Activity.js';
 import Comment from '../models/Comment.js';
+import Message from '../models/Message.js';
 
 let mongo;
 
@@ -32,6 +33,7 @@ afterEach(async () => {
     User.deleteMany({}),
     Activity.deleteMany({}),
     Comment.deleteMany({}),
+    Message.deleteMany({}),
   ]);
 });
 
@@ -282,6 +284,50 @@ describe.sequential('REST board permissions', () => {
     await expect(Comment.countDocuments({ board: board._id })).resolves.toBe(1);
   });
 
+  it('keeps board chat private to members and persists messages', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const member = await register(app, 'Member', 'member@example.com');
+    const outsider = await register(app, 'Outsider', 'outsider@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    await addMember(app, owner.token, board._id, member.user.email, 'member');
+
+    await request(app)
+      .get(`/api/v1/boards/${board._id}/messages`)
+      .set('Authorization', `Bearer ${outsider.token}`)
+      .expect(404);
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/messages`)
+      .set('Authorization', `Bearer ${outsider.token}`)
+      .send({ body: 'No access' })
+      .expect(404);
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/messages`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .send({ body: '' })
+      .expect(400);
+
+    const created = await request(app)
+      .post(`/api/v1/boards/${board._id}/messages`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .send({ body: 'Can someone review the API task?' })
+      .expect(201);
+
+    expect(created.body.data.message.body).toBe('Can someone review the API task?');
+    expect(created.body.data.message.sender._id).toBe(member.user.id);
+
+    const messages = await request(app)
+      .get(`/api/v1/boards/${board._id}/messages`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+
+    expect(messages.body.data.messages).toHaveLength(1);
+    expect(messages.body.data.messages[0].body).toBe('Can someone review the API task?');
+    await expect(Message.countDocuments({ board: board._id })).resolves.toBe(1);
+  });
+
   it('loads profile stats and deletes an account with related personal data', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');
@@ -308,6 +354,11 @@ describe.sequential('REST board permissions', () => {
       .set('Authorization', `Bearer ${user.token}`)
       .send({ body: 'Leaving a note before account deletion.' })
       .expect(201);
+    await request(app)
+      .post(`/api/v1/boards/${sharedBoard._id}/messages`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ body: 'Shared board chat before account deletion.' })
+      .expect(201);
 
     const profile = await request(app)
       .get('/api/v1/auth/profile')
@@ -319,6 +370,7 @@ describe.sequential('REST board permissions', () => {
     expect(profile.body.data.stats.ownedBoards).toBe(1);
     expect(profile.body.data.stats.assignedCards).toBe(1);
     expect(profile.body.data.stats.comments).toBe(1);
+    await expect(Message.countDocuments({ sender: user.user.id })).resolves.toBe(1);
 
     await request(app)
       .delete('/api/v1/auth/me')
@@ -337,6 +389,7 @@ describe.sequential('REST board permissions', () => {
     await expect(List.countDocuments({ board: ownedBoard._id })).resolves.toBe(0);
     await expect(Card.countDocuments({ board: ownedBoard._id })).resolves.toBe(0);
     await expect(Comment.countDocuments({ author: user.user.id })).resolves.toBe(0);
+    await expect(Message.countDocuments({ sender: user.user.id })).resolves.toBe(0);
     await expect(Activity.countDocuments({ actor: user.user.id })).resolves.toBe(0);
 
     const remainingBoard = await Board.findById(sharedBoard._id);
@@ -516,6 +569,21 @@ describe.sequential('Socket.IO board permissions', () => {
     expect(commentPayload.comment._id.toString()).toBe(commentAck.data.comment._id.toString());
     expect(commentActivityPayload.activity.action).toBe('comment.created');
     await expect(Comment.countDocuments({ board: board._id })).resolves.toBe(1);
+
+    const messageBroadcast = new Promise((resolve) => {
+      collaboratorSocket.once('message:created', resolve);
+    });
+    const messageAck = await emitWithAck(ownerSocket, 'message:create', {
+      boardId: board._id,
+      body: 'Realtime chat is working.',
+    });
+
+    expect(messageAck.ok).toBe(true);
+    expect(messageAck.data.message.body).toBe('Realtime chat is working.');
+    const messagePayload = await messageBroadcast;
+    expect(messagePayload.boardId).toBe(board._id.toString());
+    expect(messagePayload.message._id.toString()).toBe(messageAck.data.message._id.toString());
+    await expect(Message.countDocuments({ board: board._id })).resolves.toBe(1);
 
     ownerSocket.disconnect();
     collaboratorSocket.disconnect();

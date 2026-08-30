@@ -6,6 +6,7 @@ import List from "../models/List.js";
 import Card from "../models/Card.js";
 import Comment from "../models/Comment.js";
 import Activity from "../models/Activity.js";
+import Message from "../models/Message.js";
 
 //Helper: create a signed JWT carrying the user's id.
 // The token is signed with our secret so it can't be forged.
@@ -296,6 +297,7 @@ export async function deleteAccount(req, res) {
         // them keeps private project data from becoming orphaned after account removal.
         await Promise.all([
             Comment.deleteMany({ board: { $in: ownedBoardIds } }),
+            Message.deleteMany({ board: { $in: ownedBoardIds } }),
             Card.deleteMany({ board: { $in: ownedBoardIds } }),
             List.deleteMany({ board: { $in: ownedBoardIds } }),
             Activity.deleteMany({ board: { $in: ownedBoardIds } }),
@@ -313,6 +315,7 @@ export async function deleteAccount(req, res) {
                 { $set: { assignee: null } }
             ),
             Comment.deleteMany({ author: user._id }),
+            Message.deleteMany({ sender: user._id }),
             Activity.deleteMany({ actor: user._id }),
             User.deleteOne({ _id: user._id }),
         ]);

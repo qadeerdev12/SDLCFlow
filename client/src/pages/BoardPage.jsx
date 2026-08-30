@@ -27,6 +27,7 @@ import CardDetailModal from '../components/CardDetailModal'
 import NewBoardModal from '../components/NewBoardModal'
 import MembersPanel from '../components/MembersPanel'
 import ActivityPanel from '../components/ActivityPanel'
+import ChatPanel from '../components/ChatPanel'
 
 function memberUserId(member) {
   return member.user?.id || member.user?._id || member.user
@@ -145,6 +146,10 @@ export default function BoardPage() {
   const [activities, setActivities] = useState([])
   const [activityLoading, setActivityLoading] = useState(false)
   const [activityError, setActivityError] = useState('')
+  const [messages, setMessages] = useState([])
+  const [messagesLoaded, setMessagesLoaded] = useState(false)
+  const [messagesLoading, setMessagesLoading] = useState(false)
+  const [messagesError, setMessagesError] = useState('')
   const [cardSearch, setCardSearch] = useState('')
   const [tagFilter, setTagFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -159,6 +164,7 @@ export default function BoardPage() {
   )
   const filtersActive = Boolean(cardSearch.trim()) || tagFilter !== 'all' || statusFilter !== 'all'
   const activityPanelOpen = searchParams.get('panel') === 'activity'
+  const chatPanelOpen = searchParams.get('panel') === 'chat'
   const visibleCardsByList = useMemo(() => {
     const query = cardSearch.trim().toLowerCase()
     const next = {}
@@ -236,6 +242,20 @@ export default function BoardPage() {
     }
   }, [boardId, token])
 
+  const loadMessages = useCallback(async () => {
+    try {
+      setMessagesLoading(true)
+      setMessagesError('')
+      const res = await boardApi.getMessages(boardId, token)
+      setMessages(res.data.messages || [])
+      setMessagesLoaded(true)
+    } catch (err) {
+      setMessagesError(err.message)
+    } finally {
+      setMessagesLoading(false)
+    }
+  }, [boardId, token])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       loadBoard()
@@ -250,6 +270,14 @@ export default function BoardPage() {
     }, 0)
     return () => clearTimeout(timer)
   }, [board, loadActivities])
+
+  useEffect(() => {
+    if (!board || !chatPanelOpen || messagesLoaded) return undefined
+    const timer = setTimeout(() => {
+      loadMessages()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [board, chatPanelOpen, loadMessages, messagesLoaded])
 
   useEffect(() => {
     if (!connected || !boardId) return undefined
@@ -367,6 +395,11 @@ export default function BoardPage() {
       prependActivity(payload.activity)
     }
 
+    function onMessageCreated(payload) {
+      if (payload.boardId !== boardId) return
+      appendMessage(payload.message)
+    }
+
     const cleanups = [
       onSocketEvent('presence:update', onPresenceUpdate),
       onSocketEvent('card:created', onCardCreated),
@@ -379,6 +412,7 @@ export default function BoardPage() {
       onSocketEvent('list:deleted', onListDeleted),
       onSocketEvent('members:updated', onMembersUpdated),
       onSocketEvent('activity:created', onActivityCreated),
+      onSocketEvent('message:created', onMessageCreated),
     ]
 
     return () => {
@@ -449,7 +483,31 @@ export default function BoardPage() {
     })
   }
 
+  function appendMessage(message) {
+    if (!message?._id) return
+    setMessages((prev) => {
+      if (prev.some((item) => item._id === message._id)) return prev
+      return [...prev, message].slice(-100)
+    })
+  }
+
   function closeActivityPanel() {
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params)
+      next.delete('panel')
+      return next
+    })
+  }
+
+  function openPanel(panel) {
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params)
+      next.set('panel', panel)
+      return next
+    })
+  }
+
+  function closeChatPanel() {
     setSearchParams((params) => {
       const next = new URLSearchParams(params)
       next.delete('panel')
@@ -622,6 +680,21 @@ export default function BoardPage() {
     setBoard((current) => current ? { ...current, members: res.data.members } : current)
     prependActivity(res.data.activity)
     toast.success('Member removed')
+  }
+
+  async function handleSendMessage(body) {
+    try {
+      const data = await realtimeOrRest(
+        'message:create',
+        { boardId, body },
+        async () => (await boardApi.createMessage(boardId, body, token)).data
+      )
+      appendMessage(data.message)
+    } catch (err) {
+      setMessagesError(err.message)
+      toast.error('Could not send message', err.message)
+      throw err
+    }
   }
 
   // --- drag & drop ---------------------------------------------------------
@@ -808,6 +881,16 @@ export default function BoardPage() {
               </svg>
               Activity
             </Link>
+            <button
+              type="button"
+              onClick={() => openPanel('chat')}
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+              </svg>
+              Chat
+            </button>
             {(canEditBoard || canDeleteBoard) && (
               <div className="col-span-2 grid grid-cols-[1fr_auto] gap-2 sm:flex">
                 {canEditBoard && (
@@ -1053,6 +1136,20 @@ export default function BoardPage() {
           error={activityError}
           onRetry={loadActivities}
           onClose={closeActivityPanel}
+        />
+      )}
+
+      {chatPanelOpen && (
+        <ChatPanel
+          board={board}
+          messages={messages}
+          loading={messagesLoading}
+          error={messagesError}
+          currentUserId={user?.id}
+          connected={connected}
+          onRetry={loadMessages}
+          onClose={closeChatPanel}
+          onSendMessage={handleSendMessage}
         />
       )}
     </div>

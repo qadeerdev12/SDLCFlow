@@ -30,6 +30,7 @@ erDiagram
     BOARD ||--o{ CARD : scopes
     USER  }o--o{ BOARD : "member of"
     CARD  ||--o{ COMMENT : has
+    BOARD ||--o{ MESSAGE : has
 
     USER {
         ObjectId _id
@@ -55,6 +56,12 @@ erDiagram
         ObjectId list
         string title
         number position
+    }
+    MESSAGE {
+        ObjectId _id
+        ObjectId board
+        ObjectId sender
+        string body
     }
 ```
 
@@ -155,15 +162,37 @@ Membership is **embedded** (small, always read with the board).
   "status": "In Progress",
   "assignee": "u_2",
   "dueDate": "2026-09-02T00:00:00.000Z",
-  "position": 1.5,
+  "position": 1.5
 }
 ```
 
 > **Note:** `card.board` is stored even though the card belongs to a list, because nearly every query and permission check is scoped by board. Denormalising `board` onto the card avoids an extra lookup on the hot path.
 
----
+### 3.5 `messages`
 
-### 3.5 `comments`
+Board chat messages are stored separately from activity. Activity is an audit log
+of product mutations; messages are user conversation and should not flood the
+activity timeline.
+
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | ObjectId | PK |
+| `board` | ObjectId -> Board | required, indexed |
+| `sender` | ObjectId -> User | required |
+| `body` | String | required, trimmed, max 2000 chars |
+| `createdAt` / `updatedAt` | Date | timestamps |
+
+```json
+{
+  "_id": "m_1",
+  "board": "b_1",
+  "sender": "u_2",
+  "body": "Can someone review the API task?",
+  "createdAt": "2026-08-30T10:00:00Z"
+}
+```
+
+### 3.6 `comments`
 
 | Field | Type | Notes |
 |---|---|---|
@@ -176,7 +205,7 @@ Membership is **embedded** (small, always read with the board).
 
 ---
 
-### 3.6 `activities` *(stretch)*
+### 3.7 `activities` *(stretch)*
 Append-only log for the activity feed: `{ board, actor, type, meta, createdAt }`.
 
 ---
@@ -191,10 +220,11 @@ Append-only log for the activity feed: `{ board, actor, type, meta, createdAt }`
 | `cards` | `{ board: 1 }` | scope all card queries to a board |
 | `cards` | `{ list: 1, position: 1 }` | fetch + order a list's cards |
 | `comments` | `{ card: 1, createdAt: 1 }` | load a card's comments in order |
+| `messages` | `{ board: 1, createdAt: -1 }` | load recent board chat history |
 
 ---
 
 ## 5. Data integrity notes
-- Deleting a board cascades: delete its lists, cards, comments, activities (handled in the service layer for MVP; a transaction can wrap this if needed).
+- Deleting a board cascades: delete its lists, cards, comments, messages, and activities (handled in controllers for MVP; a transaction can wrap this if needed).
 - `members[].role` is constrained by a Mongoose enum.
 - All references are validated for board-membership before any mutation (authorization happens in the service layer, not the schema).

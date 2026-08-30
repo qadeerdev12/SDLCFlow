@@ -92,7 +92,16 @@ Member rules:
 
 Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle`, optional `metadata`, and timestamps. The endpoint returns the latest board activity first.
 
-### 2.5 Lists
+### 2.5 Board chat
+
+| Method | Path | Min role | Body | Returns |
+|---|---|---|---|---|
+| GET | `/boards/:boardId/messages` | member | – | `200 { messages }` |
+| POST | `/boards/:boardId/messages` | member | `{ body }` | `201 { message }` |
+
+Messages are scoped to a board and populated with `sender { name, email }`. Chat is stored separately from activity so conversation does not flood the audit timeline.
+
+### 2.6 Lists
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -100,7 +109,7 @@ Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle
 | PATCH | `/boards/:boardId/lists/:listId` | member | `{ title?, position? }` | `200 { list, activity }` |
 | DELETE | `/boards/:boardId/lists/:listId` | member | – | `200 { deleted: true, activity }` |
 
-### 2.6 Cards
+### 2.7 Cards
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -111,7 +120,7 @@ Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle
 > Card **move** = a `PATCH` changing `listId` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
 > `assignee` must be `null`, empty, or a user id that already belongs to the board. `dueDate` accepts an ISO date/date-time string or `null`.
 
-### 2.7 Comments
+### 2.8 Comments
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -157,6 +166,7 @@ Errors use:
 | `card:update` | `{ boardId, cardId, updates }` | verify membership, persist, broadcast | `{ card, activity }` |
 | `card:delete` | `{ boardId, cardId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |
 | `comment:create` | `{ boardId, cardId, body }` | verify membership, persist, broadcast | `{ comment, activity }` |
+| `message:create` | `{ boardId, body }` | verify membership, persist, broadcast | `{ message }` |
 | `list:create` | `{ boardId, title, position }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:move` | `{ boardId, listId, position }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:update` | `{ boardId, listId, updates }` | verify membership, persist, broadcast | `{ list, activity }` |
@@ -171,6 +181,7 @@ Errors use:
 | `card:updated` | `{ boardId, card }` | a card's fields changed |
 | `card:deleted` | `{ boardId, cardId }` | a card was removed |
 | `comment:created` | `{ boardId, cardId, comment }` | a card comment was added |
+| `message:created` | `{ boardId, message }` | a board chat message was added |
 | `list:created` | `{ boardId, list }` | a list was added |
 | `list:moved` | `{ boardId, list }` | a list moved |
 | `list:updated` | `{ boardId, list }` | a list changed |

@@ -9,6 +9,7 @@ The client is responsible for:
 - kanban board UI
 - card search, tag filtering, and status filtering
 - card comment threads
+- board chat drawer with realtime messages
 - card assignee and due date editing
 - global and board-specific activity pages
 - user profile editing, password changes, and account deletion
@@ -17,6 +18,7 @@ The client is responsible for:
 - drag-and-drop with dnd-kit
 - Socket.IO connection lifecycle
 - applying incoming realtime board events
+- applying incoming realtime chat messages
 
 ---
 
@@ -75,6 +77,7 @@ It provides:
 6. re-fetch the full board after reconnect
 7. apply incoming events from other collaborators
 8. append realtime activity events to the board timeline
+9. load and append board chat messages
 
 See `../docs/06-realtime-architecture.md` for the server-side contract.
 
