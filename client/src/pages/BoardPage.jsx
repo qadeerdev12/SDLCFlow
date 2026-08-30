@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   DndContext,
@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { boardApi } from '../lib/api'
+import { useSocket } from '../hooks/useSocket'
 import { positionBetween, positionForIndex } from '../lib/position'
 import Logo from '../components/Logo'
 import BoardSwitcher from '../components/BoardSwitcher'
@@ -39,7 +40,9 @@ export default function BoardPage() {
   const [activeCard, setActiveCard] = useState(null)  // card being dragged (for overlay)
   const [selectedCard, setSelectedCard] = useState(null)
   const [editingBoard, setEditingBoard] = useState(false)
+  const [presence, setPresence] = useState([])
   const canManageBoard = String(board?.owner) === String(user?.id)
+  const { connected, emitWithAck, onSocketEvent } = useSocket(token)
 
   // Refs mirror state so drag handlers always read the freshest value even
   // across the re-renders that onDragOver triggers mid-drag.
@@ -58,29 +61,126 @@ export default function BoardPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   )
 
-  useEffect(() => {
-    async function loadBoard() {
-      try {
-        const res = await boardApi.getOne(boardId, token)
-        const sortedLists = [...res.data.lists].sort((a, b) => a.position - b.position)
-        const byList = {}
-        for (const l of sortedLists) byList[l._id] = []
-        for (const c of res.data.cards) {
-          if (!byList[c.list]) byList[c.list] = []
-          byList[c.list].push(c)
-        }
-        for (const id in byList) byList[id].sort((a, b) => a.position - b.position)
-        setBoard(res.data.board)
-        setLists(sortedLists)
-        setCardsByList(byList)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
+  const loadBoard = useCallback(async ({ keepLoading = false } = {}) => {
+    try {
+      if (!keepLoading) setLoading(true)
+      const res = await boardApi.getOne(boardId, token)
+      const sortedLists = [...res.data.lists].sort((a, b) => a.position - b.position)
+      const byList = {}
+      for (const l of sortedLists) byList[l._id] = []
+      for (const c of res.data.cards) {
+        if (!byList[c.list]) byList[c.list] = []
+        byList[c.list].push(c)
       }
+      for (const id in byList) byList[id].sort((a, b) => a.position - b.position)
+      setBoard(res.data.board)
+      setLists(sortedLists)
+      setCardsByList(byList)
+      setError('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-    loadBoard()
   }, [boardId, token])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadBoard()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [loadBoard])
+
+  useEffect(() => {
+    if (!connected || !boardId) return undefined
+    let cancelled = false
+
+    emitWithAck('board:join', { boardId })
+      .then((data) => {
+        if (!cancelled) setPresence(data.presence || [])
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message)
+      })
+
+    const timer = setTimeout(() => {
+      loadBoard({ keepLoading: true })
+    }, 0)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [boardId, connected, emitWithAck, loadBoard])
+
+  useEffect(() => {
+    if (!connected) return undefined
+
+    function onPresenceUpdate(payload) {
+      if (payload.boardId === boardId) setPresence(payload.users || [])
+    }
+
+    function onCardCreated(payload) {
+      if (payload.boardId !== boardId) return
+      setCardsByList((prev) => ({
+        ...prev,
+        [payload.card.list]: [...(prev[payload.card.list] || []), payload.card].sort((a, b) => a.position - b.position),
+      }))
+    }
+
+    function onCardChanged(payload) {
+      if (payload.boardId !== boardId) return
+      replaceCard(payload.card)
+    }
+
+    function onCardDeleted(payload) {
+      if (payload.boardId !== boardId) return
+      setCardsByList((prev) => {
+        const next = {}
+        for (const listId in prev) next[listId] = prev[listId].filter((card) => card._id !== payload.cardId)
+        return next
+      })
+      setSelectedCard((current) => (current?._id === payload.cardId ? null : current))
+    }
+
+    function onListCreated(payload) {
+      if (payload.boardId !== boardId) return
+      setLists((prev) => [...prev, payload.list].sort((a, b) => a.position - b.position))
+      setCardsByList((prev) => ({ ...prev, [payload.list._id]: prev[payload.list._id] || [] }))
+    }
+
+    function onListChanged(payload) {
+      if (payload.boardId !== boardId) return
+      setLists((prev) => prev.map((list) => (list._id === payload.list._id ? payload.list : list)).sort((a, b) => a.position - b.position))
+    }
+
+    function onListDeleted(payload) {
+      if (payload.boardId !== boardId) return
+      setLists((prev) => prev.filter((list) => list._id !== payload.listId))
+      setCardsByList((prev) => {
+        const next = { ...prev }
+        delete next[payload.listId]
+        return next
+      })
+      setSelectedCard((current) => (current?.list === payload.listId ? null : current))
+    }
+
+    const cleanups = [
+      onSocketEvent('presence:update', onPresenceUpdate),
+      onSocketEvent('card:created', onCardCreated),
+      onSocketEvent('card:updated', onCardChanged),
+      onSocketEvent('card:moved', onCardChanged),
+      onSocketEvent('card:deleted', onCardDeleted),
+      onSocketEvent('list:created', onListCreated),
+      onSocketEvent('list:updated', onListChanged),
+      onSocketEvent('list:moved', onListChanged),
+      onSocketEvent('list:deleted', onListDeleted),
+    ]
+
+    return () => {
+      cleanups.forEach((cleanup) => cleanup())
+    }
+  }, [boardId, connected, onSocketEvent])
 
   // --- helpers -------------------------------------------------------------
 
@@ -111,6 +211,11 @@ export default function BoardPage() {
     setCardDrafts((prev) => ({ ...prev, [listId]: value }))
   }
 
+  async function realtimeOrRest(eventName, payload, restCall) {
+    if (connected) return emitWithAck(eventName, payload)
+    return restCall()
+  }
+
   function replaceCard(updatedCard) {
     setCardsByList((prev) => {
       const next = {}
@@ -120,7 +225,7 @@ export default function BoardPage() {
       next[updatedCard.list] = [...(next[updatedCard.list] || []), updatedCard].sort((a, b) => a.position - b.position)
       return next
     })
-    setSelectedCard(updatedCard)
+    setSelectedCard((current) => (current?._id === updatedCard._id ? updatedCard : current))
   }
 
   function removeCard(card) {
@@ -140,8 +245,12 @@ export default function BoardPage() {
       const listCards = cardsByList[listId] || []
       const last = listCards[listCards.length - 1]
       const position = positionBetween(last?.position, undefined)
-      const res = await boardApi.createCard(boardId, title, listId, position, token)
-      setCardsByList((prev) => ({ ...prev, [listId]: [...(prev[listId] || []), res.data.card] }))
+      const data = await realtimeOrRest(
+        'card:create',
+        { boardId, title, listId, position },
+        async () => (await boardApi.createCard(boardId, title, listId, position, token)).data
+      )
+      setCardsByList((prev) => ({ ...prev, [listId]: [...(prev[listId] || []), data.card] }))
       setDraftForList(listId, '')
     } catch (err) {
       setError(err.message)
@@ -154,9 +263,13 @@ export default function BoardPage() {
     try {
       const last = lists[lists.length - 1]
       const position = positionBetween(last?.position, undefined)
-      const res = await boardApi.createList(boardId, newListTitle, position, token)
-      setLists([...lists, res.data.list])
-      setCardsByList((prev) => ({ ...prev, [res.data.list._id]: [] }))
+      const data = await realtimeOrRest(
+        'list:create',
+        { boardId, title: newListTitle, position },
+        async () => (await boardApi.createList(boardId, newListTitle, position, token)).data
+      )
+      setLists([...lists, data.list])
+      setCardsByList((prev) => ({ ...prev, [data.list._id]: [] }))
       setNewListTitle('')
     } catch (err) {
       setError(err.message)
@@ -174,20 +287,32 @@ export default function BoardPage() {
       payload.position = positionBetween(last?.position, undefined)
     }
 
-    const res = await boardApi.updateCard(boardId, card._id, payload, token)
-    replaceCard(res.data.card)
+    const data = await realtimeOrRest(
+      'card:update',
+      { boardId, cardId: card._id, updates: payload },
+      async () => (await boardApi.updateCard(boardId, card._id, payload, token)).data
+    )
+    replaceCard(data.card)
   }
 
   async function handleDeleteCard(card) {
-    await boardApi.deleteCard(boardId, card._id, token)
+    await realtimeOrRest(
+      'card:delete',
+      { boardId, cardId: card._id },
+      async () => (await boardApi.deleteCard(boardId, card._id, token)).data
+    )
     removeCard(card)
   }
 
   async function handleRenameList(list, title) {
     if (title === list.title) return
     try {
-      const res = await boardApi.updateList(boardId, list._id, { title }, token)
-      setLists((prev) => prev.map((l) => (l._id === list._id ? res.data.list : l)))
+      const data = await realtimeOrRest(
+        'list:update',
+        { boardId, listId: list._id, updates: { title } },
+        async () => (await boardApi.updateList(boardId, list._id, { title }, token)).data
+      )
+      setLists((prev) => prev.map((l) => (l._id === list._id ? data.list : l)))
     } catch (err) {
       setError(err.message)
     }
@@ -200,7 +325,11 @@ export default function BoardPage() {
     if (!confirmed) return
 
     try {
-      await boardApi.deleteList(boardId, list._id, token)
+      await realtimeOrRest(
+        'list:delete',
+        { boardId, listId: list._id },
+        async () => (await boardApi.deleteList(boardId, list._id, token)).data
+      )
       setLists((prev) => prev.filter((l) => l._id !== list._id))
       setCardsByList((prev) => {
         const next = { ...prev }
@@ -301,8 +430,11 @@ export default function BoardPage() {
     const withPos = reordered.map((l) => (l._id === active.id ? { ...l, position } : l))
     setLists(withPos)
 
-    boardApi
-      .updateList(boardId, active.id, { position }, token)
+    realtimeOrRest(
+      'list:move',
+      { boardId, listId: active.id, position },
+      async () => (await boardApi.updateList(boardId, active.id, { position }, token)).data
+    )
       .catch(() => rollback('Could not save list order — reverted.'))
   }
 
@@ -329,8 +461,11 @@ export default function BoardPage() {
     const withPos = finalArr.map((c) => (c._id === activeId ? { ...c, list: container, position } : c))
     setCardsByList((prev) => ({ ...prev, [container]: withPos }))
 
-    boardApi
-      .updateCard(boardId, activeId, { position, list: container }, token)
+    realtimeOrRest(
+      'card:move',
+      { boardId, cardId: activeId, position, list: container },
+      async () => (await boardApi.updateCard(boardId, activeId, { position, list: container }, token)).data
+    )
       .catch(() => rollback('Could not save card move — reverted.'))
   }
 
@@ -356,9 +491,14 @@ export default function BoardPage() {
             <span className="hidden text-zinc-300 dark:text-zinc-700 sm:block">/</span>
             <div className="min-w-0">
               <BoardSwitcher currentBoard={board} />
-              <p className="mt-1 hidden text-xs text-zinc-500 dark:text-zinc-400 sm:block">
-                {lists.length} lists · {Object.values(cardsByList).reduce((sum, cards) => sum + cards.length, 0)} cards · realtime workspace
-              </p>
+              <div className="mt-1 hidden items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:flex">
+                <span>{lists.length} lists · {Object.values(cardsByList).reduce((sum, cards) => sum + cards.length, 0)} cards</span>
+                <span>·</span>
+                <span className={`inline-flex items-center gap-1.5 ${connected ? 'text-teal-700 dark:text-teal-300' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-teal-500' : 'bg-zinc-400'}`} />
+                  {connected ? `${presence.length || 1} online` : 'offline'}
+                </span>
+              </div>
             </div>
           </div>
 

@@ -1,6 +1,16 @@
-// server/src/controllers/CardController.js
-import Card from '../models/Card.js';
 import { getBoardIfMember } from '../utils/boardAccess.js';
+import {
+    createCard as createCardMutation,
+    updateCard as updateCardMutation,
+    deleteCard as deleteCardMutation,
+} from '../services/boardMutationService.js';
+
+function sendMutationError(res, err) {
+    const status = err.statusCode || 500;
+    const code = err.code || 'SERVER';
+    const message = status === 500 ? 'Something went wrong.' : err.message;
+    return res.status(status).json({ error: { code, message } });
+}
 
 // POST /api/v1/boards/:boardId/cards
 export async function createCard(req, res) {
@@ -10,20 +20,11 @@ export async function createCard(req, res) {
         if (!board) {
             return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
         }
-        if (!title || !listId) {
-            return res.status(400).json({ error: { code: 'VALIDATION', message: 'Card title and listId are required.' } });
-        }
-
-        const card = await Card.create({
-            board: board._id,
-            list: listId,          // ← the card belongs to this list
-            title,
-            position: position ?? 1000,
-        });
+        const card = await createCardMutation({ boardId: board._id, title, listId, position });
         return res.status(201).json({ data: { card } });
     } catch (err) {
         console.error('Create card error:', err.message);
-        return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+        return sendMutationError(res, err);
     }
 }
 
@@ -35,26 +36,15 @@ export async function updateCard(req, res) {
             return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
         }
 
-        const { title, description, position, list } = req.body;
-        const updates = {};
-        if (title !== undefined) updates.title = title;
-        if (description !== undefined) updates.description = description;
-        if (position !== undefined) updates.position = position;
-        if (list !== undefined) updates.list = list;
-
-        // Find a card that matches BOTH its id AND this board (prevents cross-board edits).
-        const card = await Card.findOneAndUpdate(
-            { _id: req.params.cardId, board: board._id },
-            updates,
-            { new: true }   // return the updated doc, not the old one
-        );
-        if (!card) {
-            return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Card not found.' } });
-        }
+        const card = await updateCardMutation({
+            boardId: board._id,
+            cardId: req.params.cardId,
+            updates: req.body,
+        });
         return res.status(200).json({ data: { card } });
     } catch (err) {
         console.error('Update card error:', err.message);
-        return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+        return sendMutationError(res, err);
     }
 }
 
@@ -66,14 +56,10 @@ export async function deleteCard(req, res) {
             return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
         }
 
-        const card = await Card.findOneAndDelete({ _id: req.params.cardId, board: board._id });
-        if (!card) {
-            return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Card  not found.' } });
-        }
-        // Note: cards in this list still exist — we'll handle cascade cleanup shortly.
+        await deleteCardMutation({ boardId: board._id, cardId: req.params.cardId });
         return res.status(200).json({ data: { deleted: true } });
     } catch (err) {
         console.error('Delete card error:', err.message);
-        return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+        return sendMutationError(res, err);
     }
 }

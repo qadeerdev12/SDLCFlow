@@ -1,7 +1,16 @@
-// server/src/controllers/listController.js
-import List from '../models/List.js';
-import Card from '../models/Card.js';
 import { getBoardIfMember } from '../utils/boardAccess.js';
+import {
+  createList as createListMutation,
+  updateList as updateListMutation,
+  deleteList as deleteListMutation,
+} from '../services/boardMutationService.js';
+
+function sendMutationError(res, err) {
+  const status = err.statusCode || 500;
+  const code = err.code || 'SERVER';
+  const message = status === 500 ? 'Something went wrong.' : err.message;
+  return res.status(status).json({ error: { code, message } });
+}
 
 // POST /api/v1/boards/:boardId/lists
 export async function createList(req, res) {
@@ -11,19 +20,11 @@ export async function createList(req, res) {
     if (!board) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
-    if (!title) {
-      return res.status(400).json({ error: { code: 'VALIDATION', message: 'List title is required.' } });
-    }
-
-    const list = await List.create({
-      board: board._id,
-      title,
-      position: position ?? 1000,   // default position if none given
-    });
+    const list = await createListMutation({ boardId: board._id, title, position });
     return res.status(201).json({ data: { list } });
   } catch (err) {
     console.error('Create list error:', err.message);
-    return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+    return sendMutationError(res, err);
   }
 }
 
@@ -35,24 +36,15 @@ export async function updateList(req, res) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
 
-    const { title, position } = req.body;
-    const updates = {};
-    if (title !== undefined) updates.title = title;
-    if (position !== undefined) updates.position = position;
-
-    // Find a list that matches BOTH its id AND this board (prevents cross-board edits).
-    const list = await List.findOneAndUpdate(
-      { _id: req.params.listId, board: board._id },
-      updates,
-      { new: true }   // return the updated doc, not the old one
-    );
-    if (!list) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'List not found.' } });
-    }
+    const list = await updateListMutation({
+      boardId: board._id,
+      listId: req.params.listId,
+      updates: req.body,
+    });
     return res.status(200).json({ data: { list } });
   } catch (err) {
     console.error('Update list error:', err.message);
-    return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+    return sendMutationError(res, err);
   }
 }
 
@@ -64,14 +56,10 @@ export async function deleteList(req, res) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
 
-    const list = await List.findOneAndDelete({ _id: req.params.listId, board: board._id });
-    if (!list) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'List not found.' } });
-    }
-    await Card.deleteMany({ board: board._id, list: list._id });
+    await deleteListMutation({ boardId: board._id, listId: req.params.listId });
     return res.status(200).json({ data: { deleted: true } });
   } catch (err) {
     console.error('Delete list error:', err.message);
-    return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+    return sendMutationError(res, err);
   }
 }

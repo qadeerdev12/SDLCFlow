@@ -6,11 +6,16 @@ import { connectDB } from './config/db.js'; //import the DB connection function
 import authRoutes from './routes/authRoutes.js'; //import our auth routes
 import cors from 'cors'; //import CORS middleware to allow cross-origin requests (from our React client)
 import boardRoutes from './routes/boardRoutes.js'; //import our board routes
+import { configureSockets } from './socket.js';
 
 const app = express();  //create the Express application
 const httpServer = createServer(app); //create an HTTP server instance
+const CLIENT_ORIGINS = (process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 app.use(cors({
-    origin: 'http://localhost:5173', //allow requests from our React dev server
+    origin: CLIENT_ORIGINS,
     credentials: true //allow cookies and auth headers
 })); //enable CORS for all routes
 
@@ -18,7 +23,7 @@ app.use(cors({
 // The `cors` block lets our (future) React client connect from its own origin.
 const io = new Server(httpServer, {
     cors: {
-        origin: 'http://localhost:5173', //allow all origins for now (adjust in production)
+        origin: CLIENT_ORIGINS,
         methods: ['GET', 'POST']
     }
 });
@@ -35,21 +40,7 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Socket.IO connection handler: runs every time a client connects.
-io.on('connection', (socket) => {
-  console.log(`🔌 Client connected: ${socket.id}`);
-
-  // Listen for a "hello" event from this client...
-  socket.on('hello', (msg) => {
-    console.log(`📨 Received hello: ${msg}`);
-    // ...and send one straight back to that same client.
-    socket.emit('hello:response', `Server got your message: "${msg}"`);
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`❌ Client disconnected: ${socket.id}`);
-  });
-});
+configureSockets(io);
 
 
 const PORT = process.env.PORT || 5050; //read the port from.env, fallback to 5050
@@ -57,4 +48,3 @@ const PORT = process.env.PORT || 5050; //read the port from.env, fallback to 505
 httpServer.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
-
