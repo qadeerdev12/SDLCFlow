@@ -35,7 +35,7 @@ Defines the contract between client and server: the REST API (request/response w
 
 > Note: requesting a board you're not a member of returns **404**, not 403 — we don't reveal that a board exists to non-members.
 
-> Current implementation note: board update/delete are owner-only. List and card mutations currently require board membership, but full owner/admin/member role enforcement is still a Sprint 5 follow-up.
+> Current implementation note: REST and Socket.IO mutations now enforce board roles. Member management endpoints are still a Sprint 5 follow-up.
 
 ---
 

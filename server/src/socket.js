@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from './models/User.js';
-import { getBoardIfMember } from './utils/boardAccess.js';
+import { getBoardIfMember, getBoardIfRole } from './utils/boardAccess.js';
 import {
   createCard,
   updateCard,
@@ -129,6 +129,24 @@ async function requireBoardMember(socket, boardId) {
   return board;
 }
 
+async function requireBoardRole(socket, boardId, allowedRoles) {
+  if (!boardId) {
+    const err = new Error('Board id is required.');
+    err.statusCode = 400;
+    err.code = 'VALIDATION';
+    throw err;
+  }
+
+  const board = await getBoardIfRole(boardId, socket.data.user._id, allowedRoles);
+  if (!board) {
+    const err = new Error('Board not found.');
+    err.statusCode = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  return board;
+}
+
 // Wrap mutation handlers in one ack/error convention. Clients use a Promise
 // wrapper around this shape, so keep `{ ok, data/error }` stable.
 function registerMutation(socket, eventName, handler) {
@@ -198,7 +216,7 @@ export function configureSockets(io) {
     });
 
     registerMutation(socket, 'card:create', async ({ boardId, title, listId, position }) => {
-      const board = await requireBoardMember(socket, boardId);
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const card = await createCard({ boardId: board._id, title, listId, position });
       // Persist first, then broadcast the saved document to everyone except
       // the sender. The sender receives the same document through the ack.
@@ -207,49 +225,49 @@ export function configureSockets(io) {
     });
 
     registerMutation(socket, 'card:update', async ({ boardId, cardId, updates }) => {
-      const board = await requireBoardMember(socket, boardId);
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const card = await updateCard({ boardId: board._id, cardId, updates: updates || {} });
       socket.to(roomName(board._id)).emit('card:updated', { boardId: board._id.toString(), card });
       return { card };
     });
 
     registerMutation(socket, 'card:move', async ({ boardId, cardId, position, list }) => {
-      const board = await requireBoardMember(socket, boardId);
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const card = await updateCard({ boardId: board._id, cardId, updates: { position, list } });
       socket.to(roomName(board._id)).emit('card:moved', { boardId: board._id.toString(), card });
       return { card };
     });
 
     registerMutation(socket, 'card:delete', async ({ boardId, cardId }) => {
-      const board = await requireBoardMember(socket, boardId);
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       await deleteCard({ boardId: board._id, cardId });
       socket.to(roomName(board._id)).emit('card:deleted', { boardId: board._id.toString(), cardId });
       return { deleted: true };
     });
 
     registerMutation(socket, 'list:create', async ({ boardId, title, position }) => {
-      const board = await requireBoardMember(socket, boardId);
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const list = await createList({ boardId: board._id, title, position });
       socket.to(roomName(board._id)).emit('list:created', { boardId: board._id.toString(), list });
       return { list };
     });
 
     registerMutation(socket, 'list:update', async ({ boardId, listId, updates }) => {
-      const board = await requireBoardMember(socket, boardId);
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const list = await updateList({ boardId: board._id, listId, updates: updates || {} });
       socket.to(roomName(board._id)).emit('list:updated', { boardId: board._id.toString(), list });
       return { list };
     });
 
     registerMutation(socket, 'list:move', async ({ boardId, listId, position }) => {
-      const board = await requireBoardMember(socket, boardId);
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const list = await updateList({ boardId: board._id, listId, updates: { position } });
       socket.to(roomName(board._id)).emit('list:moved', { boardId: board._id.toString(), list });
       return { list };
     });
 
     registerMutation(socket, 'list:delete', async ({ boardId, listId }) => {
-      const board = await requireBoardMember(socket, boardId);
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       await deleteList({ boardId: board._id, listId });
       socket.to(roomName(board._id)).emit('list:deleted', { boardId: board._id.toString(), listId });
       return { deleted: true };

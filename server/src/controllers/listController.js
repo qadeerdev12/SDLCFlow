@@ -1,4 +1,4 @@
-import { getBoardIfMember } from '../utils/boardAccess.js';
+import { getBoardIfRole } from '../utils/boardAccess.js';
 import {
   createList as createListMutation,
   updateList as updateListMutation,
@@ -16,7 +16,7 @@ function sendMutationError(res, err) {
 export async function createList(req, res) {
   try {
     const { title, position } = req.body;
-    const board = await getBoardIfMember(req.params.boardId, req.user._id);
+    const board = await getBoardIfRole(req.params.boardId, req.user._id, ['owner', 'admin', 'member']);
     if (!board) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
@@ -31,7 +31,7 @@ export async function createList(req, res) {
 // PATCH /api/v1/boards/:boardId/lists/:listId
 export async function updateList(req, res) {
   try {
-    const board = await getBoardIfMember(req.params.boardId, req.user._id);
+    const board = await getBoardIfRole(req.params.boardId, req.user._id, ['owner', 'admin', 'member']);
     if (!board) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
@@ -51,7 +51,7 @@ export async function updateList(req, res) {
 // DELETE /api/v1/boards/:boardId/lists/:listId
 export async function deleteList(req, res) {
   try {
-    const board = await getBoardIfMember(req.params.boardId, req.user._id);
+    const board = await getBoardIfRole(req.params.boardId, req.user._id, ['owner', 'admin', 'member']);
     if (!board) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }

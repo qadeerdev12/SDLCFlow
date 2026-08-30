@@ -65,7 +65,7 @@ Each open board maps to a Socket.IO room:
 board:<boardId>
 ```
 
-The client cannot join a room directly. It must emit `board:join`; the server verifies membership using `getBoardIfMember` before calling `socket.join(...)`.
+The client cannot join a room directly. It must emit `board:join`; the server verifies membership using `getBoardIfMember` before calling `socket.join(...)`. Mutations use stricter role checks through `getBoardIfRole`.
 
 ---
 
@@ -141,7 +141,7 @@ Broadcasts use `socket.to(roomName(board._id)).emit(...)`, so the sender is excl
 
 Every mutation follows this order:
 
-1. Verify board membership.
+1. Verify the required board role.
 2. Call the shared mutation service.
 3. Wait for MongoDB persistence to succeed.
 4. Ack the sender with the persisted document.
@@ -198,7 +198,6 @@ On reconnect, the board re-joins its room and re-fetches the full board snapshot
 
 ## Known Follow-ups
 
-- Enforce role-based permissions, not membership only, for REST and socket mutations.
 - Add member endpoints and member management UI.
 - Move presence to a shared adapter if the app runs more than one server instance.
 - Add tests for REST/socket permission matrices and cross-board mutation attempts.

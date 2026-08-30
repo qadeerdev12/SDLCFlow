@@ -195,7 +195,8 @@ export default function DashboardPage() {
                 key={board._id}
                 board={board}
                 role={roleFor(board)}
-                canManage={roleFor(board) === 'owner'}
+                canEdit={['owner', 'admin'].includes(roleFor(board))}
+                canDelete={roleFor(board) === 'owner'}
                 onOpen={() => navigate(`/boards/${board._id}`)}
                 onEdit={setEditingBoard}
                 onDelete={handleDelete}

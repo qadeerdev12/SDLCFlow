@@ -2,11 +2,17 @@
 import Board from '../models/Board.js';
 import List from '../models/List.js';
 import Card from '../models/Card.js';
+import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 
 // Keep in sync with the Board schema's color enum.
 const BOARD_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
 
-
+function sendBoardError(res, err) {
+  const status = err.statusCode || 500;
+  const code = err.code || 'SERVER';
+  const message = status === 500 ? 'Something went wrong.' : err.message;
+  return res.status(status).json({ error: { code, message } });
+}
 
 // POST /api/v1/boards  (protected)
 // Creates a board; the creator automatically becomes the owner + first member.
@@ -57,15 +63,8 @@ export async function getMyBoards(req, res) {
 // GET /api/v1/boards/:boardId  (protected)
 export async function getBoard(req, res) {
   try {
-    const board = await Board.findById(req.params.boardId);
+    const board = await getBoardIfMember(req.params.boardId, req.user._id);
     if (!board) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
-    }
-
-    const isMember = board.members.some(
-      (m) => m.user.toString() === req.user._id.toString()
-    );
-    if (!isMember) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
 
@@ -83,13 +82,9 @@ export async function getBoard(req, res) {
 // PATCH /api/v1/boards/:boardId  (protected)
 export async function updateBoard(req, res) {
   try {
-    const board = await Board.findById(req.params.boardId);
+    const board = await getBoardIfRole(req.params.boardId, req.user._id, ['owner', 'admin']);
     if (!board) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
-    }
-
-    if (board.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Only the board owner can update this board.' } });
     }
 
     const { name, emoji, color } = req.body;
@@ -123,20 +118,16 @@ export async function updateBoard(req, res) {
     return res.status(200).json({ data: { board: updatedBoard } });
   } catch (err) {
     console.error('Update board error:', err.message);
-    return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+    return sendBoardError(res, err);
   }
 }
 
 // DELETE /api/v1/boards/:boardId  (protected)
 export async function deleteBoard(req, res) {
   try {
-    const board = await Board.findById(req.params.boardId);
+    const board = await getBoardIfRole(req.params.boardId, req.user._id, ['owner']);
     if (!board) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
-    }
-
-    if (board.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Only the board owner can delete this board.' } });
     }
 
     await Card.deleteMany({ board: board._id });
@@ -146,6 +137,6 @@ export async function deleteBoard(req, res) {
     return res.status(200).json({ data: { deleted: true } });
   } catch (err) {
     console.error('Delete board error:', err.message);
-    return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+    return sendBoardError(res, err);
   }
 }
