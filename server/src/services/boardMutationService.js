@@ -64,7 +64,7 @@ export async function updateList({ boardId, listId, updates }) {
   const list = await List.findOneAndUpdate(
     { _id: listId, board: boardId },
     safeUpdates,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!list) {
@@ -137,7 +137,7 @@ export async function updateCard({ boardId, cardId, updates }) {
   const card = await Card.findOneAndUpdate(
     { _id: cardId, board: boardId },
     safeUpdates,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!card) {

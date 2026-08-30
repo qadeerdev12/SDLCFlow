@@ -113,7 +113,7 @@ export async function updateBoard(req, res) {
     const updatedBoard = await Board.findByIdAndUpdate(
       board._id,
       updates,
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     return res.status(200).json({ data: { board: updatedBoard } });

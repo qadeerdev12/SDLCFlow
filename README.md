@@ -168,4 +168,9 @@ npm run build
 npm run lint
 ```
 
-`npm run lint` should pass before opening a deploy PR.
+```bash
+cd server
+npm test
+```
+
+The server suite uses an in-memory MongoDB and local Socket.IO server to verify REST permissions and realtime board events. Build, lint, and tests should pass before opening a deploy PR.
