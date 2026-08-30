@@ -353,17 +353,22 @@ describe.sequential('REST board permissions', () => {
       .set('Authorization', `Bearer ${member.token}`)
       .expect(403);
 
-    const adminDeleted = await request(app)
+    await request(app)
       .delete(`/api/v1/boards/${board._id}/messages/${ownerMessage.body.data.message._id}`)
       .set('Authorization', `Bearer ${admin.token}`)
-      .expect(200);
-    expect(adminDeleted.body.data.message.deletedAt).toBeTruthy();
-    expect(adminDeleted.body.data.activity.action).toBe('message.deleted');
+      .expect(403);
 
     await request(app)
       .delete(`/api/v1/boards/${board._id}/messages/${memberMessage.body.data.message._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(403);
+
+    const memberDeleted = await request(app)
+      .delete(`/api/v1/boards/${board._id}/messages/${memberMessage.body.data.message._id}`)
       .set('Authorization', `Bearer ${member.token}`)
       .expect(200);
+    expect(memberDeleted.body.data.message.deletedAt).toBeTruthy();
+    expect(memberDeleted.body.data.activity.action).toBe('message.deleted');
 
     await request(app)
       .delete(`/api/v1/boards/${board._id}/messages`)
@@ -388,7 +393,7 @@ describe.sequential('REST board permissions', () => {
       .set('Authorization', `Bearer ${owner.token}`)
       .expect(200);
     expect(messages.body.data.messages).toHaveLength(0);
-    await expect(Activity.countDocuments({ board: board._id, action: 'message.deleted' })).resolves.toBe(2);
+    await expect(Activity.countDocuments({ board: board._id, action: 'message.deleted' })).resolves.toBe(1);
     await expect(Activity.countDocuments({ board: board._id, action: 'chat.cleared' })).resolves.toBe(1);
   });
 
@@ -674,6 +679,19 @@ describe.sequential('Socket.IO board permissions', () => {
     expect(deletePayload.message._id.toString()).toBe(messageAck.data.message._id.toString());
     expect(deleteActivityPayload.activity.action).toBe('message.deleted');
 
+    const collaboratorMessageAck = await emitWithAck(collaboratorSocket, 'message:create', {
+      boardId: board._id,
+      body: 'Collaborator message stays personal.',
+    });
+    expect(collaboratorMessageAck.ok).toBe(true);
+
+    const ownerDeniedDelete = await emitWithAck(ownerSocket, 'message:delete', {
+      boardId: board._id,
+      messageId: collaboratorMessageAck.data.message._id,
+    });
+    expect(ownerDeniedDelete.ok).toBe(false);
+    expect(ownerDeniedDelete.error.code).toBe('FORBIDDEN');
+
     await emitWithAck(ownerSocket, 'message:create', {
       boardId: board._id,
       body: 'First clear target.',
@@ -691,11 +709,11 @@ describe.sequential('Socket.IO board permissions', () => {
     });
     const clearAck = await emitWithAck(ownerSocket, 'chat:clear', { boardId: board._id });
     expect(clearAck.ok).toBe(true);
-    expect(clearAck.data.deletedCount).toBe(3);
+    expect(clearAck.data.deletedCount).toBe(4);
     expect(clearAck.data.activity.action).toBe('chat.cleared');
     const clearPayload = await clearBroadcast;
     const clearActivityPayload = await clearActivityBroadcast;
-    expect(clearPayload.deletedCount).toBe(3);
+    expect(clearPayload.deletedCount).toBe(4);
     expect(clearActivityPayload.activity.action).toBe('chat.cleared');
 
     ownerSocket.disconnect();

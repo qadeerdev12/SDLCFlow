@@ -3,7 +3,7 @@ import User from './models/User.js';
 import Card from './models/Card.js';
 import List from './models/List.js';
 import Comment from './models/Comment.js';
-import { getBoardIfMember, getBoardIfRole, getMemberRole } from './utils/boardAccess.js';
+import { getBoardIfMember, getBoardIfRole } from './utils/boardAccess.js';
 import {
   createCard,
   updateCard,
@@ -352,7 +352,6 @@ export function configureSockets(io) {
         boardId: board._id,
         messageId,
         actorId: socket.data.user._id,
-        actorRole: getMemberRole(board, socket.data.user._id),
       });
       const activity = await recordActivity({
         socket,

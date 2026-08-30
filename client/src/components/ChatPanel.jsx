@@ -189,7 +189,7 @@ export default function ChatPanel({
             const isMine = String(userId(message.sender)) === String(currentUserId)
             const name = senderName(message.sender)
             const isDeleted = Boolean(message.deletedAt)
-            const canDelete = !isDeleted && (isMine || ['owner', 'admin'].includes(currentRole))
+            const canDelete = !isDeleted && isMine
             const showDateLabel = dateKey(message.createdAt) !== dateKey(messages[index - 1]?.createdAt)
             return (
               <div key={message._id}>

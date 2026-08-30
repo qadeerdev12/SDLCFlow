@@ -102,12 +102,12 @@ Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle
 | DELETE | `/boards/:boardId/messages` | owner | – | `200 { deletedCount, activity }` |
 
 Messages are scoped to a board and populated with `sender { name, email }`.
-Regular members can delete their own messages. Admins and owners can delete any
-message. Deleted messages remain as placeholders with `deletedAt/deletedBy`, so
-open clients keep a stable conversation shape. Owners can clear the full board
-chat; cleared messages are hidden from future history loads. Normal chat is
-stored separately from activity so conversation does not flood the audit
-timeline, but moderation actions create activity records.
+Members, admins, and owners can delete only messages they sent. Deleted messages
+remain as placeholders with `deletedAt/deletedBy`, so open clients keep a stable
+conversation shape. Owners can clear the full board chat; cleared messages are
+hidden from future history loads. Normal chat is stored separately from activity
+so conversation does not flood the audit timeline, but moderation actions create
+activity records.
 
 ### 2.6 Lists
 

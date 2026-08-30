@@ -36,12 +36,11 @@ export async function createBoardMessage({ boardId, senderId, body }) {
   return message;
 }
 
-function canDeleteMessage(message, actorId, actorRole) {
-  if (['owner', 'admin'].includes(actorRole)) return true;
+function canDeleteMessage(message, actorId) {
   return message.sender.toString() === actorId.toString();
 }
 
-export async function deleteBoardMessage({ boardId, messageId, actorId, actorRole }) {
+export async function deleteBoardMessage({ boardId, messageId, actorId }) {
   const message = await Message.findOne({ _id: messageId, board: boardId });
   if (!message) {
     const err = new Error('Message not found.');
@@ -50,7 +49,7 @@ export async function deleteBoardMessage({ boardId, messageId, actorId, actorRol
     throw err;
   }
 
-  if (!canDeleteMessage(message, actorId, actorRole)) {
+  if (!canDeleteMessage(message, actorId)) {
     const err = new Error('You do not have permission to delete this message.');
     err.statusCode = 403;
     err.code = 'FORBIDDEN';

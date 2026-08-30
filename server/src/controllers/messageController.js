@@ -1,4 +1,4 @@
-import { getBoardIfMember, getBoardIfRole, getMemberRole } from '../utils/boardAccess.js';
+import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
 import {
   clearBoardMessages,
@@ -72,7 +72,6 @@ export async function deleteBoardChatMessage(req, res) {
       boardId: board._id,
       messageId: req.params.messageId,
       actorId: req.user._id,
-      actorRole: getMemberRole(board, req.user._id),
     });
     const activity = await recordActivity({
       io: req.app.get('io'),
