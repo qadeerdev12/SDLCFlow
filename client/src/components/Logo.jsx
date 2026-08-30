@@ -4,7 +4,7 @@ export default function Logo({ size = 'md' }) {
   const { dark } = useTheme()
 
   const sizes = {
-    sm: { icon: 24, text: 'text-lg', gap: 'gap-2' },
+    sm: { icon: 24, text: 'text-base', gap: 'gap-2' },
     md: { icon: 32, text: 'text-xl', gap: 'gap-2.5' },
     lg: { icon: 44, text: 'text-3xl', gap: 'gap-3' },
   }
@@ -13,22 +13,15 @@ export default function Logo({ size = 'md' }) {
   return (
     <div className={`flex items-center ${s.gap}`}>
       <svg width={s.icon} height={s.icon} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Rounded board background */}
-        <rect x="2" y="2" width="36" height="36" rx="8" fill="url(#brandGrad)" />
-        {/* Three columns representing lists */}
-        <rect x="8" y="9" width="6" height="22" rx="2" fill="white" opacity="0.95" />
-        <rect x="17" y="9" width="6" height="16" rx="2" fill="white" opacity="0.75" />
-        <rect x="26" y="9" width="6" height="19" rx="2" fill="white" opacity="0.85" />
-        <defs>
-          <linearGradient id="brandGrad" x1="2" y1="2" x2="38" y2="38" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#6366f1" />
-            <stop offset="1" stopColor="#8b5cf6" />
-          </linearGradient>
-        </defs>
+        <rect x="2.5" y="2.5" width="35" height="35" rx="8" fill={dark ? '#09090b' : '#ffffff'} stroke={dark ? '#3f3f46' : '#d4d4d8'} />
+        <rect x="9" y="10" width="7" height="20" rx="2" fill="#0f766e" />
+        <rect x="18" y="10" width="5" height="14" rx="2" fill="#0d9488" />
+        <rect x="25" y="10" width="6" height="17" rx="2" fill="#f59e0b" />
+        <path d="M10 31h20" stroke={dark ? '#71717a' : '#a1a1aa'} strokeWidth="2" strokeLinecap="round" />
       </svg>
-      <span className={`${s.text} font-bold tracking-tight`}>
-        <span className={dark ? 'text-white' : 'text-gray-900'}>Collab</span>
-        <span className="text-indigo-500">Board</span>
+      <span className={`${s.text} font-semibold tracking-tight`}>
+        <span className={dark ? 'text-white' : 'text-zinc-950'}>Collab</span>
+        <span className="text-teal-700 dark:text-teal-400">Board</span>
       </span>
     </div>
   )

@@ -1,14 +1,12 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
 
 export default function ProtectedRoute({ children }) {
     const { user, loading } = useAuth()
-    const { dark } = useTheme()
 
     if (loading) {
         return (
-            <div className={`min-h-screen flex items-center justify-center ${dark ? 'bg-slate-900 text-slate-400' : 'bg-gray-50 text-gray-500'}`}>
+            <div className="flex min-h-screen items-center justify-center bg-stone-50 text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
                 Loading...
             </div>
         )

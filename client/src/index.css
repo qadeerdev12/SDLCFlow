@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+/* Tailwind v4's `dark:` variant follows the OS by default. We drive the theme
+   ourselves (ThemeContext toggles `.dark` on <html>), so point the variant at
+   that class instead. Pages still using `dark ? ... : ...` ternaries are
+   unaffected — both approaches read the same state. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    -webkit-font-smoothing: antialiased;
+  }
+}

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
 import { boardApi } from '../lib/api'
 import { DEFAULT_EMOJI } from '../lib/boardColors'
 
@@ -11,7 +10,6 @@ import { DEFAULT_EMOJI } from '../lib/boardColors'
 // purely a client concern: it reuses boardApi.list and navigates on select.
 export default function BoardSwitcher({ currentBoard }) {
   const { token } = useAuth()
-  const { dark } = useTheme()
   const navigate = useNavigate()
 
   const [open, setOpen] = useState(false)
@@ -58,10 +56,10 @@ export default function BoardSwitcher({ currentBoard }) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-lg font-semibold transition ${dark ? 'text-slate-200 hover:bg-slate-800' : 'text-gray-800 hover:bg-gray-100'}`}
+        className="flex max-w-[min(56vw,420px)] items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-left text-base font-semibold text-zinc-950 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-zinc-700 sm:text-lg"
       >
         {currentBoard && <span className="text-base leading-none">{currentBoard.emoji || DEFAULT_EMOJI}</span>}
-        {currentBoard?.name || 'Board'}
+        <span className="truncate">{currentBoard?.name || 'Board'}</span>
         <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className={`transition-transform ${open ? 'rotate-180' : ''}`}>
           <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -69,17 +67,17 @@ export default function BoardSwitcher({ currentBoard }) {
 
       {open && (
         <div
-          className={`absolute left-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-xl border shadow-lg ${dark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
+          className="absolute left-0 top-full z-20 mt-2 w-72 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xl shadow-zinc-300/40 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40"
         >
-          <p className={`px-3 pt-2.5 pb-1 text-xs font-medium uppercase tracking-wide ${dark ? 'text-slate-500' : 'text-gray-400'}`}>
+          <p className="px-3 pb-1 pt-2.5 text-xs font-bold uppercase tracking-[0.12em] text-zinc-400">
             Your boards
           </p>
 
           <div className="max-h-72 overflow-y-auto py-1">
             {!loaded ? (
-              <p className={`px-3 py-2 text-sm ${dark ? 'text-slate-400' : 'text-gray-500'}`}>Loading…</p>
+              <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">Loading...</p>
             ) : boards.length === 0 ? (
-              <p className={`px-3 py-2 text-sm ${dark ? 'text-slate-400' : 'text-gray-500'}`}>No other boards.</p>
+              <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">No other boards.</p>
             ) : (
               boards.map((b) => {
                 const isCurrent = b._id === currentBoard?._id
@@ -87,7 +85,7 @@ export default function BoardSwitcher({ currentBoard }) {
                   <button
                     key={b._id}
                     onClick={() => goToBoard(b._id)}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${dark ? 'hover:bg-slate-700' : 'hover:bg-gray-50'} ${isCurrent ? (dark ? 'text-indigo-300' : 'text-indigo-600') : (dark ? 'text-slate-200' : 'text-gray-800')}`}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-zinc-50 dark:hover:bg-zinc-800 ${isCurrent ? 'text-teal-700 dark:text-teal-300' : 'text-zinc-800 dark:text-zinc-200'}`}
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="text-base leading-none">{b.emoji || DEFAULT_EMOJI}</span>
@@ -106,7 +104,7 @@ export default function BoardSwitcher({ currentBoard }) {
 
           <button
             onClick={() => { setOpen(false); navigate('/dashboard') }}
-            className={`flex w-full items-center gap-2 border-t px-3 py-2.5 text-sm font-medium transition ${dark ? 'border-slate-700 text-indigo-300 hover:bg-slate-700' : 'border-gray-100 text-indigo-600 hover:bg-gray-50'}`}
+            className="flex w-full items-center gap-2 border-t border-zinc-100 px-3 py-2.5 text-sm font-semibold text-teal-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-teal-300 dark:hover:bg-zinc-800"
           >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path d="M4 5h12M4 10h12M4 15h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

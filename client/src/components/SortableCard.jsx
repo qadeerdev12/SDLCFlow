@@ -1,16 +1,9 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useTheme } from '../context/ThemeContext'
 
-// Disable dnd-kit's layout-shift animation. Its post-drop measuring pass,
-// if a state update (e.g. a rollback) lands during it, thrashes into an
-// infinite update loop. We don't need the animation.
 const noLayoutAnimation = () => false
 
-// A single draggable card. `data.type` lets the board's drag handlers tell a
-// card apart from a list, and `data.listId` tells them which column it's in.
 export default function SortableCard({ card }) {
-  const { dark } = useTheme()
   const {
     attributes,
     listeners,
@@ -32,9 +25,15 @@ export default function SortableCard({ card }) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`cursor-grab touch-none rounded-lg p-3 text-sm active:cursor-grabbing ${dark ? 'bg-slate-700 text-slate-100' : 'bg-gray-50 border border-gray-100 text-gray-900'}`}
+      className="cursor-grab touch-none rounded-lg border border-zinc-200 bg-white p-3 text-sm shadow-sm transition hover:border-teal-200 hover:shadow-md active:cursor-grabbing dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-teal-500/30"
     >
-      {card.title}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <span className="rounded-md bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
+          Task
+        </span>
+        <span className="h-2 w-2 rounded-full bg-amber-500" />
+      </div>
+      <p className="leading-5 text-zinc-900 dark:text-zinc-100">{card.title}</p>
     </div>
   )
 }

@@ -2,148 +2,151 @@ import { Link } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import Logo from '../components/Logo'
 
+const previewColumns = [
+  {
+    title: 'Backlog',
+    count: 8,
+    cards: [
+      { title: 'Define invoice import flow', tag: 'Spec', status: 'Ready' },
+      { title: 'Plan mobile board polish', tag: 'Design', status: 'Draft' },
+    ],
+  },
+  {
+    title: 'In Progress',
+    count: 3,
+    cards: [
+      { title: 'Realtime drag persistence', tag: 'Core', status: 'Today' },
+      { title: 'Project dashboard filters', tag: 'UI', status: 'Review' },
+    ],
+  },
+  {
+    title: 'Done',
+    count: 12,
+    cards: [
+      { title: 'Auth and board access model', tag: 'API', status: 'Shipped' },
+      { title: 'List ordering algorithm', tag: 'Core', status: 'Shipped' },
+    ],
+  },
+]
+
 export default function LandingPage() {
   const { dark, toggle } = useTheme()
 
   return (
-    <div className={`min-h-screen ${dark ? 'bg-slate-900 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
-      {/* Nav */}
-      <nav className={`flex items-center justify-between px-8 py-4 border-b ${dark ? 'border-slate-800' : 'border-gray-200'}`}>
-        <Logo size="md" />
-        <div className="flex items-center gap-3">
-          <button onClick={toggle} className={`p-2 rounded-full ${dark ? 'bg-slate-700 text-yellow-300 hover:bg-slate-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
-            {dark ? '☀️' : '🌙'}
-          </button>
-          <Link to="/login" className={`px-4 py-2 rounded-lg text-sm font-medium ${dark ? 'text-slate-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
-            Log in
-          </Link>
-          <Link to="/register" className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium">
-            Sign up free
-          </Link>
+    <div className="min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
+      <nav className="border-b border-zinc-200 bg-stone-50/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/85">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 sm:px-8">
+          <Logo size="md" />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggle}
+              aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+              className="grid h-9 w-9 place-items-center rounded-lg border border-zinc-200 text-zinc-600 transition hover:bg-white dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+            >
+              <ThemeIcon dark={dark} />
+            </button>
+            <Link to="/login" className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white">
+              Log in
+            </Link>
+            <Link to="/register" className="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200">
+              Start
+            </Link>
+          </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="flex flex-col items-center text-center px-6 pt-24 pb-20">
-        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-6 ${dark ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
-          Real-time collaboration for modern teams
-        </div>
-        <h1 className={`text-4xl md:text-5xl lg:text-6xl font-bold max-w-3xl leading-tight ${dark ? 'text-white' : 'text-gray-900'}`}>
-          Organize your work,{' '}
-          <span className="bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-transparent">together.</span>
-        </h1>
-        <p className={`mt-6 text-lg max-w-xl leading-relaxed ${dark ? 'text-slate-400' : 'text-gray-500'}`}>
-          A simple, real-time board for teams to manage tasks, track progress, and stay in sync — without the complexity.
-        </p>
-        <div className="flex gap-3 mt-10">
-          <Link to="/register" className="px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-500/25 transition">
-            Get started — it's free
-          </Link>
-          <Link to="/login" className={`px-6 py-3 rounded-lg border font-medium transition ${dark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>
-            Log in
-          </Link>
-        </div>
-      </section>
-
-      {/* Board preview mockup */}
-      <section className="px-8 pb-20">
-        <div className={`max-w-3xl mx-auto rounded-2xl border p-6 ${dark ? 'bg-slate-800/60 border-slate-700' : 'bg-white border-gray-200 shadow-xl shadow-gray-200/50'}`}>
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-3 h-3 rounded-full bg-red-400" />
-            <div className="w-3 h-3 rounded-full bg-yellow-400" />
-            <div className="w-3 h-3 rounded-full bg-green-400" />
-            <span className={`ml-3 text-sm font-medium ${dark ? 'text-slate-400' : 'text-gray-400'}`}>My Project Board</span>
-          </div>
-          <div className="flex gap-4 overflow-hidden">
-            {[
-              { title: 'To Do', cards: ['Research competitors', 'Draft wireframes', 'Set up CI/CD'] },
-              { title: 'In Progress', cards: ['Build auth flow', 'Design landing page'] },
-              { title: 'Done', cards: ['Project setup', 'Database schema'] },
-            ].map((col) => (
-              <div key={col.title} className={`flex-1 rounded-xl p-3 ${dark ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
-                <h3 className={`text-xs font-semibold uppercase tracking-wide mb-3 ${dark ? 'text-slate-400' : 'text-gray-500'}`}>{col.title}</h3>
-                <div className="flex flex-col gap-2">
-                  {col.cards.map((card) => (
-                    <div key={card} className={`rounded-lg px-3 py-2 text-sm ${dark ? 'bg-slate-800 text-slate-300' : 'bg-white text-gray-700 shadow-sm border border-gray-100'}`}>
-                      {card}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className={`px-8 py-20 ${dark ? 'bg-slate-800/40' : 'bg-white'}`}>
-        <h2 className={`text-2xl font-bold text-center mb-3 ${dark ? 'text-white' : 'text-gray-900'}`}>Everything you need, nothing you don't</h2>
-        <p className={`text-center mb-12 ${dark ? 'text-slate-400' : 'text-gray-500'}`}>Built for clarity and speed.</p>
-        <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-8">
-          {[
-            {
-              icon: (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="9" rx="1" />
-                  <rect x="14" y="3" width="7" height="5" rx="1" />
-                  <rect x="14" y="12" width="7" height="9" rx="1" />
-                  <rect x="3" y="16" width="7" height="5" rx="1" />
-                </svg>
-              ),
-              title: 'Boards & Lists',
-              desc: 'Create boards for each project and organize work into lists that fit your workflow.',
-            },
-            {
-              icon: (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="5 9 2 12 5 15" />
-                  <polyline points="9 5 12 2 15 5" />
-                  <polyline points="15 19 12 22 9 19" />
-                  <polyline points="19 9 22 12 19 15" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <line x1="12" y1="2" x2="12" y2="22" />
-                </svg>
-              ),
-              title: 'Drag & Drop',
-              desc: 'Move cards between lists with a simple drag. Changes persist instantly.',
-            },
-            {
-              icon: (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10" />
-                  <polyline points="12 6 12 12 16 14" />
-                  <path d="M17 3v4h4" />
-                </svg>
-              ),
-              title: 'Real-time Sync',
-              desc: "See your team's updates live. No refresh needed — everyone stays in sync.",
-            },
-          ].map((f) => (
-            <div key={f.title} className={`rounded-xl p-6 border ${dark ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-100'}`}>
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 ${dark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}>
-                {f.icon}
-              </div>
-              <h3 className={`font-semibold mb-2 ${dark ? 'text-slate-200' : 'text-gray-800'}`}>{f.title}</h3>
-              <p className={`text-sm leading-relaxed ${dark ? 'text-slate-400' : 'text-gray-500'}`}>{f.desc}</p>
+      <main>
+        <section className="mx-auto grid min-h-[calc(100vh-66px)] max-w-7xl items-center gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[0.88fr_1.12fr]">
+          <div className="max-w-xl">
+            <p className="mb-4 inline-flex rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300">
+              Project command center
+            </p>
+            <h1 className="text-4xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl dark:text-white">
+              CollabBoard
+            </h1>
+            <p className="mt-5 text-lg leading-8 text-zinc-600 dark:text-zinc-300">
+              A real-time board for planning, prioritising, and shipping your own projects with the clarity of a focused Jira-style workspace.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/register" className="rounded-lg bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500">
+                Create workspace
+              </Link>
+              <Link to="/login" className="rounded-lg border border-zinc-300 px-5 py-3 text-sm font-semibold text-zinc-800 transition hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">
+                Open dashboard
+              </Link>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="mt-10 grid grid-cols-3 gap-5 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+              <Stat value="Live" label="updates" />
+              <Stat value="Boards" label="per project" />
+              <Stat value="Drag" label="to plan" />
+            </div>
+          </div>
 
-      {/* CTA */}
-      <section className="px-8 py-20 text-center">
-        <h2 className={`text-2xl font-bold mb-3 ${dark ? 'text-white' : 'text-gray-900'}`}>Ready to get organized?</h2>
-        <p className={`mb-8 ${dark ? 'text-slate-400' : 'text-gray-500'}`}>Create your first board in seconds.</p>
-        <Link to="/register" className="inline-block px-8 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-500/25 transition">
-          Sign up free
-        </Link>
-      </section>
+          <div className="min-w-0 rounded-xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-300/40 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40">
+            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+              <div>
+                <p className="text-sm font-semibold text-zinc-950 dark:text-white">Product rebuild</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Sprint board · 18 open tasks</p>
+              </div>
+              <div className="flex -space-x-2">
+                {['QA', 'MK', 'AR'].map((person) => (
+                  <span key={person} className="grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-zinc-900 text-[11px] font-semibold text-white dark:border-zinc-900">
+                    {person}
+                  </span>
+                ))}
+              </div>
+            </div>
 
-      {/* Footer */}
-      <footer className={`border-t px-8 py-6 flex items-center justify-between ${dark ? 'border-slate-800 text-slate-500' : 'border-gray-200 text-gray-400'}`}>
-        <Logo size="sm" />
-        <p className="text-sm">Built with React, Express & MongoDB</p>
-      </footer>
+            <div className="grid gap-3 p-4 md:grid-cols-3">
+              {previewColumns.map((column) => (
+                <div key={column.title} className="min-h-[360px] rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-600 dark:text-zinc-300">{column.title}</h2>
+                    <span className="rounded-md bg-white px-2 py-0.5 text-xs text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800">
+                      {column.count}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {column.cards.map((card) => (
+                      <div key={card.title} className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <span className="rounded-md bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
+                            {card.tag}
+                          </span>
+                          <span className="text-[11px] text-zinc-400">{card.status}</span>
+                        </div>
+                        <p className="text-sm font-medium leading-5 text-zinc-900 dark:text-zinc-100">{card.title}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
+  )
+}
+
+function Stat({ value, label }) {
+  return (
+    <div>
+      <p className="text-sm font-bold text-zinc-950 dark:text-white">{value}</p>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
+    </div>
+  )
+}
+
+function ThemeIcon({ dark }) {
+  return dark ? (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41" />
+    </svg>
+  ) : (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+    </svg>
   )
 }

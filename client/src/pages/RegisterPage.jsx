@@ -30,54 +30,100 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className={`min-h-screen flex items-center justify-center ${dark ? 'bg-slate-900 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
-      <button onClick={toggle} className={`fixed top-4 right-4 p-2 rounded-full ${dark ? 'bg-slate-700 text-yellow-300 hover:bg-slate-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
-        {dark ? '☀️' : '🌙'}
-      </button>
-
-      <form onSubmit={handleSubmit} className={`w-full max-w-sm p-8 rounded-xl border ${dark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
-        <div className="flex justify-center mb-6">
-          <Link to="/"><Logo size="md" /></Link>
+    <AuthShell dark={dark} toggle={toggle}>
+      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-6 shadow-xl shadow-zinc-300/30 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30">
+        <Link to="/" className="inline-flex rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+          <Logo size="md" />
+        </Link>
+        <div className="mt-8">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">New workspace</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-100">Create your account</h1>
+          <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">Start a project board and shape it around the work you are managing.</p>
         </div>
-        <h1 className={`text-xl font-bold mb-6 ${dark ? 'text-slate-200' : 'text-gray-800'}`}>Create your account</h1>
 
         {error && (
-          <p className={`mb-4 text-sm rounded p-2 ${dark ? 'text-red-400 bg-red-950/40' : 'text-red-600 bg-red-50'}`}>{error}</p>
+          <p className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">{error}</p>
         )}
 
-        <label className={`block text-sm mb-1 ${dark ? 'text-slate-300' : 'text-gray-600'}`}>Name</label>
-        <input
-          type="text" value={name} onChange={(e) => setName(e.target.value)}
-          className={`w-full mb-4 px-3 py-2 rounded border outline-none focus:ring-2 focus:ring-indigo-500 ${dark ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
-          required
-        />
-
-        <label className={`block text-sm mb-1 ${dark ? 'text-slate-300' : 'text-gray-600'}`}>Email</label>
-        <input
-          type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-          className={`w-full mb-4 px-3 py-2 rounded border outline-none focus:ring-2 focus:ring-indigo-500 ${dark ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
-          required
-        />
-
-        <label className={`block text-sm mb-1 ${dark ? 'text-slate-300' : 'text-gray-600'}`}>Password</label>
-        <input
-          type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-          className={`w-full mb-6 px-3 py-2 rounded border outline-none focus:ring-2 focus:ring-indigo-500 ${dark ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
-          required
-        />
+        <div className="mt-6 space-y-4">
+          <Field label="Name" type="text" value={name} onChange={setName} />
+          <Field label="Email" type="email" value={email} onChange={setEmail} />
+          <Field label="Password" type="password" value={password} onChange={setPassword} />
+        </div>
 
         <button
-          type="submit" disabled={submitting}
-          className="w-full py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 font-medium text-white"
+          type="submit"
+          disabled={submitting}
+          className="mt-6 w-full rounded-lg bg-teal-600 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500 disabled:opacity-50"
         >
-          {submitting ? 'Creating account...' : 'Register'}
+          {submitting ? 'Creating account...' : 'Create account'}
         </button>
 
-        <p className={`mt-4 text-sm text-center ${dark ? 'text-slate-400' : 'text-gray-500'}`}>
+        <p className="mt-5 text-center text-sm text-zinc-500 dark:text-zinc-400">
           Already have an account?{' '}
-          <Link to="/login" className={`hover:underline ${dark ? 'text-indigo-400' : 'text-indigo-600'}`}>Log in</Link>
+          <Link to="/login" className="font-semibold text-teal-700 hover:underline dark:text-teal-300">Log in</Link>
         </p>
       </form>
+    </AuthShell>
+  )
+}
+
+function AuthShell({ children, dark, toggle }) {
+  return (
+    <div className="grid min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100 lg:grid-cols-[1fr_0.85fr]">
+      <button
+        onClick={toggle}
+        aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+        className="fixed right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        {dark ? <SunIcon /> : <MoonIcon />}
+      </button>
+      <div className="flex items-center justify-center px-5 py-12">{children}</div>
+      <aside className="hidden border-l border-zinc-200 bg-zinc-950 p-10 text-white dark:border-zinc-800 lg:flex lg:flex-col lg:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Start organized</p>
+          <h2 className="mt-4 max-w-md text-3xl font-semibold leading-tight">Build a home base for every project already in motion.</h2>
+        </div>
+        <div className="grid gap-3">
+          {['Separate boards per project', 'Workflow lists that match reality', 'Shared updates as work changes'].map((item) => (
+            <div key={item} className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-zinc-200">
+              {item}
+            </div>
+          ))}
+        </div>
+      </aside>
     </div>
+  )
+}
+
+function Field({ label, type, value, onChange }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+        required
+      />
+    </label>
+  )
+}
+
+function SunIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41" />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+    </svg>
   )
 }

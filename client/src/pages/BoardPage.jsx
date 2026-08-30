@@ -247,43 +247,72 @@ export default function BoardPage() {
   // --- render --------------------------------------------------------------
 
   if (loading) {
-    return <div className={`min-h-screen flex items-center justify-center ${dark ? 'bg-slate-900 text-slate-400' : 'bg-gray-50 text-gray-500'}`}>Loading board...</div>
+    return <div className="flex min-h-screen items-center justify-center bg-stone-50 text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">Loading board...</div>
   }
   // Full-screen error only when the board never loaded. Transient errors (a
   // failed drag persist, etc.) show as an inline banner below so the board stays put.
   if (error && !board) {
-    return <div className={`min-h-screen flex items-center justify-center ${dark ? 'bg-slate-900 text-red-400' : 'bg-gray-50 text-red-600'}`}>{error}</div>
+    return <div className="flex min-h-screen items-center justify-center bg-stone-50 text-red-600 dark:bg-zinc-950 dark:text-red-300">{error}</div>
   }
 
   return (
-    <div className={`min-h-screen p-6 ${dark ? 'bg-slate-900 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
-      <header className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1">
-            <Logo size="sm" />
-          </button>
-          <span className={`text-sm ${dark ? 'text-slate-600' : 'text-gray-300'}`}>/</span>
-          <BoardSwitcher currentBoard={board} />
-        </div>
-        <div className="flex items-center gap-3">
-          <form onSubmit={handleAddList} className="flex gap-2">
-            <input
-              value={newListTitle}
-              onChange={(e) => setNewListTitle(e.target.value)}
-              placeholder="+ Add a list"
-              className={`px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-indigo-500 ${dark ? 'bg-slate-800 border-slate-700 placeholder:text-slate-500' : 'bg-white border-gray-300 placeholder:text-gray-400'}`}
-            />
-            <button type="submit" className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-medium text-white">
-              Add
+    <div className="min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
+      <header className="sticky top-0 z-30 border-b border-zinc-200 bg-stone-50/90 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/90">
+        <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <button onClick={() => navigate('/dashboard')} className="shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <Logo size="sm" />
             </button>
-          </form>
-          <button onClick={toggle} className={`p-2 rounded-full ${dark ? 'bg-slate-700 text-yellow-300 hover:bg-slate-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
-            {dark ? '☀️' : '🌙'}
-          </button>
+            <span className="hidden text-zinc-300 dark:text-zinc-700 sm:block">/</span>
+            <div className="min-w-0">
+              <BoardSwitcher currentBoard={board} />
+              <p className="mt-1 hidden text-xs text-zinc-500 dark:text-zinc-400 sm:block">
+                {lists.length} lists · {Object.values(cardsByList).reduce((sum, cards) => sum + cards.length, 0)} cards · realtime workspace
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <form onSubmit={handleAddList} className="flex min-w-0 gap-2">
+              <input
+                value={newListTitle}
+                onChange={(e) => setNewListTitle(e.target.value)}
+                placeholder="Add a workflow list"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 sm:w-56 dark:border-zinc-800 dark:bg-zinc-900 dark:placeholder:text-zinc-500"
+              />
+              <button type="submit" className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-600/20 hover:bg-teal-500">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add
+              </button>
+            </form>
+            <button
+              onClick={toggle}
+              aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+              className="grid h-10 w-10 place-items-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              {dark ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
-      {error && <p className={`mb-3 text-sm ${dark ? 'text-red-400' : 'text-red-600'}`}>{error}</p>}
+      {error && (
+        <p className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+          {error}
+        </p>
+      )}
 
       <DndContext
         sensors={sensors}
@@ -292,7 +321,7 @@ export default function BoardPage() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex min-h-[calc(100vh-112px)] gap-4 overflow-x-auto px-4 py-4">
           <SortableContext items={lists.map((l) => l._id)} strategy={horizontalListSortingStrategy}>
             {lists.map((list) => (
               <BoardColumn
@@ -307,7 +336,12 @@ export default function BoardPage() {
           </SortableContext>
 
           {lists.length === 0 && (
-            <p className={dark ? 'text-slate-400' : 'text-gray-500'}>This board has no lists yet.</p>
+            <div className="grid min-h-[360px] w-full place-items-center rounded-lg border border-dashed border-zinc-300 bg-white text-center dark:border-zinc-800 dark:bg-zinc-900">
+              <div>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">This board has no lists yet.</p>
+                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Add Backlog, Next, In Progress, Review, or whatever matches your flow.</p>
+              </div>
+            </div>
           )}
         </div>
 
@@ -316,7 +350,7 @@ export default function BoardPage() {
             into an infinite update loop. */}
         <DragOverlay dropAnimation={null}>
           {activeCard ? (
-            <div className={`rounded-lg p-3 text-sm shadow-lg ${dark ? 'bg-slate-700 text-slate-100' : 'bg-white border border-gray-200 text-gray-900'}`}>
+            <div className="rounded-lg border border-teal-200 bg-white p-3 text-sm text-zinc-950 shadow-xl shadow-teal-700/15 dark:border-teal-500/30 dark:bg-zinc-900 dark:text-zinc-100">
               {activeCard.title}
             </div>
           ) : null}
