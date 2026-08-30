@@ -68,7 +68,7 @@ export default function LoginPage() {
 
 function AuthShell({ children, dark, toggle }) {
   return (
-    <div className="grid min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100 lg:grid-cols-[1fr_0.85fr]">
+    <div className="grid min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100 lg:grid-cols-[1.08fr_0.92fr]">
       <button
         onClick={toggle}
         aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
@@ -77,17 +77,60 @@ function AuthShell({ children, dark, toggle }) {
         {dark ? <SunIcon /> : <MoonIcon />}
       </button>
       <div className="flex items-center justify-center px-5 py-12">{children}</div>
-      <aside className="hidden border-l border-zinc-200 bg-zinc-950 p-10 text-white dark:border-zinc-800 lg:flex lg:flex-col lg:justify-between">
-        <div>
+      <aside className="relative hidden overflow-hidden border-l border-zinc-200 bg-zinc-950 p-10 text-white dark:border-zinc-800 lg:flex lg:flex-col lg:justify-between">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(circle_at_42%_30%,black,transparent_68%)]" />
+        <div className="relative">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Project OS</p>
-          <h2 className="mt-4 max-w-md text-3xl font-semibold leading-tight">One place for the work you are actively building.</h2>
+          <h2 className="mt-4 max-w-lg text-4xl font-semibold leading-tight">Pick up exactly where your project left off.</h2>
+          <p className="mt-4 max-w-md text-sm leading-6 text-zinc-300">
+            Jump back into live boards, review recent changes, and keep decisions beside the work.
+          </p>
         </div>
-        <div className="grid gap-3">
-          {['Plan sprint lists', 'Drag tasks live', 'Return to recent boards'].map((item) => (
-            <div key={item} className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-zinc-200">
-              {item}
+
+        <div className="relative mt-10 grid gap-5">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Product rebuild</p>
+                <p className="mt-1 text-xs text-zinc-400">Sprint board · 18 open tasks</p>
+              </div>
+              <span className="rounded-full bg-teal-400 px-2.5 py-1 text-xs font-bold text-zinc-950">Live</span>
             </div>
-          ))}
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                ['Backlog', '8'],
+                ['In Progress', '3'],
+                ['Done', '12'],
+              ].map(([label, count]) => (
+                <div key={label} className="rounded-lg border border-white/10 bg-zinc-950/70 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500">{label}</p>
+                  <p className="mt-3 text-2xl font-semibold">{count}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 rounded-lg border border-white/10 bg-zinc-950/70 p-3">
+              <div className="mb-2 flex items-center justify-between text-xs">
+                <span className="font-semibold text-zinc-200">Realtime board events</span>
+                <span className="text-teal-300">2m ago</span>
+              </div>
+              <div className="h-2 rounded-full bg-zinc-800">
+                <div className="h-2 w-3/4 rounded-full bg-teal-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            {[
+              ['Plan sprint lists', 'Shape Backlog, Review, and Done around your workflow.'],
+              ['Chat beside the board', 'Keep quick project decisions attached to the workspace.'],
+              ['Return to recent work', 'Open the boards and activity that moved while you were away.'],
+            ].map(([title, text]) => (
+              <div key={title} className="rounded-lg border border-white/10 bg-white/5 p-4">
+                <p className="text-sm font-semibold text-zinc-100">{title}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">{text}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </aside>
     </div>
