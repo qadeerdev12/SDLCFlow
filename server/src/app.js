@@ -25,6 +25,15 @@ export function createApp({ io } = {}) {
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/boards', boardRoutes);
 
+  app.get('/', (req, res) => {
+    res.json({
+      name: 'CollabBoard API',
+      status: 'ok',
+      health: '/health',
+      apiBase: '/api/v1',
+    });
+  });
+
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });

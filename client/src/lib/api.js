@@ -70,6 +70,9 @@ export const boardApi = {
   getMembers: (boardId, token) =>
     request(`/boards/${boardId}/members`, { token }),
 
+  getActivities: (boardId, token) =>
+    request(`/boards/${boardId}/activities`, { token }),
+
   addMember: (boardId, email, role, token) =>
     request(`/boards/${boardId}/members`, { method: 'POST', body: { email, role }, token }),
 

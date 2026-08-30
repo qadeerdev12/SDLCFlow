@@ -5,6 +5,7 @@ import { protect } from '../middleware/auth.js';
 import { createList, updateList, deleteList } from '../controllers/listController.js';
 import { createCard, updateCard, deleteCard } from '../controllers/cardController.js';
 import { getMembers, addMember, updateMemberRole, removeMember } from '../controllers/memberController.js';
+import { getActivities } from '../controllers/activityController.js';
 
 
 
@@ -24,6 +25,9 @@ router.get('/:boardId/members', getMembers);
 router.post('/:boardId/members', addMember);
 router.patch('/:boardId/members/:userId', updateMemberRole);
 router.delete('/:boardId/members/:userId', removeMember);
+
+// Activity
+router.get('/:boardId/activities', getActivities);
 
 // Lists (nested under a board)
 router.post('/:boardId/lists', createList);

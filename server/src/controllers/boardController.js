@@ -3,6 +3,7 @@ import Board from '../models/Board.js';
 import List from '../models/List.js';
 import Card from '../models/Card.js';
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
+import { recordActivity } from '../services/activityService.js';
 
 // Keep in sync with the Board schema's color enum.
 const BOARD_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
@@ -116,7 +117,17 @@ export async function updateBoard(req, res) {
       { returnDocument: 'after', runValidators: true }
     );
 
-    return res.status(200).json({ data: { board: updatedBoard } });
+    const activity = await recordActivity({
+      io: req.app.get('io'),
+      boardId: board._id,
+      actorId: req.user._id,
+      action: 'board.updated',
+      targetType: 'board',
+      targetId: board._id,
+      targetTitle: updatedBoard.name,
+    });
+
+    return res.status(200).json({ data: { board: updatedBoard, activity } });
   } catch (err) {
     console.error('Update board error:', err.message);
     return sendBoardError(res, err);

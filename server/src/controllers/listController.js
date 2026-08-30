@@ -4,6 +4,8 @@ import {
   updateList as updateListMutation,
   deleteList as deleteListMutation,
 } from '../services/boardMutationService.js';
+import { recordActivity } from '../services/activityService.js';
+import List from '../models/List.js';
 
 function sendMutationError(res, err) {
   const status = err.statusCode || 500;
@@ -21,7 +23,16 @@ export async function createList(req, res) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
     const list = await createListMutation({ boardId: board._id, title, position });
-    return res.status(201).json({ data: { list } });
+    const activity = await recordActivity({
+      io: req.app.get('io'),
+      boardId: board._id,
+      actorId: req.user._id,
+      action: 'list.created',
+      targetType: 'list',
+      targetId: list._id,
+      targetTitle: list.title,
+    });
+    return res.status(201).json({ data: { list, activity } });
   } catch (err) {
     console.error('Create list error:', err.message);
     return sendMutationError(res, err);
@@ -41,7 +52,16 @@ export async function updateList(req, res) {
       listId: req.params.listId,
       updates: req.body,
     });
-    return res.status(200).json({ data: { list } });
+    const activity = await recordActivity({
+      io: req.app.get('io'),
+      boardId: board._id,
+      actorId: req.user._id,
+      action: req.body.position !== undefined && req.body.title === undefined ? 'list.moved' : 'list.updated',
+      targetType: 'list',
+      targetId: list._id,
+      targetTitle: list.title,
+    });
+    return res.status(200).json({ data: { list, activity } });
   } catch (err) {
     console.error('Update list error:', err.message);
     return sendMutationError(res, err);
@@ -56,8 +76,18 @@ export async function deleteList(req, res) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
 
+    const listToDelete = await List.findOne({ _id: req.params.listId, board: board._id });
     await deleteListMutation({ boardId: board._id, listId: req.params.listId });
-    return res.status(200).json({ data: { deleted: true } });
+    const activity = await recordActivity({
+      io: req.app.get('io'),
+      boardId: board._id,
+      actorId: req.user._id,
+      action: 'list.deleted',
+      targetType: 'list',
+      targetId: req.params.listId,
+      targetTitle: listToDelete?.title || '',
+    });
+    return res.status(200).json({ data: { deleted: true, activity } });
   } catch (err) {
     console.error('Delete list error:', err.message);
     return sendMutationError(res, err);

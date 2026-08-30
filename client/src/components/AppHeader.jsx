@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useTheme } from '../context/useTheme'
 import Logo from './Logo'
@@ -53,12 +53,18 @@ export default function AppHeader() {
         </button>
 
         <div className="hidden items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1 text-sm dark:border-zinc-800 dark:bg-zinc-900 md:flex">
-          <button className="rounded-md bg-zinc-950 px-3 py-1.5 font-medium text-white dark:bg-white dark:text-zinc-950">
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) => `rounded-md px-3 py-1.5 font-medium ${isActive ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
+          >
             Projects
-          </button>
-          <button className="rounded-md px-3 py-1.5 font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+          </NavLink>
+          <NavLink
+            to="/activity"
+            className={({ isActive }) => `rounded-md px-3 py-1.5 font-medium ${isActive ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
+          >
             Activity
-          </button>
+          </NavLink>
         </div>
 
         <div className="flex items-center gap-2">

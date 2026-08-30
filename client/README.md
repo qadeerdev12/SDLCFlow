@@ -8,6 +8,8 @@ The client is responsible for:
 - landing page and dashboard
 - kanban board UI
 - card search, tag filtering, and status filtering
+- global and board-specific activity pages
+- recent activity panel
 - drag-and-drop with dnd-kit
 - Socket.IO connection lifecycle
 - applying incoming realtime board events
@@ -68,6 +70,7 @@ It provides:
 5. fall back to REST when disconnected
 6. re-fetch the full board after reconnect
 7. apply incoming events from other collaborators
+8. append realtime activity events to the board timeline
 
 See `../docs/06-realtime-architecture.md` for the server-side contract.
 

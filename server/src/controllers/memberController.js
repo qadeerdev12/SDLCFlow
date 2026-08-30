@@ -1,6 +1,7 @@
 import Board from '../models/Board.js';
 import User from '../models/User.js';
 import { getBoardIfRole, getMemberRole } from '../utils/boardAccess.js';
+import { recordActivity } from '../services/activityService.js';
 
 const MEMBER_ROLES = ['admin', 'member'];
 
@@ -83,8 +84,18 @@ export async function addMember(req, res) {
     await board.save();
 
     const members = await serializeBoardMembers(board._id);
+    const activity = await recordActivity({
+      io: req.app.get('io'),
+      boardId: board._id,
+      actorId: req.user._id,
+      action: 'member.added',
+      targetType: 'member',
+      targetId: user._id,
+      targetTitle: user.name || user.email,
+      metadata: { role: requestedRole },
+    });
     emitMembersUpdated(req, board._id, members);
-    return res.status(201).json({ data: { members } });
+    return res.status(201).json({ data: { members, activity } });
   } catch (err) {
     console.error('Add member error:', err.message);
     return sendMemberError(res, err);
@@ -110,8 +121,19 @@ export async function updateMemberRole(req, res) {
     await board.save();
 
     const members = await serializeBoardMembers(board._id);
+    const targetUser = await User.findById(req.params.userId);
+    const activity = await recordActivity({
+      io: req.app.get('io'),
+      boardId: board._id,
+      actorId: req.user._id,
+      action: 'member.role_updated',
+      targetType: 'member',
+      targetId: req.params.userId,
+      targetTitle: targetUser?.name || targetUser?.email || '',
+      metadata: { role: nextRole },
+    });
     emitMembersUpdated(req, board._id, members);
-    return res.status(200).json({ data: { members } });
+    return res.status(200).json({ data: { members, activity } });
   } catch (err) {
     console.error('Update member role error:', err.message);
     return sendMemberError(res, err);
@@ -138,12 +160,22 @@ export async function removeMember(req, res) {
       throw makeError('A board must keep at least one owner.');
     }
 
+    const targetUser = await User.findById(req.params.userId);
     board.members = board.members.filter((m) => m.user.toString() !== req.params.userId);
     await board.save();
 
     const members = await serializeBoardMembers(board._id);
+    const activity = await recordActivity({
+      io: req.app.get('io'),
+      boardId: board._id,
+      actorId: req.user._id,
+      action: 'member.removed',
+      targetType: 'member',
+      targetId: req.params.userId,
+      targetTitle: targetUser?.name || targetUser?.email || '',
+    });
     emitMembersUpdated(req, board._id, members);
-    return res.status(200).json({ data: { members } });
+    return res.status(200).json({ data: { members, activity } });
   } catch (err) {
     console.error('Remove member error:', err.message);
     return sendMemberError(res, err);

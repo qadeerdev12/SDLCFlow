@@ -4,6 +4,8 @@ import {
     updateCard as updateCardMutation,
     deleteCard as deleteCardMutation,
 } from '../services/boardMutationService.js';
+import { recordActivity } from '../services/activityService.js';
+import Card from '../models/Card.js';
 
 function sendMutationError(res, err) {
     const status = err.statusCode || 500;
@@ -21,7 +23,16 @@ export async function createCard(req, res) {
             return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
         }
         const card = await createCardMutation({ boardId: board._id, title, listId, position, tag, status });
-        return res.status(201).json({ data: { card } });
+        const activity = await recordActivity({
+            io: req.app.get('io'),
+            boardId: board._id,
+            actorId: req.user._id,
+            action: 'card.created',
+            targetType: 'card',
+            targetId: card._id,
+            targetTitle: card.title,
+        });
+        return res.status(201).json({ data: { card, activity } });
     } catch (err) {
         console.error('Create card error:', err.message);
         return sendMutationError(res, err);
@@ -36,12 +47,22 @@ export async function updateCard(req, res) {
             return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
         }
 
+        const action = req.body.position !== undefined || req.body.list !== undefined ? 'card.moved' : 'card.updated';
         const card = await updateCardMutation({
             boardId: board._id,
             cardId: req.params.cardId,
             updates: req.body,
         });
-        return res.status(200).json({ data: { card } });
+        const activity = await recordActivity({
+            io: req.app.get('io'),
+            boardId: board._id,
+            actorId: req.user._id,
+            action,
+            targetType: 'card',
+            targetId: card._id,
+            targetTitle: card.title,
+        });
+        return res.status(200).json({ data: { card, activity } });
     } catch (err) {
         console.error('Update card error:', err.message);
         return sendMutationError(res, err);
@@ -56,8 +77,18 @@ export async function deleteCard(req, res) {
             return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
         }
 
+        const cardToDelete = await Card.findOne({ _id: req.params.cardId, board: board._id });
         await deleteCardMutation({ boardId: board._id, cardId: req.params.cardId });
-        return res.status(200).json({ data: { deleted: true } });
+        const activity = await recordActivity({
+            io: req.app.get('io'),
+            boardId: board._id,
+            actorId: req.user._id,
+            action: 'card.deleted',
+            targetType: 'card',
+            targetId: req.params.cardId,
+            targetTitle: cardToDelete?.title || '',
+        });
+        return res.status(200).json({ data: { deleted: true, activity } });
     } catch (err) {
         console.error('Delete card error:', err.message);
         return sendMutationError(res, err);

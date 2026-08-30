@@ -17,6 +17,8 @@ The app currently supports:
 - owner/admin/member role controls
 - Socket.IO-powered board rooms
 - realtime card/list sync between collaborators
+- realtime recent activity timeline
+- global and board-specific activity pages
 - realtime member-list updates
 - presence indicators for who is viewing a board
 
@@ -53,7 +55,7 @@ server/
     middleware/      auth middleware
     models/          Mongoose models
     routes/          Express routers
-    services/        shared mutation logic for REST and sockets
+    services/        shared mutation and activity logic for REST and sockets
     socket.js        Socket.IO auth, board rooms, presence, events
 
 docs/

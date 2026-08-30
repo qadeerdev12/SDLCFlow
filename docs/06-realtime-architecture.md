@@ -14,6 +14,7 @@ This document explains how CollabBoard's Socket.IO layer works today. It is mean
 - Persist every mutation before broadcasting it.
 - Broadcast changes to the board room, excluding the sender.
 - Keep REST and Socket.IO writes on the same service functions.
+- Record activity for board mutations and broadcast it live.
 - Re-fetch board state after reconnect so the client can recover from missed events.
 
 ---
@@ -25,6 +26,7 @@ This document explains how CollabBoard's Socket.IO layer works today. It is mean
 | `server/src/index.js` | Creates Express + HTTP server, attaches Socket.IO, configures CORS, calls `configureSockets(io)` |
 | `server/src/socket.js` | JWT socket auth, `board:join`, presence tracking, card/list realtime events |
 | `server/src/services/boardMutationService.js` | Shared card/list write logic used by both REST controllers and socket handlers |
+| `server/src/services/activityService.js` | Shared board activity logging and realtime activity broadcast |
 | `server/src/controllers/cardController.js` | REST card endpoints, delegated to the shared mutation service |
 | `server/src/controllers/listController.js` | REST list endpoints, delegated to the shared mutation service |
 | `client/src/hooks/useSocket.js` | Socket.IO client lifecycle, ack-based emits, event subscription helper |
@@ -109,14 +111,14 @@ The client helper `emitWithAck` rejects the Promise when:
 | Event | Payload | Ack data |
 |---|---|---|
 | `board:join` | `{ boardId }` | `{ boardId, presence }` |
-| `card:create` | `{ boardId, title, listId, position }` | `{ card }` |
-| `card:update` | `{ boardId, cardId, updates }` | `{ card }` |
-| `card:move` | `{ boardId, cardId, list, position }` | `{ card }` |
-| `card:delete` | `{ boardId, cardId }` | `{ deleted: true }` |
-| `list:create` | `{ boardId, title, position }` | `{ list }` |
-| `list:update` | `{ boardId, listId, updates }` | `{ list }` |
-| `list:move` | `{ boardId, listId, position }` | `{ list }` |
-| `list:delete` | `{ boardId, listId }` | `{ deleted: true }` |
+| `card:create` | `{ boardId, title, listId, position }` | `{ card, activity }` |
+| `card:update` | `{ boardId, cardId, updates }` | `{ card, activity }` |
+| `card:move` | `{ boardId, cardId, list, position }` | `{ card, activity }` |
+| `card:delete` | `{ boardId, cardId }` | `{ deleted: true, activity }` |
+| `list:create` | `{ boardId, title, position }` | `{ list, activity }` |
+| `list:update` | `{ boardId, listId, updates }` | `{ list, activity }` |
+| `list:move` | `{ boardId, listId, position }` | `{ list, activity }` |
+| `list:delete` | `{ boardId, listId }` | `{ deleted: true, activity }` |
 
 ### Server to Client
 
@@ -132,6 +134,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | `list:moved` | `{ boardId, list }` | emitted after DB update |
 | `list:deleted` | `{ boardId, listId }` | emitted after DB delete |
 | `members:updated` | `{ boardId, members }` | emitted after REST member changes |
+| `activity:created` | `{ boardId, activity }` | emitted after activity is recorded |
 | `board:error` | `{ code, message }` | emitted only when an event was sent without an ack callback |
 
 Broadcasts use `socket.to(roomName(board._id)).emit(...)`, so the sender is excluded. The sender updates its own UI from the ack response.
@@ -145,8 +148,9 @@ Every mutation follows this order:
 1. Verify the required board role.
 2. Call the shared mutation service.
 3. Wait for MongoDB persistence to succeed.
-4. Ack the sender with the persisted document.
-5. Broadcast the persisted document to the rest of the room.
+4. Record activity for the saved mutation.
+5. Ack the sender with the persisted document and activity.
+6. Broadcast the persisted document and activity to the rest of the room.
 
 If persistence fails, the server returns a negative ack and does not broadcast.
 
@@ -185,6 +189,8 @@ On reconnect, the board re-joins its room and re-fetches the full board snapshot
 
 Member management currently happens through REST endpoints. Those endpoints broadcast `members:updated` to the board room so open board pages update their members panel and permissions live. If the current user is removed from a board, the client redirects them back to the dashboard.
 
+Activity is fetched over REST on board load and then updated by `activity:created` socket events. Socket mutation senders receive activity in the ack response, while collaborators receive it through the board room broadcast.
+
 ---
 
 ## Adding a New Realtime Mutation
@@ -195,7 +201,8 @@ Member management currently happens through REST endpoints. Those endpoints broa
 4. Persist first, then broadcast the server-returned document.
 5. Add a client helper or page handler that uses `emitWithAck`.
 6. Add an incoming event listener in `BoardPage.jsx`.
-7. Update this document and `docs/04-api-spec.md`.
+7. Record activity if the mutation should appear in the board timeline.
+8. Update this document and `docs/04-api-spec.md`.
 
 ---
 
@@ -203,4 +210,4 @@ Member management currently happens through REST endpoints. Those endpoints broa
 
 - Add ownership transfer if boards need multiple owner workflows.
 - Move presence to a shared adapter if the app runs more than one server instance.
-- Add tests for REST/socket permission matrices and cross-board mutation attempts.
+- Add broader cross-board mutation tests as the API surface grows.

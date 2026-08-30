@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from './models/User.js';
+import Card from './models/Card.js';
+import List from './models/List.js';
 import { getBoardIfMember, getBoardIfRole } from './utils/boardAccess.js';
 import {
   createCard,
@@ -9,6 +11,7 @@ import {
   updateList,
   deleteList,
 } from './services/boardMutationService.js';
+import { recordActivity } from './services/activityService.js';
 
 const presenceByBoard = new Map();
 const presenceTimers = new Map();
@@ -218,59 +221,134 @@ export function configureSockets(io) {
     registerMutation(socket, 'card:create', async ({ boardId, title, listId, position, tag, status }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const card = await createCard({ boardId: board._id, title, listId, position, tag, status });
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: 'card.created',
+        targetType: 'card',
+        targetId: card._id,
+        targetTitle: card.title,
+      });
       // Persist first, then broadcast the saved document to everyone except
       // the sender. The sender receives the same document through the ack.
       socket.to(roomName(board._id)).emit('card:created', { boardId: board._id.toString(), card });
-      return { card };
+      return { card, activity };
     });
 
     registerMutation(socket, 'card:update', async ({ boardId, cardId, updates }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const card = await updateCard({ boardId: board._id, cardId, updates: updates || {} });
+      const action = updates?.position !== undefined || updates?.list !== undefined ? 'card.moved' : 'card.updated';
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action,
+        targetType: 'card',
+        targetId: card._id,
+        targetTitle: card.title,
+      });
       socket.to(roomName(board._id)).emit('card:updated', { boardId: board._id.toString(), card });
-      return { card };
+      return { card, activity };
     });
 
     registerMutation(socket, 'card:move', async ({ boardId, cardId, position, list }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const card = await updateCard({ boardId: board._id, cardId, updates: { position, list } });
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: 'card.moved',
+        targetType: 'card',
+        targetId: card._id,
+        targetTitle: card.title,
+      });
       socket.to(roomName(board._id)).emit('card:moved', { boardId: board._id.toString(), card });
-      return { card };
+      return { card, activity };
     });
 
     registerMutation(socket, 'card:delete', async ({ boardId, cardId }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
+      const card = await Card.findOne({ _id: cardId, board: board._id });
       await deleteCard({ boardId: board._id, cardId });
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: 'card.deleted',
+        targetType: 'card',
+        targetId: cardId,
+        targetTitle: card?.title || '',
+      });
       socket.to(roomName(board._id)).emit('card:deleted', { boardId: board._id.toString(), cardId });
-      return { deleted: true };
+      return { deleted: true, activity };
     });
 
     registerMutation(socket, 'list:create', async ({ boardId, title, position }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const list = await createList({ boardId: board._id, title, position });
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: 'list.created',
+        targetType: 'list',
+        targetId: list._id,
+        targetTitle: list.title,
+      });
       socket.to(roomName(board._id)).emit('list:created', { boardId: board._id.toString(), list });
-      return { list };
+      return { list, activity };
     });
 
     registerMutation(socket, 'list:update', async ({ boardId, listId, updates }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const list = await updateList({ boardId: board._id, listId, updates: updates || {} });
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: updates?.position !== undefined && updates?.title === undefined ? 'list.moved' : 'list.updated',
+        targetType: 'list',
+        targetId: list._id,
+        targetTitle: list.title,
+      });
       socket.to(roomName(board._id)).emit('list:updated', { boardId: board._id.toString(), list });
-      return { list };
+      return { list, activity };
     });
 
     registerMutation(socket, 'list:move', async ({ boardId, listId, position }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const list = await updateList({ boardId: board._id, listId, updates: { position } });
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: 'list.moved',
+        targetType: 'list',
+        targetId: list._id,
+        targetTitle: list.title,
+      });
       socket.to(roomName(board._id)).emit('list:moved', { boardId: board._id.toString(), list });
-      return { list };
+      return { list, activity };
     });
 
     registerMutation(socket, 'list:delete', async ({ boardId, listId }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
+      const list = await List.findOne({ _id: listId, board: board._id });
       await deleteList({ boardId: board._id, listId });
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: 'list.deleted',
+        targetType: 'list',
+        targetId: listId,
+        targetTitle: list?.title || '',
+      });
       socket.to(roomName(board._id)).emit('list:deleted', { boardId: board._id.toString(), listId });
-      return { deleted: true };
+      return { deleted: true, activity };
     });
 
     socket.on('disconnect', () => {

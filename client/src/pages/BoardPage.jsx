@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   DndContext,
   DragOverlay,
@@ -25,6 +25,7 @@ import BoardColumn from '../components/BoardColumn'
 import CardDetailModal from '../components/CardDetailModal'
 import NewBoardModal from '../components/NewBoardModal'
 import MembersPanel from '../components/MembersPanel'
+import ActivityPanel from '../components/ActivityPanel'
 
 function memberUserId(member) {
   return member.user?.id || member.user?._id || member.user
@@ -124,6 +125,7 @@ export default function BoardPage() {
   const { user, token } = useAuth()
   const { dark, toggle } = useTheme()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [board, setBoard] = useState(null)
   const [lists, setLists] = useState([])              // ordered by position
@@ -138,6 +140,9 @@ export default function BoardPage() {
   const [managingMembers, setManagingMembers] = useState(false)
   const [presence, setPresence] = useState([])
   const [members, setMembers] = useState([])
+  const [activities, setActivities] = useState([])
+  const [activityLoading, setActivityLoading] = useState(false)
+  const [activityError, setActivityError] = useState('')
   const [cardSearch, setCardSearch] = useState('')
   const [tagFilter, setTagFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -151,6 +156,7 @@ export default function BoardPage() {
     [cardsByList]
   )
   const filtersActive = Boolean(cardSearch.trim()) || tagFilter !== 'all' || statusFilter !== 'all'
+  const activityPanelOpen = searchParams.get('panel') === 'activity'
   const visibleCardsByList = useMemo(() => {
     const query = cardSearch.trim().toLowerCase()
     const next = {}
@@ -213,12 +219,33 @@ export default function BoardPage() {
     }
   }, [boardId, token])
 
+  const loadActivities = useCallback(async () => {
+    try {
+      setActivityLoading(true)
+      setActivityError('')
+      const res = await boardApi.getActivities(boardId, token)
+      setActivities(res.data.activities || [])
+    } catch (err) {
+      setActivityError(err.message)
+    } finally {
+      setActivityLoading(false)
+    }
+  }, [boardId, token])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       loadBoard()
     }, 0)
     return () => clearTimeout(timer)
   }, [loadBoard])
+
+  useEffect(() => {
+    if (!board) return undefined
+    const timer = setTimeout(() => {
+      loadActivities()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [board, loadActivities])
 
   useEffect(() => {
     if (!connected || !boardId) return undefined
@@ -312,6 +339,11 @@ export default function BoardPage() {
       setBoard((current) => current ? { ...current, members: payload.members || [] } : current)
     }
 
+    function onActivityCreated(payload) {
+      if (payload.boardId !== boardId) return
+      prependActivity(payload.activity)
+    }
+
     const cleanups = [
       onSocketEvent('presence:update', onPresenceUpdate),
       onSocketEvent('card:created', onCardCreated),
@@ -323,6 +355,7 @@ export default function BoardPage() {
       onSocketEvent('list:moved', onListChanged),
       onSocketEvent('list:deleted', onListDeleted),
       onSocketEvent('members:updated', onMembersUpdated),
+      onSocketEvent('activity:created', onActivityCreated),
     ]
 
     return () => {
@@ -385,6 +418,22 @@ export default function BoardPage() {
     }))
   }
 
+  function prependActivity(activity) {
+    if (!activity?._id) return
+    setActivities((prev) => {
+      if (prev.some((item) => item._id === activity._id)) return prev
+      return [activity, ...prev].slice(0, 30)
+    })
+  }
+
+  function closeActivityPanel() {
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params)
+      next.delete('panel')
+      return next
+    })
+  }
+
   // --- add list / card -----------------------------------------------------
 
   async function handleAddCard(e, listId) {
@@ -401,6 +450,7 @@ export default function BoardPage() {
         async () => (await boardApi.createCard(boardId, title, listId, position, token)).data
       )
       setCardsByList((prev) => ({ ...prev, [listId]: [...(prev[listId] || []), data.card] }))
+      prependActivity(data.activity)
       setDraftForList(listId, '')
     } catch (err) {
       setError(err.message)
@@ -420,6 +470,7 @@ export default function BoardPage() {
       )
       setLists([...lists, data.list])
       setCardsByList((prev) => ({ ...prev, [data.list._id]: [] }))
+      prependActivity(data.activity)
       setNewListTitle('')
     } catch (err) {
       setError(err.message)
@@ -443,15 +494,17 @@ export default function BoardPage() {
       async () => (await boardApi.updateCard(boardId, card._id, payload, token)).data
     )
     replaceCard(data.card)
+    prependActivity(data.activity)
   }
 
   async function handleDeleteCard(card) {
-    await realtimeOrRest(
+    const data = await realtimeOrRest(
       'card:delete',
       { boardId, cardId: card._id },
       async () => (await boardApi.deleteCard(boardId, card._id, token)).data
     )
     removeCard(card)
+    prependActivity(data.activity)
   }
 
   async function handleRenameList(list, title) {
@@ -463,6 +516,7 @@ export default function BoardPage() {
         async () => (await boardApi.updateList(boardId, list._id, { title }, token)).data
       )
       setLists((prev) => prev.map((l) => (l._id === list._id ? data.list : l)))
+      prependActivity(data.activity)
     } catch (err) {
       setError(err.message)
     }
@@ -475,7 +529,7 @@ export default function BoardPage() {
     if (!confirmed) return
 
     try {
-      await realtimeOrRest(
+      const data = await realtimeOrRest(
         'list:delete',
         { boardId, listId: list._id },
         async () => (await boardApi.deleteList(boardId, list._id, token)).data
@@ -486,6 +540,7 @@ export default function BoardPage() {
         delete next[list._id]
         return next
       })
+      prependActivity(data.activity)
     } catch (err) {
       setError(err.message)
     }
@@ -494,6 +549,7 @@ export default function BoardPage() {
   async function handleUpdateBoard(name, options) {
     const res = await boardApi.update(boardId, { name, ...options }, token)
     setBoard(res.data.board)
+    prependActivity(res.data.activity)
   }
 
   async function handleDeleteBoard() {
@@ -512,18 +568,21 @@ export default function BoardPage() {
     const res = await boardApi.addMember(boardId, email, role, token)
     setMembers(res.data.members)
     setBoard((current) => current ? { ...current, members: res.data.members } : current)
+    prependActivity(res.data.activity)
   }
 
   async function handleChangeMemberRole(memberId, role) {
     const res = await boardApi.updateMemberRole(boardId, memberId, role, token)
     setMembers(res.data.members)
     setBoard((current) => current ? { ...current, members: res.data.members } : current)
+    prependActivity(res.data.activity)
   }
 
   async function handleRemoveMember(memberId) {
     const res = await boardApi.removeMember(boardId, memberId, token)
     setMembers(res.data.members)
     setBoard((current) => current ? { ...current, members: res.data.members } : current)
+    prependActivity(res.data.activity)
   }
 
   // --- drag & drop ---------------------------------------------------------
@@ -603,6 +662,7 @@ export default function BoardPage() {
       { boardId, listId: active.id, position },
       async () => (await boardApi.updateList(boardId, active.id, { position }, token)).data
     )
+      .then((data) => prependActivity(data.activity))
       .catch(() => rollback('Could not save list order — reverted.'))
   }
 
@@ -634,6 +694,7 @@ export default function BoardPage() {
       { boardId, cardId: activeId, position, list: container },
       async () => (await boardApi.updateCard(boardId, activeId, { position, list: container }, token)).data
     )
+      .then((data) => prependActivity(data.activity))
       .catch(() => rollback('Could not save card move — reverted.'))
   }
 
@@ -693,6 +754,15 @@ export default function BoardPage() {
               </div>
               Members
             </button>
+            <Link
+              to={`/boards/${boardId}/activity`}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M3 12h4l3 8 4-16 3 8h4" />
+              </svg>
+              Activity
+            </Link>
             {(canEditBoard || canDeleteBoard) && (
               <div className="flex gap-2">
                 {canEditBoard && (
@@ -919,6 +989,17 @@ export default function BoardPage() {
           onAddMember={handleAddMember}
           onChangeRole={handleChangeMemberRole}
           onRemoveMember={handleRemoveMember}
+        />
+      )}
+
+      {activityPanelOpen && (
+        <ActivityPanel
+          board={board}
+          activities={activities}
+          loading={activityLoading}
+          error={activityError}
+          onRetry={loadActivities}
+          onClose={closeActivityPanel}
         />
       )}
     </div>

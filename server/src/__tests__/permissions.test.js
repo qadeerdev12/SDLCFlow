@@ -12,6 +12,7 @@ import Board from '../models/Board.js';
 import Card from '../models/Card.js';
 import List from '../models/List.js';
 import User from '../models/User.js';
+import Activity from '../models/Activity.js';
 
 let mongo;
 
@@ -28,6 +29,7 @@ afterEach(async () => {
     Card.deleteMany({}),
     List.deleteMany({}),
     User.deleteMany({}),
+    Activity.deleteMany({}),
   ]);
 });
 
@@ -132,7 +134,7 @@ function waitForConnectError(socket) {
   });
 }
 
-describe('REST board permissions', () => {
+describe.sequential('REST board permissions', () => {
   it('hides private boards from non-members and rejects their mutations', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');
@@ -170,6 +172,25 @@ describe('REST board permissions', () => {
       .set('Authorization', `Bearer ${member.token}`)
       .send({ listId: list._id, title: 'Ship tests', position: 1000, tag: 'Task', status: 'Todo' })
       .expect(201);
+
+    const activities = await request(app)
+      .get(`/api/v1/boards/${board._id}/activities`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .expect(200);
+    expect(activities.body.data.activities.map((activity) => activity.action)).toContain('card.created');
+  });
+
+  it('keeps board activity private to members', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const outsider = await register(app, 'Outsider', 'outsider@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    await createListForBoard(app, owner.token, board._id);
+
+    await request(app)
+      .get(`/api/v1/boards/${board._id}/activities`)
+      .set('Authorization', `Bearer ${outsider.token}`)
+      .expect(404);
   });
 
   it('keeps owner-only actions out of admin hands', async () => {
@@ -199,7 +220,7 @@ describe('REST board permissions', () => {
   });
 });
 
-describe('Socket.IO board permissions', () => {
+describe.sequential('Socket.IO board permissions', () => {
   it('rejects invalid JWTs during the handshake', async () => {
     const server = await startSocketServer();
     const socket = connectSocket(server.url, 'not-a-real-token');
@@ -255,6 +276,9 @@ describe('Socket.IO board permissions', () => {
     const broadcast = new Promise((resolve) => {
       collaboratorSocket.once('card:created', resolve);
     });
+    const activityBroadcast = new Promise((resolve) => {
+      collaboratorSocket.once('activity:created', resolve);
+    });
     const ack = await emitWithAck(ownerSocket, 'card:create', {
       boardId: board._id,
       listId: list._id,
@@ -269,9 +293,13 @@ describe('Socket.IO board permissions', () => {
     expect(ack.data.card._id).toBeTruthy();
 
     const payload = await broadcast;
+    const activityPayload = await activityBroadcast;
     expect(payload.boardId).toBe(board._id.toString());
     expect(payload.card._id.toString()).toBe(ack.data.card._id.toString());
+    expect(activityPayload.activity.action).toBe('card.created');
+    expect(ack.data.activity.action).toBe('card.created');
     await expect(Card.countDocuments({ board: board._id })).resolves.toBe(1);
+    await expect(Activity.countDocuments({ board: board._id })).resolves.toBe(3);
 
     ownerSocket.disconnect();
     collaboratorSocket.disconnect();

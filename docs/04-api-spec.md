@@ -35,7 +35,7 @@ Defines the contract between client and server: the REST API (request/response w
 
 > Note: requesting a board you're not a member of returns **404**, not 403 — we don't reveal that a board exists to non-members.
 
-> Current implementation note: REST and Socket.IO mutations now enforce board roles. Member management endpoints are still a Sprint 5 follow-up.
+> Current implementation note: REST and Socket.IO mutations enforce board roles. Member management and board activity endpoints are implemented.
 
 ---
 
@@ -58,7 +58,7 @@ Defines the contract between client and server: the REST API (request/response w
 | GET | `/boards` | member | – | `200 { boards: [...] }` (boards I belong to) |
 | POST | `/boards` | any auth | `{ name, emoji?, color? }` | `201 { board }` (creator becomes owner) |
 | GET | `/boards/:boardId` | member | – | `200 { board, lists, cards }` (full initial load) |
-| PATCH | `/boards/:boardId` | owner | `{ name?, emoji?, color? }` | `200 { board }` |
+| PATCH | `/boards/:boardId` | admin | `{ name?, emoji?, color? }` | `200 { board, activity }` |
 | DELETE | `/boards/:boardId` | owner | – | `200 { deleted: true }` |
 
 ### 2.3 Members
@@ -66,9 +66,9 @@ Defines the contract between client and server: the REST API (request/response w
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
 | GET | `/boards/:boardId/members` | member | – | `200 { members }` |
-| POST | `/boards/:boardId/members` | admin | `{ email, role? }` | `201 { members }` |
-| PATCH | `/boards/:boardId/members/:userId` | owner | `{ role }` | `200 { members }` |
-| DELETE | `/boards/:boardId/members/:userId` | admin | – | `200 { members }` |
+| POST | `/boards/:boardId/members` | admin | `{ email, role? }` | `201 { members, activity }` |
+| PATCH | `/boards/:boardId/members/:userId` | owner | `{ role }` | `200 { members, activity }` |
+| DELETE | `/boards/:boardId/members/:userId` | admin | – | `200 { members, activity }` |
 
 Member rules:
 - Owners and admins can add members.
@@ -78,21 +78,29 @@ Member rules:
 - Admins cannot remove owners.
 - A board must keep at least one owner.
 
-### 2.4 Lists
+### 2.4 Activity
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
-| POST | `/boards/:boardId/lists` | member | `{ title, position }` | `201 { list }` |
-| PATCH | `/boards/:boardId/lists/:listId` | member | `{ title?, position? }` | `200 { list }` |
-| DELETE | `/boards/:boardId/lists/:listId` | member | – | `200 { deleted: true }` |
+| GET | `/boards/:boardId/activities` | member | – | `200 { activities }` |
 
-### 2.5 Cards
+Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle`, optional `metadata`, and timestamps. The endpoint returns the latest board activity first.
+
+### 2.5 Lists
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
-| POST | `/boards/:boardId/cards` | member | `{ listId, title, position, tag?, status? }` | `201 { card }` |
-| PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, tag?, status?, list?, position? }` | `200 { card }` |
-| DELETE | `/boards/:boardId/cards/:cardId` | member | – | `200 { deleted: true }` |
+| POST | `/boards/:boardId/lists` | member | `{ title, position }` | `201 { list, activity }` |
+| PATCH | `/boards/:boardId/lists/:listId` | member | `{ title?, position? }` | `200 { list, activity }` |
+| DELETE | `/boards/:boardId/lists/:listId` | member | – | `200 { deleted: true, activity }` |
+
+### 2.6 Cards
+
+| Method | Path | Min role | Body | Returns |
+|---|---|---|---|---|
+| POST | `/boards/:boardId/cards` | member | `{ listId, title, position, tag?, status? }` | `201 { card, activity }` |
+| PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, tag?, status?, list?, position? }` | `200 { card, activity }` |
+| DELETE | `/boards/:boardId/cards/:cardId` | member | – | `200 { deleted: true, activity }` |
 
 > Card **move** = a `PATCH` changing `listId` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
 
@@ -128,14 +136,14 @@ Errors use:
 | Event | Payload | Server action | Ack data |
 |---|---|---|---|
 | `board:join` | `{ boardId }` | verify membership → join room | `{ boardId, presence }` |
-| `card:create` | `{ boardId, listId, title, position, tag?, status? }` | verify membership, persist, broadcast | `{ card }` |
-| `card:move` | `{ boardId, cardId, list, position }` | verify membership, persist, broadcast | `{ card }` |
-| `card:update` | `{ boardId, cardId, updates }` | verify membership, persist, broadcast | `{ card }` |
-| `card:delete` | `{ boardId, cardId }` | verify membership, persist, broadcast | `{ deleted: true }` |
-| `list:create` | `{ boardId, title, position }` | verify membership, persist, broadcast | `{ list }` |
-| `list:move` | `{ boardId, listId, position }` | verify membership, persist, broadcast | `{ list }` |
-| `list:update` | `{ boardId, listId, updates }` | verify membership, persist, broadcast | `{ list }` |
-| `list:delete` | `{ boardId, listId }` | verify membership, persist, broadcast | `{ deleted: true }` |
+| `card:create` | `{ boardId, listId, title, position, tag?, status? }` | verify membership, persist, broadcast | `{ card, activity }` |
+| `card:move` | `{ boardId, cardId, list, position }` | verify membership, persist, broadcast | `{ card, activity }` |
+| `card:update` | `{ boardId, cardId, updates }` | verify membership, persist, broadcast | `{ card, activity }` |
+| `card:delete` | `{ boardId, cardId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |
+| `list:create` | `{ boardId, title, position }` | verify membership, persist, broadcast | `{ list, activity }` |
+| `list:move` | `{ boardId, listId, position }` | verify membership, persist, broadcast | `{ list, activity }` |
+| `list:update` | `{ boardId, listId, updates }` | verify membership, persist, broadcast | `{ list, activity }` |
+| `list:delete` | `{ boardId, listId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |
 
 ### 3.4 Server → Client events (broadcast to the board room, excluding sender)
 
@@ -150,6 +158,7 @@ Errors use:
 | `list:updated` | `{ boardId, list }` | a list changed |
 | `list:deleted` | `{ boardId, listId }` | a list was removed |
 | `members:updated` | `{ boardId, members }` | board membership changed |
+| `activity:created` | `{ boardId, activity }` | a board activity record was added |
 | `presence:update` | `{ boardId, users: [{ user, socketCount, lastSeen }] }` | who is currently on the board |
 | `board:error` | `{ code, message }` | a server-side problem with a prior event sent without ack |
 
