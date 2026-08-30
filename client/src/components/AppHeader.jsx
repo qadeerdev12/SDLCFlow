@@ -112,6 +112,37 @@ export default function AppHeader() {
                   <p className="truncate text-sm font-semibold text-zinc-950 dark:text-zinc-100">{user?.name}</p>
                   <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user?.email}</p>
                 </div>
+                <div className="border-b border-zinc-100 dark:border-zinc-800 md:hidden">
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setOpen(false)
+                      navigate('/dashboard')
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="14" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                    Projects
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setOpen(false)
+                      navigate('/activity')
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M3 12h4l3 8 4-16 3 8h4" />
+                    </svg>
+                    Activity
+                  </button>
+                </div>
                 <button
                   role="menuitem"
                   onClick={() => {

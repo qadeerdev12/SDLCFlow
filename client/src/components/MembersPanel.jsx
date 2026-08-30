@@ -86,14 +86,14 @@ export default function MembersPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4 backdrop-blur-sm dark:bg-black/70"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-zinc-950/45 p-0 backdrop-blur-sm dark:bg-black/70 sm:items-center sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <section
         role="dialog"
         aria-modal="true"
         aria-label="Board members"
-        className="w-full max-w-2xl overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900"
+        className="flex max-h-dvh w-full max-w-2xl flex-col overflow-hidden border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[calc(100dvh-2rem)] sm:rounded-lg"
       >
         <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
           <div className="min-w-0">
@@ -143,7 +143,7 @@ export default function MembersPanel({
           </form>
         )}
 
-        <div className="max-h-[56vh] overflow-y-auto p-3">
+        <div className="flex-1 overflow-y-auto p-3">
           {error && (
             <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">{error}</p>
           )}

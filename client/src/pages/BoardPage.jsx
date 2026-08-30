@@ -784,11 +784,11 @@ export default function BoardPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
             <button
               type="button"
               onClick={() => setManagingMembers(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               <div className="flex -space-x-1">
                 {members.slice(0, 3).map((member) => (
@@ -801,7 +801,7 @@ export default function BoardPage() {
             </button>
             <Link
               to={`/boards/${boardId}/activity`}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M3 12h4l3 8 4-16 3 8h4" />
@@ -809,12 +809,12 @@ export default function BoardPage() {
               Activity
             </Link>
             {(canEditBoard || canDeleteBoard) && (
-              <div className="flex gap-2">
+              <div className="col-span-2 grid grid-cols-[1fr_auto] gap-2 sm:flex">
                 {canEditBoard && (
                   <button
                     type="button"
                     onClick={() => setEditingBoard(true)}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 20h9" />
@@ -839,7 +839,7 @@ export default function BoardPage() {
                 )}
               </div>
             )}
-            <form onSubmit={handleAddList} className="flex min-w-0 gap-2 sm:w-auto">
+            <form onSubmit={handleAddList} className="col-span-2 flex min-w-0 gap-2 sm:w-auto">
               <input
                 value={newListTitle}
                 onChange={(e) => setNewListTitle(e.target.value)}
@@ -857,7 +857,7 @@ export default function BoardPage() {
             <button
               onClick={toggle}
               aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-              className="grid h-10 w-10 place-items-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              className="col-span-2 grid h-10 w-full place-items-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 sm:col-span-1 sm:w-10"
             >
               {dark ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

@@ -183,7 +183,7 @@ export default function CardDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4 backdrop-blur-sm dark:bg-black/70"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-950/45 p-3 backdrop-blur-sm dark:bg-black/70 sm:items-center sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <form
@@ -191,7 +191,7 @@ export default function CardDetailModal({
         role="dialog"
         aria-modal="true"
         aria-label="Card details"
-        className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900"
+        className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[calc(100dvh-2rem)]"
       >
         <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
           <div className="min-w-0">

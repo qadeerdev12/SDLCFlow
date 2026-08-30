@@ -12,14 +12,14 @@ export default function ActivityPanel({ board, activities, loading, error, onRet
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-end bg-zinc-950/35 p-4 backdrop-blur-sm dark:bg-black/70"
+      className="fixed inset-0 z-50 flex items-stretch justify-end bg-zinc-950/35 p-0 backdrop-blur-sm dark:bg-black/70 sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="Recent activity"
-        className="flex h-full w-full max-w-md flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900"
+        className="flex h-full w-full max-w-md flex-col overflow-hidden border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:rounded-lg"
       >
         <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
           <div className="min-w-0">

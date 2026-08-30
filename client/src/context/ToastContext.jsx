@@ -68,7 +68,7 @@ export function ToastProvider({ children }) {
 
 function ToastViewport({ toasts, onDismiss }) {
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[80] flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-2 sm:right-5 sm:top-5">
+    <div className="pointer-events-none fixed inset-x-3 top-3 z-[80] flex flex-col gap-2 sm:inset-x-auto sm:right-5 sm:top-5 sm:w-[calc(100vw-2rem)] sm:max-w-sm">
       {toasts.map((toast) => {
         const style = TOAST_STYLES[toast.type] || TOAST_STYLES.info
         return (

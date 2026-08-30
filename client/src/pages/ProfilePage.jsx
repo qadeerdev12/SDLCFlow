@@ -257,7 +257,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={!canSaveProfile}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {savingProfile ? 'Saving...' : 'Save details'}
               </button>
@@ -326,7 +326,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={!canSavePassword}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto"
               >
                 {savingPassword ? 'Saving...' : 'Update password'}
               </button>
@@ -369,7 +369,7 @@ export default function ProfilePage() {
             <button
               type="submit"
               disabled={!canDelete}
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
             >
               {deleting ? 'Deleting...' : 'Delete'}
             </button>
