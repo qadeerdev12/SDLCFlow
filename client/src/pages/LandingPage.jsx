@@ -337,22 +337,64 @@ function HeroBoard() {
       <div className="landing-cursor absolute right-[34%] top-[42%] hidden rounded-lg bg-zinc-950 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg dark:bg-white dark:text-zinc-950 md:block">
         John editing
       </div>
-      <div className="absolute bottom-5 left-5 hidden w-64 rounded-lg border border-teal-200 bg-white p-3 text-xs shadow-lg dark:border-teal-500/20 dark:bg-zinc-950 sm:block">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="font-semibold text-zinc-950 dark:text-zinc-100">Board chat</span>
-          <span className="landing-pulse rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">2 new</span>
-        </div>
-        <div className="space-y-2">
-          <div className="rounded-lg bg-zinc-100 px-2.5 py-2 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-            Alex: API task is ready for review.
+      <div className="absolute bottom-4 left-4 hidden w-72 overflow-hidden rounded-lg border border-zinc-200 bg-white text-xs shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 lg:block">
+        <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-3 py-3 dark:border-zinc-800">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Board chat</p>
+            <p className="mt-0.5 truncate font-semibold text-zinc-950 dark:text-zinc-100">Product rebuild</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+              <span className="landing-pulse h-1.5 w-1.5 rounded-full bg-teal-500" />
+              Live messages active
+            </p>
           </div>
-          <div className="ml-7 rounded-lg bg-teal-600 px-2.5 py-2 font-medium text-white">
-            John: Moving it to Review now.
+          <div className="flex items-center gap-1">
+            <span className="rounded-md px-1.5 py-1 font-semibold text-zinc-500 dark:text-zinc-400">Clear</span>
+            <span className="grid h-6 w-6 place-items-center rounded-md text-zinc-400">x</span>
           </div>
         </div>
-        <div className="mt-2 flex items-center justify-between border-t border-zinc-100 pt-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-          <span>Enter to send</span>
-          <span>Owner can clear</span>
+        <div className="space-y-3 px-3 py-3">
+          <div className="flex items-center gap-2">
+            <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+            <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">Today</span>
+            <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-zinc-950 text-[10px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-950">AL</span>
+            <div className="max-w-[78%] rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+              <div className="mb-1 flex items-center justify-between gap-3 text-[10px] text-zinc-500 dark:text-zinc-400">
+                <span className="font-semibold">Alex Lee</span>
+                <span>10:24</span>
+              </div>
+              <p>API task is ready for review.</p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <div className="max-w-[78%] rounded-lg border border-teal-600 bg-teal-600 px-2.5 py-2 text-white">
+              <div className="mb-1 flex items-center justify-between gap-3 text-[10px] text-teal-50/80">
+                <span className="font-semibold">You</span>
+                <span className="flex items-center gap-1.5">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="m19 6-1 14H6L5 6" />
+                  </svg>
+                  10:25
+                </span>
+              </div>
+              <p className="font-medium">Moving it to Review now.</p>
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-zinc-200 p-2 dark:border-zinc-800">
+          <div className="flex items-end gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900">
+            <span className="min-h-8 flex-1 px-1 py-1 text-zinc-400">Message this board</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-teal-600 text-white">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m22 2-7 20-4-9-9-4Z" />
+                <path d="M22 2 11 13" />
+              </svg>
+            </span>
+          </div>
         </div>
       </div>
     </div>
