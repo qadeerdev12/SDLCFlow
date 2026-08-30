@@ -11,3 +11,157 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+@layer utilities {
+  .landing-grid {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgb(24 24 27 / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(24 24 27 / 0.06) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at 42% 36%, black 0%, transparent 62%);
+  }
+
+  .dark .landing-grid {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.07) 1px, transparent 1px);
+  }
+
+  .landing-rise,
+  .landing-board,
+  .landing-feature,
+  .landing-step,
+  .landing-activity {
+    animation: landing-rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .landing-delay-1 {
+    animation-delay: 90ms;
+  }
+
+  .landing-delay-2 {
+    animation-delay: 180ms;
+  }
+
+  .landing-delay-3 {
+    animation-delay: 270ms;
+  }
+
+  .landing-delay-4 {
+    animation-delay: 360ms;
+  }
+
+  .landing-board {
+    animation: landing-rise 800ms cubic-bezier(0.2, 0.8, 0.2, 1) 180ms both, landing-float 8s ease-in-out 1s infinite;
+  }
+
+  .landing-card {
+    animation: landing-card 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .landing-cursor {
+    animation: landing-cursor 5s ease-in-out 1.2s infinite;
+  }
+
+  .landing-pulse {
+    animation: landing-pulse 1.8s ease-in-out infinite;
+  }
+
+  .landing-button {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .landing-button::after {
+    content: "";
+    position: absolute;
+    inset: -40% auto -40% -70%;
+    width: 55%;
+    transform: rotate(18deg);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.32), transparent);
+    animation: landing-shine 3.8s ease-in-out infinite;
+  }
+
+  @keyframes landing-rise {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes landing-card {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes landing-float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    50% {
+      transform: translateY(-10px) rotate(-0.4deg);
+    }
+  }
+
+  @keyframes landing-cursor {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    35% {
+      transform: translate3d(-36px, 42px, 0);
+    }
+    70% {
+      transform: translate3d(18px, 96px, 0);
+    }
+  }
+
+  @keyframes landing-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(45 212 191 / 0.35);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgb(45 212 191 / 0);
+    }
+  }
+
+  @keyframes landing-shine {
+    0%,
+    54% {
+      left: -70%;
+    }
+    100% {
+      left: 130%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .landing-rise,
+    .landing-board,
+    .landing-feature,
+    .landing-step,
+    .landing-activity,
+    .landing-card,
+    .landing-cursor,
+    .landing-pulse,
+    .landing-button::after {
+      animation: none;
+    }
+  }
+}
