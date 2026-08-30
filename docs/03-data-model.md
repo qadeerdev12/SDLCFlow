@@ -163,15 +163,16 @@ Membership is **embedded** (small, always read with the board).
 
 ---
 
-### 3.5 `comments` *(stretch)*
+### 3.5 `comments`
 
 | Field | Type | Notes |
 |---|---|---|
 | `_id` | ObjectId | PK |
+| `board` | ObjectId → Board | required, indexed |
 | `card` | ObjectId → Card | indexed |
-| `author` | ObjectId → User | |
+| `author` | ObjectId → User | required |
 | `body` | String | required |
-| `createdAt` | Date | |
+| `createdAt` / `updatedAt` | Date | timestamps |
 
 ---
 

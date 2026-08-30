@@ -2,6 +2,7 @@ import Card from '../models/Card.js';
 import List from '../models/List.js';
 import Board from '../models/Board.js';
 import mongoose from 'mongoose';
+import Comment from '../models/Comment.js';
 
 const CARD_TAGS = ['Task', 'Feature', 'Bug', 'Design', 'Research', 'Docs', 'Chore'];
 const CARD_STATUSES = ['Todo', 'In Progress', 'Review', 'Blocked', 'Done'];
@@ -130,7 +131,9 @@ export async function deleteList({ boardId, listId }) {
   }
 
   // Lists own their visible cards in the UI. Deleting the list also removes
-  // those cards so the database does not keep unreachable work items around.
+  // their comments so the database does not keep unreachable work items around.
+  const cards = await Card.find({ board: boardId, list: list._id }).select('_id');
+  await Comment.deleteMany({ board: boardId, card: { $in: cards.map((card) => card._id) } });
   await Card.deleteMany({ board: boardId, list: list._id });
   return true;
 }
@@ -210,5 +213,6 @@ export async function deleteCard({ boardId, cardId }) {
     throw err;
   }
 
+  await Comment.deleteMany({ board: boardId, card: card._id });
   return true;
 }

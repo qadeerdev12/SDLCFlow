@@ -13,6 +13,7 @@ import Card from '../models/Card.js';
 import List from '../models/List.js';
 import User from '../models/User.js';
 import Activity from '../models/Activity.js';
+import Comment from '../models/Comment.js';
 
 let mongo;
 
@@ -30,6 +31,7 @@ afterEach(async () => {
     List.deleteMany({}),
     User.deleteMany({}),
     Activity.deleteMany({}),
+    Comment.deleteMany({}),
   ]);
 });
 
@@ -243,6 +245,43 @@ describe.sequential('REST board permissions', () => {
     await expect(Card.countDocuments({ board: board._id })).resolves.toBe(1);
   });
 
+  it('keeps card comments board-scoped and records comment activity', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const member = await register(app, 'Member', 'member@example.com');
+    const outsider = await register(app, 'Outsider', 'outsider@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    const list = await createListForBoard(app, owner.token, board._id);
+    await addMember(app, owner.token, board._id, member.user.email, 'member');
+    const card = await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ listId: list._id, title: 'Comment target', position: 1000 })
+      .expect(201);
+
+    await request(app)
+      .get(`/api/v1/boards/${board._id}/cards/${card.body.data.card._id}/comments`)
+      .set('Authorization', `Bearer ${outsider.token}`)
+      .expect(404);
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/cards/${card.body.data.card._id}/comments`)
+      .set('Authorization', `Bearer ${outsider.token}`)
+      .send({ body: 'No access' })
+      .expect(404);
+
+    const created = await request(app)
+      .post(`/api/v1/boards/${board._id}/cards/${card.body.data.card._id}/comments`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .send({ body: 'I will take this one.' })
+      .expect(201);
+
+    expect(created.body.data.comment.body).toBe('I will take this one.');
+    expect(created.body.data.comment.author._id).toBe(member.user.id);
+    expect(created.body.data.activity.action).toBe('comment.created');
+    await expect(Comment.countDocuments({ board: board._id })).resolves.toBe(1);
+  });
+
   it('keeps owner-only actions out of admin hands', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');
@@ -350,6 +389,27 @@ describe.sequential('Socket.IO board permissions', () => {
     expect(ack.data.activity.action).toBe('card.created');
     await expect(Card.countDocuments({ board: board._id })).resolves.toBe(1);
     await expect(Activity.countDocuments({ board: board._id })).resolves.toBe(3);
+
+    const commentBroadcast = new Promise((resolve) => {
+      collaboratorSocket.once('comment:created', resolve);
+    });
+    const commentActivityBroadcast = new Promise((resolve) => {
+      collaboratorSocket.once('activity:created', resolve);
+    });
+    const commentAck = await emitWithAck(ownerSocket, 'comment:create', {
+      boardId: board._id,
+      cardId: ack.data.card._id,
+      body: 'This is ready for review.',
+    });
+
+    expect(commentAck.ok).toBe(true);
+    expect(commentAck.data.comment.body).toBe('This is ready for review.');
+    const commentPayload = await commentBroadcast;
+    const commentActivityPayload = await commentActivityBroadcast;
+    expect(commentPayload.cardId).toBe(ack.data.card._id.toString());
+    expect(commentPayload.comment._id.toString()).toBe(commentAck.data.comment._id.toString());
+    expect(commentActivityPayload.activity.action).toBe('comment.created');
+    await expect(Comment.countDocuments({ board: board._id })).resolves.toBe(1);
 
     ownerSocket.disconnect();
     collaboratorSocket.disconnect();

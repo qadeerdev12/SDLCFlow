@@ -6,6 +6,7 @@ import { createList, updateList, deleteList } from '../controllers/listControlle
 import { createCard, updateCard, deleteCard } from '../controllers/cardController.js';
 import { getMembers, addMember, updateMemberRole, removeMember } from '../controllers/memberController.js';
 import { getActivities } from '../controllers/activityController.js';
+import { getCardComments, createCardComment } from '../controllers/commentController.js';
 
 
 
@@ -38,5 +39,7 @@ router.delete('/:boardId/lists/:listId', deleteList);
 router.post('/:boardId/cards', createCard);
 router.patch('/:boardId/cards/:cardId', updateCard);
 router.delete('/:boardId/cards/:cardId', deleteCard);
+router.get('/:boardId/cards/:cardId/comments', getCardComments);
+router.post('/:boardId/cards/:cardId/comments', createCardComment);
 
 export default router;

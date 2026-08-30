@@ -26,6 +26,7 @@ const activitySchema = new mongoose.Schema(
         'card.updated',
         'card.moved',
         'card.deleted',
+        'comment.created',
         'member.added',
         'member.role_updated',
         'member.removed',

@@ -105,6 +105,15 @@ Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle
 > Card **move** = a `PATCH` changing `listId` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
 > `assignee` must be `null`, empty, or a user id that already belongs to the board. `dueDate` accepts an ISO date/date-time string or `null`.
 
+### 2.7 Comments
+
+| Method | Path | Min role | Body | Returns |
+|---|---|---|---|---|
+| GET | `/boards/:boardId/cards/:cardId/comments` | member | – | `200 { comments }` |
+| POST | `/boards/:boardId/cards/:cardId/comments` | member | `{ body }` | `201 { comment, activity }` |
+
+Comments are scoped by both board and card. The server verifies board membership first, then verifies the card belongs to that board before reading or writing comments.
+
 ---
 
 ## 3. Socket.IO protocol
@@ -141,6 +150,7 @@ Errors use:
 | `card:move` | `{ boardId, cardId, list, position }` | verify membership, persist, broadcast | `{ card, activity }` |
 | `card:update` | `{ boardId, cardId, updates }` | verify membership, persist, broadcast | `{ card, activity }` |
 | `card:delete` | `{ boardId, cardId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |
+| `comment:create` | `{ boardId, cardId, body }` | verify membership, persist, broadcast | `{ comment, activity }` |
 | `list:create` | `{ boardId, title, position }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:move` | `{ boardId, listId, position }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:update` | `{ boardId, listId, updates }` | verify membership, persist, broadcast | `{ list, activity }` |
@@ -154,6 +164,7 @@ Errors use:
 | `card:moved` | `{ boardId, card }` | a card moved |
 | `card:updated` | `{ boardId, card }` | a card's fields changed |
 | `card:deleted` | `{ boardId, cardId }` | a card was removed |
+| `comment:created` | `{ boardId, cardId, comment }` | a card comment was added |
 | `list:created` | `{ boardId, list }` | a list was added |
 | `list:moved` | `{ boardId, list }` | a list moved |
 | `list:updated` | `{ boardId, list }` | a list changed |

@@ -96,6 +96,12 @@ export const boardApi = {
   deleteCard: (boardId, cardId, token) =>
     request(`/boards/${boardId}/cards/${cardId}`, { method: 'DELETE', token }),
 
+  getCardComments: (boardId, cardId, token) =>
+    request(`/boards/${boardId}/cards/${cardId}/comments`, { token }),
+
+  createCardComment: (boardId, cardId, body, token) =>
+    request(`/boards/${boardId}/cards/${cardId}/comments`, { method: 'POST', body: { body }, token }),
+
   // Partial update — pass any of { title, position } for a list.
   updateList: (boardId, listId, updates, token) =>
     request(`/boards/${boardId}/lists/${listId}`, { method: 'PATCH', body: updates, token }),

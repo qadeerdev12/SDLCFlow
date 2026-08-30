@@ -962,9 +962,15 @@ export default function BoardPage() {
 
       {selectedCard && (
         <CardDetailModal
+          boardId={boardId}
           card={selectedCard}
           lists={lists}
           members={members}
+          token={token}
+          connected={connected}
+          emitWithAck={emitWithAck}
+          onSocketEvent={onSocketEvent}
+          onActivity={prependActivity}
           onClose={() => setSelectedCard(null)}
           onSave={handleUpdateCard}
           onDelete={handleDeleteCard}

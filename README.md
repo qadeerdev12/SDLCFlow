@@ -9,6 +9,7 @@ The app currently supports:
 - list and card creation
 - drag-and-drop card and list ordering
 - card detail editing with descriptions
+- card comments with realtime updates
 - card tags and task statuses
 - card assignees and due dates
 - board-level search, tag filters, and status filters

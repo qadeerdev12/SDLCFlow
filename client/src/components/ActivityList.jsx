@@ -8,6 +8,7 @@ const ACTION_LABELS = {
   'card.updated': 'updated a card',
   'card.moved': 'moved a card',
   'card.deleted': 'deleted a card',
+  'comment.created': 'commented on a card',
   'member.added': 'added a member',
   'member.role_updated': 'changed a member role',
   'member.removed': 'removed a member',

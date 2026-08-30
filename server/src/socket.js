@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from './models/User.js';
 import Card from './models/Card.js';
 import List from './models/List.js';
+import Comment from './models/Comment.js';
 import { getBoardIfMember, getBoardIfRole } from './utils/boardAccess.js';
 import {
   createCard,
@@ -284,6 +285,49 @@ export function configureSockets(io) {
       });
       socket.to(roomName(board._id)).emit('card:deleted', { boardId: board._id.toString(), cardId });
       return { deleted: true, activity };
+    });
+
+    registerMutation(socket, 'comment:create', async ({ boardId, cardId, body }) => {
+      const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
+      const card = await Card.findOne({ _id: cardId, board: board._id }).select('_id title');
+      if (!card) {
+        const err = new Error('Card not found.');
+        err.statusCode = 404;
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+
+      const safeBody = typeof body === 'string' ? body.trim() : '';
+      if (!safeBody) {
+        const err = new Error('Comment body is required.');
+        err.statusCode = 400;
+        err.code = 'VALIDATION';
+        throw err;
+      }
+
+      const comment = await Comment.create({
+        board: board._id,
+        card: card._id,
+        author: socket.data.user._id,
+        body: safeBody,
+      });
+      await comment.populate('author', 'name email');
+      const activity = await recordActivity({
+        socket,
+        boardId: board._id,
+        actorId: socket.data.user._id,
+        action: 'comment.created',
+        targetType: 'card',
+        targetId: card._id,
+        targetTitle: card.title,
+      });
+
+      socket.to(roomName(board._id)).emit('comment:created', {
+        boardId: board._id.toString(),
+        cardId: card._id.toString(),
+        comment,
+      });
+      return { comment, activity };
     });
 
     registerMutation(socket, 'list:create', async ({ boardId, title, position }) => {

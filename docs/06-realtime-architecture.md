@@ -115,6 +115,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | `card:update` | `{ boardId, cardId, updates }` | `{ card, activity }` |
 | `card:move` | `{ boardId, cardId, list, position }` | `{ card, activity }` |
 | `card:delete` | `{ boardId, cardId }` | `{ deleted: true, activity }` |
+| `comment:create` | `{ boardId, cardId, body }` | `{ comment, activity }` |
 | `list:create` | `{ boardId, title, position }` | `{ list, activity }` |
 | `list:update` | `{ boardId, listId, updates }` | `{ list, activity }` |
 | `list:move` | `{ boardId, listId, position }` | `{ list, activity }` |
@@ -129,6 +130,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | `card:updated` | `{ boardId, card }` | emitted after DB update |
 | `card:moved` | `{ boardId, card }` | emitted after DB update |
 | `card:deleted` | `{ boardId, cardId }` | emitted after DB delete |
+| `comment:created` | `{ boardId, cardId, comment }` | emitted after DB create |
 | `list:created` | `{ boardId, list }` | emitted after DB create |
 | `list:updated` | `{ boardId, list }` | emitted after DB update |
 | `list:moved` | `{ boardId, list }` | emitted after DB update |
