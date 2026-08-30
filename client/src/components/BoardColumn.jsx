@@ -8,6 +8,8 @@ const noLayoutAnimation = () => false
 export default function BoardColumn({
   list,
   cards,
+  totalCards = cards.length,
+  filtersActive = false,
   draft,
   onDraftChange,
   onAddCard,
@@ -34,6 +36,8 @@ export default function BoardColumn({
   }
 
   const cardIds = cards.map((c) => c._id)
+  const cardCountLabel = filtersActive ? `${cards.length} of ${totalCards}` : cards.length
+  const emptyMessage = filtersActive && totalCards > 0 ? 'No matching cards' : 'Drop work here'
 
   async function submitRename(e) {
     e.preventDefault()
@@ -82,7 +86,7 @@ export default function BoardColumn({
             </h2>
           )}
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            {cards.length} {cards.length === 1 ? 'card' : 'cards'}
+            {cardCountLabel} {totalCards === 1 ? 'card' : 'cards'}
           </p>
         </div>
         <button
@@ -129,7 +133,7 @@ export default function BoardColumn({
 
           {cards.length === 0 && (
             <div className="grid min-h-24 place-items-center rounded-lg border border-dashed border-zinc-300 bg-white/60 px-3 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-500">
-              Drop work here
+              {emptyMessage}
             </div>
           )}
         </div>

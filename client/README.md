@@ -7,6 +7,7 @@ The client is responsible for:
 - authentication screens
 - landing page and dashboard
 - kanban board UI
+- card search, tag filtering, and status filtering
 - drag-and-drop with dnd-kit
 - Socket.IO connection lifecycle
 - applying incoming realtime board events

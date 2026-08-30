@@ -10,6 +10,7 @@ The app currently supports:
 - drag-and-drop card and list ordering
 - card detail editing with descriptions
 - card tags and task statuses
+- board-level search, tag filters, and status filters
 - list/card rename and delete
 - board rename and delete
 - board member management by email

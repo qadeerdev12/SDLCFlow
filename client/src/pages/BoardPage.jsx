@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   DndContext,
@@ -18,6 +18,7 @@ import { useTheme } from '../context/ThemeContext'
 import { boardApi } from '../lib/api'
 import { useSocket } from '../hooks/useSocket'
 import { positionBetween, positionForIndex } from '../lib/position'
+import { CARD_STATUSES, CARD_TAGS } from '../lib/cardMeta'
 import Logo from '../components/Logo'
 import BoardSwitcher from '../components/BoardSwitcher'
 import BoardColumn from '../components/BoardColumn'
@@ -48,10 +49,39 @@ export default function BoardPage() {
   const [managingMembers, setManagingMembers] = useState(false)
   const [presence, setPresence] = useState([])
   const [members, setMembers] = useState([])
+  const [cardSearch, setCardSearch] = useState('')
+  const [tagFilter, setTagFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const currentRole = members.find((m) => String(memberUserId(m)) === String(user?.id))?.role
   const canEditBoard = ['owner', 'admin'].includes(currentRole)
   const canDeleteBoard = currentRole === 'owner'
   const { connected, emitWithAck, onSocketEvent } = useSocket(token)
+
+  const totalCardCount = useMemo(
+    () => Object.values(cardsByList).reduce((sum, cards) => sum + cards.length, 0),
+    [cardsByList]
+  )
+  const filtersActive = Boolean(cardSearch.trim()) || tagFilter !== 'all' || statusFilter !== 'all'
+  const visibleCardsByList = useMemo(() => {
+    const query = cardSearch.trim().toLowerCase()
+    const next = {}
+
+    for (const listId in cardsByList) {
+      next[listId] = cardsByList[listId].filter((card) => {
+        const titleAndDescription = `${card.title || ''} ${card.description || ''}`.toLowerCase()
+        const matchesSearch = !query || titleAndDescription.includes(query)
+        const matchesTag = tagFilter === 'all' || (card.tag || 'Task') === tagFilter
+        const matchesStatus = statusFilter === 'all' || (card.status || 'Todo') === statusFilter
+        return matchesSearch && matchesTag && matchesStatus
+      })
+    }
+
+    return next
+  }, [cardsByList, cardSearch, tagFilter, statusFilter])
+  const filteredCardCount = useMemo(
+    () => Object.values(visibleCardsByList).reduce((sum, cards) => sum + cards.length, 0),
+    [visibleCardsByList]
+  )
 
   // Refs mirror state so drag handlers always read the freshest value even
   // across the re-renders that onDragOver triggers mid-drag.
@@ -541,7 +571,9 @@ export default function BoardPage() {
             <div className="min-w-0">
               <BoardSwitcher currentBoard={board} />
               <div className="mt-1 hidden items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:flex">
-                <span>{lists.length} lists · {Object.values(cardsByList).reduce((sum, cards) => sum + cards.length, 0)} cards</span>
+                <span>
+                  {lists.length} lists · {filtersActive ? `${filteredCardCount} of ${totalCardCount}` : totalCardCount} cards
+                </span>
                 <span>·</span>
                 <span className={`inline-flex items-center gap-1.5 ${connected ? 'text-teal-700 dark:text-teal-300' : 'text-zinc-500 dark:text-zinc-400'}`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-teal-500' : 'bg-zinc-400'}`} />
@@ -632,6 +664,71 @@ export default function BoardPage() {
         </div>
       </header>
 
+      <section className="mx-4 mt-4 flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center">
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">Search cards</span>
+          <svg className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            value={cardSearch}
+            onChange={(e) => setCardSearch(e.target.value)}
+            placeholder="Search title or description"
+            className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 pl-9 pr-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-950"
+          />
+        </label>
+
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+          <label>
+            <span className="sr-only">Filter by tag</span>
+            <select
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+              className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-700 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:focus:bg-zinc-950 sm:w-36"
+            >
+              <option value="all">All tags</option>
+              {CARD_TAGS.map((tag) => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span className="sr-only">Filter by status</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-700 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:focus:bg-zinc-950 sm:w-40"
+            >
+              <option value="all">All statuses</option>
+              {CARD_STATUSES.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 md:justify-end">
+          <span className="whitespace-nowrap text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            {filtersActive ? `${filteredCardCount} of ${totalCardCount} shown` : `${totalCardCount} total cards`}
+          </span>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => {
+                setCardSearch('')
+                setTagFilter('all')
+                setStatusFilter('all')
+              }}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </section>
+
       {error && (
         <p className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
           {error}
@@ -651,7 +748,9 @@ export default function BoardPage() {
               <BoardColumn
                 key={list._id}
                 list={list}
-                cards={cardsByList[list._id] || []}
+                cards={visibleCardsByList[list._id] || []}
+                totalCards={(cardsByList[list._id] || []).length}
+                filtersActive={filtersActive}
                 draft={cardDrafts[list._id]}
                 onDraftChange={setDraftForList}
                 onAddCard={handleAddCard}
