@@ -215,9 +215,9 @@ export function configureSockets(io) {
       }
     });
 
-    registerMutation(socket, 'card:create', async ({ boardId, title, listId, position }) => {
+    registerMutation(socket, 'card:create', async ({ boardId, title, listId, position, tag, status }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
-      const card = await createCard({ boardId: board._id, title, listId, position });
+      const card = await createCard({ boardId: board._id, title, listId, position, tag, status });
       // Persist first, then broadcast the saved document to everyone except
       // the sender. The sender receives the same document through the ack.
       socket.to(roomName(board._id)).emit('card:created', { boardId: board._id.toString(), card });

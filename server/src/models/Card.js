@@ -24,6 +24,16 @@ const cardSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    tag: {
+      type: String,
+      enum: ['Task', 'Feature', 'Bug', 'Design', 'Research', 'Docs', 'Chore'],
+      default: 'Task',
+    },
+    status: {
+      type: String,
+      enum: ['Todo', 'In Progress', 'Review', 'Blocked', 'Done'],
+      default: 'Todo',
+    },
     position: {
       type: Number,
       required: true,

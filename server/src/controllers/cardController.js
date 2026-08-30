@@ -15,12 +15,12 @@ function sendMutationError(res, err) {
 // POST /api/v1/boards/:boardId/cards
 export async function createCard(req, res) {
     try {
-        const { title, listId, position } = req.body;
+        const { title, listId, position, tag, status } = req.body;
         const board = await getBoardIfRole(req.params.boardId, req.user._id, ['owner', 'admin', 'member']);
         if (!board) {
             return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
         }
-        const card = await createCardMutation({ boardId: board._id, title, listId, position });
+        const card = await createCardMutation({ boardId: board._id, title, listId, position, tag, status });
         return res.status(201).json({ data: { card } });
     } catch (err) {
         console.error('Create card error:', err.message);

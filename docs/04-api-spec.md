@@ -90,8 +90,8 @@ Member rules:
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
-| POST | `/boards/:boardId/cards` | member | `{ listId, title, position }` | `201 { card }` |
-| PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, list?, position? }` | `200 { card }` |
+| POST | `/boards/:boardId/cards` | member | `{ listId, title, position, tag?, status? }` | `201 { card }` |
+| PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, tag?, status?, list?, position? }` | `200 { card }` |
 | DELETE | `/boards/:boardId/cards/:cardId` | member | – | `200 { deleted: true }` |
 
 > Card **move** = a `PATCH` changing `listId` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
@@ -128,7 +128,7 @@ Errors use:
 | Event | Payload | Server action | Ack data |
 |---|---|---|---|
 | `board:join` | `{ boardId }` | verify membership → join room | `{ boardId, presence }` |
-| `card:create` | `{ boardId, listId, title, position }` | verify membership, persist, broadcast | `{ card }` |
+| `card:create` | `{ boardId, listId, title, position, tag?, status? }` | verify membership, persist, broadcast | `{ card }` |
 | `card:move` | `{ boardId, cardId, list, position }` | verify membership, persist, broadcast | `{ card }` |
 | `card:update` | `{ boardId, cardId, updates }` | verify membership, persist, broadcast | `{ card }` |
 | `card:delete` | `{ boardId, cardId }` | verify membership, persist, broadcast | `{ deleted: true }` |

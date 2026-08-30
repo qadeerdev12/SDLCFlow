@@ -82,8 +82,8 @@ export const boardApi = {
   createList: (boardId, title, position, token) =>
     request(`/boards/${boardId}/lists`, { method: 'POST', body: { title, position }, token }),
 
-  createCard: (boardId, title, listId, position, token) =>
-    request(`/boards/${boardId}/cards`, { method: 'POST', body: { title, listId, position }, token }),
+  createCard: (boardId, title, listId, position, token, options = {}) =>
+    request(`/boards/${boardId}/cards`, { method: 'POST', body: { title, listId, position, ...options }, token }),
 
   // Partial update — pass any of { title, description, position, list } for a card.
   // Used by drag & drop to persist a card's new order / column.
