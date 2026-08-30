@@ -1,6 +1,12 @@
 import Card from '../models/Card.js';
 import List from '../models/List.js';
 
+// This service is the single write path for list/card mutations. REST
+// controllers and Socket.IO handlers both call these functions so validation,
+// cross-board checks, and persisted document shapes stay consistent.
+
+// Cards may move between lists, but never across boards. Checking the target
+// list here protects both REST PATCH calls and realtime card:move events.
 async function assertListBelongsToBoard(boardId, listId) {
   const list = await List.findOne({ _id: listId, board: boardId });
   if (!list) {
@@ -67,6 +73,8 @@ export async function deleteList({ boardId, listId }) {
     throw err;
   }
 
+  // Lists own their visible cards in the UI. Deleting the list also removes
+  // those cards so the database does not keep unreachable work items around.
   await Card.deleteMany({ board: boardId, list: list._id });
   return true;
 }

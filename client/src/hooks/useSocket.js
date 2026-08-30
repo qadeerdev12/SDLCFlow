@@ -3,6 +3,9 @@ import { io } from 'socket.io-client'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5050'
 
+// Owns the Socket.IO client lifecycle for authenticated areas. Components get
+// small helpers instead of the raw socket ref, which keeps React render logic
+// separate from imperative socket APIs.
 export function useSocket(token) {
   const socketRef = useRef(null)
   const [connected, setConnected] = useState(false)
@@ -46,6 +49,8 @@ export function useSocket(token) {
     }
 
     return new Promise((resolve, reject) => {
+      // All server mutations use ack callbacks. The Promise wrapper gives page
+      // code normal async/await control flow and one place for timeout handling.
       socket.timeout(8000).emit(eventName, payload, (err, response) => {
         if (err) {
           reject(new Error('Realtime request timed out.'))
@@ -64,6 +69,8 @@ export function useSocket(token) {
     const socket = socketRef.current
     if (!socket) return () => {}
 
+    // Returning the cleanup keeps board pages from accumulating duplicate
+    // listeners when navigating between boards or reconnecting.
     socket.on(eventName, handler)
     return () => socket.off(eventName, handler)
   }, [])

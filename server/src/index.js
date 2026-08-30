@@ -10,6 +10,10 @@ import { configureSockets } from './socket.js';
 
 const app = express();  //create the Express application
 const httpServer = createServer(app); //create an HTTP server instance
+
+// Keep HTTP and Socket.IO CORS in sync. CLIENT_ORIGIN accepts a comma-separated
+// list so local dev can use either localhost or 127.0.0.1, and deploys can add
+// the production web URL without code changes.
 const CLIENT_ORIGINS = (process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',')
     .map((origin) => origin.trim())
@@ -40,6 +44,8 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Socket handlers live outside this bootstrap file so auth, presence, and board
+// mutation events can evolve without turning server startup into a catch-all.
 configureSockets(io);
 
 

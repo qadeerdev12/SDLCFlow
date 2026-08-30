@@ -50,6 +50,8 @@ function getPresenceList(boardId) {
   }));
 }
 
+// Presence can change quickly during refresh/reconnect. Throttling keeps the
+// UI responsive without broadcasting several near-identical member lists.
 function schedulePresence(io, boardId) {
   if (presenceTimers.has(boardId)) return;
 
@@ -64,6 +66,8 @@ function schedulePresence(io, boardId) {
   presenceTimers.set(boardId, timer);
 }
 
+// Presence is tracked by user and socket. One user can have multiple tabs open,
+// and they should remain "online" until their final tab disconnects.
 function addPresence(io, socket, boardId) {
   const normalizedBoardId = boardId.toString();
   const userId = socket.data.user._id.toString();
@@ -82,6 +86,8 @@ function addPresence(io, socket, boardId) {
   schedulePresence(io, normalizedBoardId);
 }
 
+// Clean up every board room this socket joined. This is why board ids are kept
+// on socket.data instead of only relying on Socket.IO's internal room list.
 function removePresence(io, socket) {
   const boardIds = socket.data.boardIds || new Set();
   const userId = socket.data.user?._id?.toString();
@@ -103,6 +109,8 @@ function removePresence(io, socket) {
   }
 }
 
+// Every board event starts here. Returning 404 for non-members avoids revealing
+// whether a private board id exists.
 async function requireBoardMember(socket, boardId) {
   if (!boardId) {
     const err = new Error('Board id is required.');
@@ -121,6 +129,8 @@ async function requireBoardMember(socket, boardId) {
   return board;
 }
 
+// Wrap mutation handlers in one ack/error convention. Clients use a Promise
+// wrapper around this shape, so keep `{ ok, data/error }` stable.
 function registerMutation(socket, eventName, handler) {
   socket.on(eventName, async (payload = {}, callback) => {
     try {
@@ -135,6 +145,8 @@ function registerMutation(socket, eventName, handler) {
 }
 
 export function configureSockets(io) {
+  // Socket.IO handshake auth. This happens before `connection`, so invalid
+  // clients never get a chance to join rooms or emit board events.
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
@@ -163,6 +175,8 @@ export function configureSockets(io) {
   });
 
   io.on('connection', (socket) => {
+    // Joining is explicit because connection auth proves identity only. The
+    // board room still needs membership verification for that specific board.
     socket.on('board:join', async ({ boardId } = {}, callback) => {
       try {
         const board = await requireBoardMember(socket, boardId);
@@ -186,6 +200,8 @@ export function configureSockets(io) {
     registerMutation(socket, 'card:create', async ({ boardId, title, listId, position }) => {
       const board = await requireBoardMember(socket, boardId);
       const card = await createCard({ boardId: board._id, title, listId, position });
+      // Persist first, then broadcast the saved document to everyone except
+      // the sender. The sender receives the same document through the ack.
       socket.to(roomName(board._id)).emit('card:created', { boardId: board._id.toString(), card });
       return { card };
     });

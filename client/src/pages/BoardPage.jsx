@@ -95,6 +95,8 @@ export default function BoardPage() {
     if (!connected || !boardId) return undefined
     let cancelled = false
 
+    // Connection auth proves the JWT is valid. Joining still checks membership
+    // for this specific board before the server places the socket in its room.
     emitWithAck('board:join', { boardId })
       .then((data) => {
         if (!cancelled) setPresence(data.presence || [])
@@ -103,6 +105,8 @@ export default function BoardPage() {
         if (!cancelled) setError(err.message)
       })
 
+    // Reconnects can miss events while offline, so reload the full board
+    // snapshot after joining. Incoming events keep the snapshot fresh after that.
     const timer = setTimeout(() => {
       loadBoard({ keepLoading: true })
     }, 0)
@@ -116,6 +120,8 @@ export default function BoardPage() {
   useEffect(() => {
     if (!connected) return undefined
 
+    // Each handler guards on boardId. A socket can reconnect or the user can
+    // navigate between boards, and stale events should never mutate this view.
     function onPresenceUpdate(payload) {
       if (payload.boardId === boardId) setPresence(payload.users || [])
     }
@@ -211,6 +217,8 @@ export default function BoardPage() {
     setCardDrafts((prev) => ({ ...prev, [listId]: value }))
   }
 
+  // Prefer Socket.IO writes so collaborators receive live updates. REST keeps
+  // the board usable if the socket drops while the API is still reachable.
   async function realtimeOrRest(eventName, payload, restCall) {
     if (connected) return emitWithAck(eventName, payload)
     return restCall()
