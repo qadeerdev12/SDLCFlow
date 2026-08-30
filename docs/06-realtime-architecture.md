@@ -204,6 +204,12 @@ Activity is fetched over REST on board load and then updated by `activity:create
 
 Board chat history is fetched over REST when the chat drawer opens. New messages use the same socket-first/fallback-to-REST pattern as board mutations. Chat messages are persisted and broadcast as `message:created`, but they are intentionally not recorded in the board activity log.
 
+The client keeps chat state board-scoped. Switching boards clears loaded chat
+history, errors, and unread counts. When a `message:created` event arrives while
+the drawer is closed, the board header badge increments; opening the drawer
+resets that count. The chat composer sends on Enter and keeps Shift+Enter for
+multiline messages.
+
 ---
 
 ## Adding a New Realtime Mutation

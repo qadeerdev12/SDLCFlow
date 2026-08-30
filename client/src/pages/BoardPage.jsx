@@ -150,6 +150,7 @@ export default function BoardPage() {
   const [messagesLoaded, setMessagesLoaded] = useState(false)
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [messagesError, setMessagesError] = useState('')
+  const [unreadMessages, setUnreadMessages] = useState(0)
   const [cardSearch, setCardSearch] = useState('')
   const [tagFilter, setTagFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -280,6 +281,25 @@ export default function BoardPage() {
   }, [board, chatPanelOpen, loadMessages, messagesLoaded])
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setMessages([])
+      setMessagesLoaded(false)
+      setMessagesLoading(false)
+      setMessagesError('')
+      setUnreadMessages(0)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [boardId])
+
+  useEffect(() => {
+    if (!chatPanelOpen) return undefined
+    const timer = setTimeout(() => {
+      setUnreadMessages(0)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [chatPanelOpen])
+
+  useEffect(() => {
     if (!connected || !boardId) return undefined
     let cancelled = false
 
@@ -398,6 +418,7 @@ export default function BoardPage() {
     function onMessageCreated(payload) {
       if (payload.boardId !== boardId) return
       appendMessage(payload.message)
+      if (!chatPanelOpen) setUnreadMessages((count) => Math.min(count + 1, 99))
     }
 
     const cleanups = [
@@ -418,7 +439,7 @@ export default function BoardPage() {
     return () => {
       cleanups.forEach((cleanup) => cleanup())
     }
-  }, [boardId, connected, navigate, onSocketEvent, user?.id])
+  }, [boardId, chatPanelOpen, connected, navigate, onSocketEvent, user?.id])
 
   // --- helpers -------------------------------------------------------------
 
@@ -505,6 +526,11 @@ export default function BoardPage() {
       next.set('panel', panel)
       return next
     })
+  }
+
+  function openChatPanel() {
+    setUnreadMessages(0)
+    openPanel('chat')
   }
 
   function closeChatPanel() {
@@ -883,13 +909,18 @@ export default function BoardPage() {
             </Link>
             <button
               type="button"
-              onClick={() => openPanel('chat')}
-              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              onClick={openChatPanel}
+              className="relative inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
               </svg>
               Chat
+              {unreadMessages > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold leading-none text-white shadow-sm">
+                  {unreadMessages > 9 ? '9+' : unreadMessages}
+                </span>
+              )}
             </button>
             {(canEditBoard || canDeleteBoard) && (
               <div className="col-span-2 grid grid-cols-[1fr_auto] gap-2 sm:flex">

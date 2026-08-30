@@ -23,6 +23,27 @@ function messageTime(value) {
   return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
+function dateKey(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toDateString()
+}
+
+function dateLabel(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
+  const daysAgo = Math.round((today - target) / 86_400_000)
+
+  if (daysAgo === 0) return 'Today'
+  if (daysAgo === 1) return 'Yesterday'
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export default function ChatPanel({
   board,
   messages,
@@ -56,6 +77,12 @@ export default function ChatPanel({
     } finally {
       setSending(false)
     }
+  }
+
+  function handleComposerKeyDown(e) {
+    if (e.key !== 'Enter' || e.shiftKey) return
+    e.preventDefault()
+    e.currentTarget.form?.requestSubmit()
   }
 
   return (
@@ -116,24 +143,36 @@ export default function ChatPanel({
             </div>
           )}
 
-          {!loading && !error && messages.map((message) => {
+          {!loading && !error && messages.map((message, index) => {
             const isMine = String(userId(message.sender)) === String(currentUserId)
             const name = senderName(message.sender)
+            const showDateLabel = dateKey(message.createdAt) !== dateKey(messages[index - 1]?.createdAt)
             return (
-              <article key={message._id} className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                {!isMine && (
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-zinc-950 text-[10px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-950">
-                    {initials(name)}
-                  </span>
-                )}
-                <div className={`max-w-[78%] rounded-lg border px-3 py-2 ${isMine ? 'border-teal-600 bg-teal-600 text-white' : 'border-zinc-200 bg-zinc-50 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100'}`}>
-                  <div className={`mb-1 flex items-center justify-between gap-3 text-[11px] ${isMine ? 'text-teal-50/80' : 'text-zinc-500 dark:text-zinc-400'}`}>
-                    <span className="truncate font-semibold">{isMine ? 'You' : name}</span>
-                    <span className="shrink-0">{messageTime(message.createdAt)}</span>
+              <div key={message._id}>
+                {showDateLabel && (
+                  <div className="my-4 flex items-center gap-3">
+                    <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+                    <span className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-[11px] font-semibold text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+                      {dateLabel(message.createdAt)}
+                    </span>
+                    <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
                   </div>
-                  <p className="whitespace-pre-wrap break-words text-sm leading-5">{message.body}</p>
-                </div>
-              </article>
+                )}
+                <article className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                  {!isMine && (
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-zinc-950 text-[10px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-950">
+                      {initials(name)}
+                    </span>
+                  )}
+                  <div className={`max-w-[78%] rounded-lg border px-3 py-2 ${isMine ? 'border-teal-600 bg-teal-600 text-white' : 'border-zinc-200 bg-zinc-50 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100'}`}>
+                    <div className={`mb-1 flex items-center justify-between gap-3 text-[11px] ${isMine ? 'text-teal-50/80' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                      <span className="truncate font-semibold">{isMine ? 'You' : name}</span>
+                      <span className="shrink-0">{messageTime(message.createdAt)}</span>
+                    </div>
+                    <p className="whitespace-pre-wrap break-words text-sm leading-5">{message.body}</p>
+                  </div>
+                </article>
+              </div>
             )
           })}
         </div>
@@ -145,6 +184,7 @@ export default function ChatPanel({
               id="board-chat-message"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={handleComposerKeyDown}
               rows={2}
               maxLength={2000}
               placeholder="Message this board"

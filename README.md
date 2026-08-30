@@ -143,7 +143,9 @@ across every board you belong to at `/activity`.
 Every board has its own realtime chat drawer. Messages are persisted to MongoDB,
 loaded over REST when the drawer opens, and sent over Socket.IO when connected
 with REST fallback when the socket is unavailable. Only board members can read or
-send messages.
+send messages. The board header shows an unread badge while the drawer is
+closed, messages are grouped by day, and the composer supports Enter to send
+with Shift+Enter for multiline notes.
 
 ### Search, filters, and a dark mode that isn't an afterthought
 
