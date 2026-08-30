@@ -1,10 +1,8 @@
-import {createContext, useContext, useState, useEffect} from 'react';
+import { useState, useEffect } from 'react';
 import { authApi } from '../lib/api';
+import { AuthContext } from './authContextValue';
 
-//1.create the context object - the "chanel" componenets will turn into to talk to each other through.
-const AuthContext = createContext(null);
-
-//2. The Provider: wraps the app and holds the auth state.
+// The Provider wraps the app and owns login/session state.
 export function AuthProvider({children}) {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(() => localStorage.getItem('token')); // lazy init from localStorage
@@ -59,14 +57,4 @@ export function AuthProvider({children}) {
     const value = {user, token, loading, login, register, logout};
     
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-
-}
-
-//8. A custom hook so components can read the context cleanly: useAuth()
-export function useAuth() {
-    const ctx = useContext(AuthContext);
-    if (!ctx) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return ctx;
 }

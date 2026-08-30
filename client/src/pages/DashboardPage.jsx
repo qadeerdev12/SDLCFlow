@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import { boardApi } from '../lib/api'
 import AppHeader from '../components/AppHeader'
 import BoardCard from '../components/BoardCard'

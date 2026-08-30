@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import { boardApi } from '../lib/api'
 import { DEFAULT_EMOJI } from '../lib/boardColors'
 

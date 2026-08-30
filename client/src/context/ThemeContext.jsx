@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-
-const ThemeContext = createContext(null)
+import { useState, useEffect } from 'react'
+import { ThemeContext } from './themeContextValue'
 
 // Read the initial theme once: an explicit choice wins, otherwise follow the OS.
 function initialDark() {
@@ -27,12 +26,4 @@ export function ThemeProvider({ children }) {
             {children}
         </ThemeContext.Provider>
     )
-}
-
-export function useTheme() {
-    const context = useContext(ThemeContext)
-    if (!context) {
-        throw new Error('useTheme must be used within a ThemeProvider')
-    }
-    return context
 }

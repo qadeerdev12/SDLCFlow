@@ -13,8 +13,8 @@ import {
   arrayMove,
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/useAuth'
+import { useTheme } from '../context/useTheme'
 import { boardApi } from '../lib/api'
 import { useSocket } from '../hooks/useSocket'
 import { positionBetween, positionForIndex } from '../lib/position'

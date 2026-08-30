@@ -35,15 +35,16 @@ If another process is already using that port, Vite may choose another one. Make
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `VITE_API_URL` | `http://localhost:5050/api/v1` | REST API base URL |
 | `VITE_SOCKET_URL` | `http://localhost:5050` | URL for the Socket.IO server |
 
-The REST API base URL currently lives in `src/lib/api.js`:
+Create a local env file from the example:
 
-```js
-const BASE_URL = "http://localhost:5050/api/v1";
+```bash
+cp .env.example .env
 ```
 
-Before deployment, move this to a `VITE_API_URL` environment variable so the same build can point at local, staging, or production APIs.
+Vite reads these values at build time, so production env changes require a fresh deploy.
 
 ---
 
@@ -79,4 +80,4 @@ npm run build
 npm run lint
 ```
 
-Known lint status: the project currently has Fast Refresh warnings in the auth/theme context files because those files export both providers and hooks. This does not block production builds, but it should be cleaned up before final polish.
+Both commands should pass before deployment.

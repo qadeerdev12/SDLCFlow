@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:5050/api/v1";
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api/v1';
 
 // A single wrapper around fetch that:
 //  - prepends the base URL

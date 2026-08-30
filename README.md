@@ -107,9 +107,40 @@ Client:
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `VITE_API_URL` | `http://localhost:5050/api/v1` | REST API base URL |
 | `VITE_SOCKET_URL` | `http://localhost:5050` | Socket.IO server URL |
 
-The REST API URL is currently hardcoded in `client/src/lib/api.js`; before deployment, move it to a `VITE_API_URL` variable.
+Copy `server/.env.example` and `client/.env.example` when setting up a new environment.
+
+---
+
+## Deployment Notes
+
+Recommended production split:
+
+| Piece | Host |
+|---|---|
+| Client | Vercel |
+| Server | Render |
+| Database | MongoDB Atlas |
+
+Render server environment:
+
+```text
+PORT=5050
+MONGO_URI=<atlas connection string>
+JWT_SECRET=<long random secret>
+CLIENT_ORIGIN=https://<your-vercel-app>.vercel.app
+```
+
+Vercel client environment:
+
+```text
+VITE_API_URL=https://<your-render-service>.onrender.com/api/v1
+VITE_SOCKET_URL=https://<your-render-service>.onrender.com
+```
+
+After changing Vercel environment variables, redeploy the client so Vite bakes the new values into the build.
 
 ---
 
@@ -137,4 +168,4 @@ npm run build
 npm run lint
 ```
 
-Known lint status: `npm run lint` currently reports Fast Refresh warnings in `AuthContext.jsx` and `ThemeContext.jsx` because those files export both providers and hooks. Production builds pass.
+`npm run lint` should pass before opening a deploy PR.
