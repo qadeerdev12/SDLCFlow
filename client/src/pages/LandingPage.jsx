@@ -42,6 +42,11 @@ const features = [
     icon: 'detail',
   },
   {
+    title: 'Board chat',
+    text: 'Keep quick project decisions beside the board with realtime messages, unread counts, and owner-controlled chat clearing.',
+    icon: 'chat',
+  },
+  {
     title: 'Activity timeline',
     text: 'Track board changes from one global activity view or inside a specific project.',
     icon: 'activity',
@@ -143,7 +148,7 @@ export default function LandingPage() {
             </div>
             <div className="landing-rise landing-delay-4 mt-10 grid grid-cols-3 gap-5 border-t border-zinc-200 pt-6 dark:border-zinc-800">
               <Stat value="Live" label="updates" />
-              <Stat value="RBAC" label="roles" />
+              <Stat value="Chat" label="included" />
               <Stat value="Activity" label="timeline" />
             </div>
           </div>
@@ -332,8 +337,23 @@ function HeroBoard() {
       <div className="landing-cursor absolute right-[34%] top-[42%] hidden rounded-lg bg-zinc-950 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg dark:bg-white dark:text-zinc-950 md:block">
         John editing
       </div>
-      <div className="absolute bottom-5 left-5 hidden rounded-lg border border-teal-200 bg-white px-3 py-2 text-xs font-semibold text-teal-800 shadow-lg dark:border-teal-500/20 dark:bg-zinc-950 dark:text-teal-300 sm:block">
-        3 members online
+      <div className="absolute bottom-5 left-5 hidden w-64 rounded-lg border border-teal-200 bg-white p-3 text-xs shadow-lg dark:border-teal-500/20 dark:bg-zinc-950 sm:block">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="font-semibold text-zinc-950 dark:text-zinc-100">Board chat</span>
+          <span className="landing-pulse rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">2 new</span>
+        </div>
+        <div className="space-y-2">
+          <div className="rounded-lg bg-zinc-100 px-2.5 py-2 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+            Alex: API task is ready for review.
+          </div>
+          <div className="ml-7 rounded-lg bg-teal-600 px-2.5 py-2 font-medium text-white">
+            John: Moving it to Review now.
+          </div>
+        </div>
+        <div className="mt-2 flex items-center justify-between border-t border-zinc-100 pt-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+          <span>Enter to send</span>
+          <span>Owner can clear</span>
+        </div>
       </div>
     </div>
   )
@@ -359,6 +379,7 @@ function FeatureIcon({ type }) {
     target: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></>,
     detail: <><path d="M8 4h8l4 4v12H4V4h4Z" /><path d="M14 4v5h5" /><path d="M8 13h8" /><path d="M8 17h5" /></>,
     activity: <><path d="M3 12h4l3-7 4 14 3-7h4" /></>,
+    chat: <><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /><path d="M8 9h8" /><path d="M8 13h5" /></>,
     filter: <><path d="M4 5h16" /><path d="M7 12h10" /><path d="M10 19h4" /></>,
     shield: <><path d="M12 3 20 7v5c0 5-3.4 8.1-8 9-4.6-.9-8-4-8-9V7l8-4Z" /><path d="m9 12 2 2 4-5" /></>,
     settings: <><path d="M4 7h16" /><path d="M4 17h16" /><path d="M8 4v6" /><path d="M16 14v6" /></>,
