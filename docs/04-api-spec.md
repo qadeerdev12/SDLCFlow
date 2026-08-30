@@ -49,9 +49,12 @@ Defines the contract between client and server: the REST API (request/response w
 | POST | `/auth/login` | – | `{ email, password }` | `200 { user, token }` |
 | GET | `/auth/me` | ✅ | – | `200 { user }` |
 | GET | `/auth/profile` | ✅ | – | `200 { user, stats }` |
+| PATCH | `/auth/profile` | ✅ | `{ name?, email? }` | `200 { user }` |
+| PATCH | `/auth/password` | ✅ | `{ currentPassword, newPassword }` | `200 { updated: true }` |
 | DELETE | `/auth/me` | ✅ | `{ password }` | `200 { deleted: true }` |
 
 `user` never includes `passwordHash`.
+Profile email updates reject duplicate emails with `409 EMAIL_TAKEN`. Password updates require the current password and a new password of at least 8 characters.
 Deleting an account removes owned boards and their lists/cards/comments/activity, removes the user from shared boards, clears their card assignments, and deletes their comments/activity records.
 
 ### 2.2 Boards

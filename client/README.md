@@ -11,7 +11,8 @@ The client is responsible for:
 - card comment threads
 - card assignee and due date editing
 - global and board-specific activity pages
-- user profile and account deletion
+- user profile editing, password changes, and account deletion
+- app-wide toast notifications
 - recent activity panel
 - drag-and-drop with dnd-kit
 - Socket.IO connection lifecycle

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useToast } from '../context/useToast'
 
 const ROLES = [
   { value: 'member', label: 'Member' },
@@ -30,6 +31,7 @@ export default function MembersPanel({
   onChangeRole,
   onRemoveMember,
 }) {
+  const toast = useToast()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('member')
   const [error, setError] = useState('')
@@ -63,6 +65,7 @@ export default function MembersPanel({
       setRole('member')
     } catch (err) {
       setError(err.message)
+      toast.error('Could not add member', err.message)
     } finally {
       setSubmitting(false)
     }
@@ -77,6 +80,7 @@ export default function MembersPanel({
       await onRemoveMember(memberUserId(member))
     } catch (err) {
       setError(err.message)
+      toast.error('Could not remove member', err.message)
     }
   }
 
@@ -171,7 +175,10 @@ export default function MembersPanel({
                   {canEditThisRole ? (
                     <select
                       value={member.role}
-                      onChange={(e) => onChangeRole(userId, e.target.value).catch((err) => setError(err.message))}
+                      onChange={(e) => onChangeRole(userId, e.target.value).catch((err) => {
+                        setError(err.message)
+                        toast.error('Could not update role', err.message)
+                      })}
                       className="rounded-lg border border-zinc-300 bg-white px-2.5 py-2 text-sm text-zinc-950 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                     >
                       {ROLES.map((option) => (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useToast } from '../context/useToast'
 import { boardApi } from '../lib/api'
 import AppHeader from '../components/AppHeader'
 import BoardCard from '../components/BoardCard'
@@ -14,6 +15,7 @@ const SORTS = [
 
 export default function DashboardPage() {
   const { user, token } = useAuth()
+  const toast = useToast()
   const navigate = useNavigate()
 
   const [boards, setBoards] = useState([])
@@ -56,11 +58,13 @@ export default function DashboardPage() {
   async function handleCreate(name, options) {
     const res = await boardApi.create(name, token, options)
     setBoards((prev) => [res.data.board, ...prev])
+    toast.success('Board created', res.data.board.name)
   }
 
   async function handleUpdate(board, name, options) {
     const res = await boardApi.update(board._id, { name, ...options }, token)
     setBoards((prev) => prev.map((b) => (b._id === board._id ? res.data.board : b)))
+    toast.success('Board updated', res.data.board.name)
   }
 
   async function handleDelete(board) {
@@ -70,8 +74,10 @@ export default function DashboardPage() {
     try {
       await boardApi.delete(board._id, token)
       setBoards((prev) => prev.filter((b) => b._id !== board._id))
+      toast.success('Board deleted', board.name)
     } catch (err) {
       setError(err.message)
+      toast.error('Could not delete board', err.message)
     }
   }
 

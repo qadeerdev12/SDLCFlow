@@ -53,8 +53,12 @@ export function AuthProvider({children}) {
         setUser(null);
     }
 
+    function updateUser(nextUser) {
+        setUser((current) => ({ ...current, ...nextUser }));
+    }
+
     //7. Broadcast these values to any component that tunes in.
-    const value = {user, token, loading, login, register, logout};
+    const value = {user, token, loading, login, register, logout, updateUser};
     
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

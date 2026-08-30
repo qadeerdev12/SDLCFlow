@@ -50,6 +50,7 @@ export default function CardDetailModal({
   emitWithAck,
   onSocketEvent,
   onActivity,
+  onToast,
   onClose,
   onSave,
   onDelete,
@@ -171,8 +172,10 @@ export default function CardDetailModal({
       setComments((prev) => [...prev, data.comment])
       onActivity?.(data.activity)
       setCommentDraft('')
+      onToast?.success('Comment posted', card.title)
     } catch (err) {
       setCommentError(err.message)
+      onToast?.error('Could not post comment', err.message)
     } finally {
       setCommentSaving(false)
     }

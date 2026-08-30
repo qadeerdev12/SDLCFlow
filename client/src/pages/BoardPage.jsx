@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/sortable'
 import { useAuth } from '../context/useAuth'
 import { useTheme } from '../context/useTheme'
+import { useToast } from '../context/useToast'
 import { boardApi } from '../lib/api'
 import { useSocket } from '../hooks/useSocket'
 import { positionBetween, positionForIndex } from '../lib/position'
@@ -124,6 +125,7 @@ export default function BoardPage() {
   const { boardId } = useParams()
   const { user, token } = useAuth()
   const { dark, toggle } = useTheme()
+  const toast = useToast()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -188,6 +190,8 @@ export default function BoardPage() {
   // Snapshot taken at drag start so a failed persist (or a drop outside) can roll back.
   const snapshotRef = useRef(null)
   const dragOriginRef = useRef(null)
+  const wasConnectedRef = useRef(false)
+  const connectionInitializedRef = useRef(false)
 
   const sensors = useSensors(
     // A small distance threshold means a plain click won't start a drag —
@@ -272,6 +276,25 @@ export default function BoardPage() {
       clearTimeout(timer)
     }
   }, [boardId, connected, emitWithAck, loadBoard])
+
+  useEffect(() => {
+    if (!connectionInitializedRef.current) {
+      connectionInitializedRef.current = true
+      wasConnectedRef.current = connected
+      return
+    }
+
+    if (connected) {
+      if (wasConnectedRef.current === false) toast.success('Realtime reconnected', 'Live board updates are active again.')
+      wasConnectedRef.current = true
+      return
+    }
+
+    if (wasConnectedRef.current && connectionError) {
+      toast.error('Realtime disconnected', 'Changes will still save through REST when possible.')
+      wasConnectedRef.current = false
+    }
+  }, [connected, connectionError, toast])
 
   useEffect(() => {
     if (!connected) return undefined
@@ -452,8 +475,10 @@ export default function BoardPage() {
       setCardsByList((prev) => ({ ...prev, [listId]: [...(prev[listId] || []), data.card] }))
       prependActivity(data.activity)
       setDraftForList(listId, '')
+      toast.success('Card created', title)
     } catch (err) {
       setError(err.message)
+      toast.error('Could not create card', err.message)
     }
   }
 
@@ -472,8 +497,10 @@ export default function BoardPage() {
       setCardsByList((prev) => ({ ...prev, [data.list._id]: [] }))
       prependActivity(data.activity)
       setNewListTitle('')
+      toast.success('List created', data.list.title)
     } catch (err) {
       setError(err.message)
+      toast.error('Could not create list', err.message)
     }
   }
 
@@ -495,6 +522,7 @@ export default function BoardPage() {
     )
     replaceCard(data.card)
     prependActivity(data.activity)
+    toast.success('Card saved', data.card.title)
   }
 
   async function handleDeleteCard(card) {
@@ -505,6 +533,7 @@ export default function BoardPage() {
     )
     removeCard(card)
     prependActivity(data.activity)
+    toast.success('Card deleted', card.title)
   }
 
   async function handleRenameList(list, title) {
@@ -517,8 +546,10 @@ export default function BoardPage() {
       )
       setLists((prev) => prev.map((l) => (l._id === list._id ? data.list : l)))
       prependActivity(data.activity)
+      toast.success('List renamed', data.list.title)
     } catch (err) {
       setError(err.message)
+      toast.error('Could not rename list', err.message)
     }
   }
 
@@ -541,8 +572,10 @@ export default function BoardPage() {
         return next
       })
       prependActivity(data.activity)
+      toast.success('List deleted', list.title)
     } catch (err) {
       setError(err.message)
+      toast.error('Could not delete list', err.message)
     }
   }
 
@@ -550,6 +583,7 @@ export default function BoardPage() {
     const res = await boardApi.update(boardId, { name, ...options }, token)
     setBoard(res.data.board)
     prependActivity(res.data.activity)
+    toast.success('Board updated', res.data.board.name)
   }
 
   async function handleDeleteBoard() {
@@ -558,9 +592,11 @@ export default function BoardPage() {
 
     try {
       await boardApi.delete(boardId, token)
+      toast.success('Board deleted', board.name)
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)
+      toast.error('Could not delete board', err.message)
     }
   }
 
@@ -569,6 +605,7 @@ export default function BoardPage() {
     setMembers(res.data.members)
     setBoard((current) => current ? { ...current, members: res.data.members } : current)
     prependActivity(res.data.activity)
+    toast.success('Member added', email)
   }
 
   async function handleChangeMemberRole(memberId, role) {
@@ -576,6 +613,7 @@ export default function BoardPage() {
     setMembers(res.data.members)
     setBoard((current) => current ? { ...current, members: res.data.members } : current)
     prependActivity(res.data.activity)
+    toast.success('Member role updated', role)
   }
 
   async function handleRemoveMember(memberId) {
@@ -583,6 +621,7 @@ export default function BoardPage() {
     setMembers(res.data.members)
     setBoard((current) => current ? { ...current, members: res.data.members } : current)
     prependActivity(res.data.activity)
+    toast.success('Member removed')
   }
 
   // --- drag & drop ---------------------------------------------------------
@@ -663,7 +702,10 @@ export default function BoardPage() {
       async () => (await boardApi.updateList(boardId, active.id, { position }, token)).data
     )
       .then((data) => prependActivity(data.activity))
-      .catch(() => rollback('Could not save list order — reverted.'))
+      .catch(() => {
+        rollback('Could not save list order — reverted.')
+        toast.error('Could not save list order', 'The list was moved back.')
+      })
   }
 
   function finishCardDrag(active, over) {
@@ -695,7 +737,10 @@ export default function BoardPage() {
       async () => (await boardApi.updateCard(boardId, activeId, { position, list: container }, token)).data
     )
       .then((data) => prependActivity(data.activity))
-      .catch(() => rollback('Could not save card move — reverted.'))
+      .catch(() => {
+        rollback('Could not save card move — reverted.')
+        toast.error('Could not move card', 'The card was moved back.')
+      })
   }
 
   // --- render --------------------------------------------------------------
@@ -971,6 +1016,7 @@ export default function BoardPage() {
           emitWithAck={emitWithAck}
           onSocketEvent={onSocketEvent}
           onActivity={prependActivity}
+          onToast={toast}
           onClose={() => setSelectedCard(null)}
           onSave={handleUpdateCard}
           onDelete={handleDeleteCard}

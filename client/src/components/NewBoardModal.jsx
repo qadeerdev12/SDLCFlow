@@ -6,6 +6,7 @@ import {
   EMOJI_CHOICES,
   colorClasses,
 } from '../lib/boardColors'
+import { useToast } from '../context/useToast'
 
 // Board creation lives in a dialog rather than a permanent form at the top of
 // the dashboard — creating a board is occasional, browsing them is constant.
@@ -14,6 +15,7 @@ import {
 // the message if it rejects.
 export default function NewBoardModal({ board, onClose, onCreate }) {
   const editing = Boolean(board)
+  const toast = useToast()
   const [name, setName] = useState(board?.name || '')
   const [emoji, setEmoji] = useState(board?.emoji || DEFAULT_EMOJI)
   const [color, setColor] = useState(board?.color || DEFAULT_COLOR)
@@ -39,6 +41,7 @@ export default function NewBoardModal({ board, onClose, onCreate }) {
       onClose()
     } catch (err) {
       setError(err.message)
+      toast.error(editing ? 'Could not update board' : 'Could not create board', err.message)
       setSubmitting(false)
     }
   }

@@ -161,6 +161,109 @@ export async function getProfile(req, res) {
     }
 }
 
+// PATCH /api/v1/auth/profile
+// Updates editable account fields. Password changes stay on their own endpoint
+// so the client can present them as a separate, higher-friction action.
+export async function updateProfile(req, res) {
+    try {
+        const { name, email } = req.body;
+        const updates = {};
+
+        if (name !== undefined) {
+            const safeName = typeof name === 'string' ? name.trim() : '';
+            if (!safeName) {
+                return res.status(400).json({
+                    error: { code: 'VALIDATION', message: 'Name is required.' },
+                });
+            }
+            updates.name = safeName;
+        }
+
+        if (email !== undefined) {
+            const safeEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+            if (!safeEmail) {
+                return res.status(400).json({
+                    error: { code: 'VALIDATION', message: 'Email is required.' },
+                });
+            }
+
+            const existing = await User.findOne({ email: safeEmail, _id: { $ne: req.user._id } });
+            if (existing) {
+                return res.status(409).json({
+                    error: { code: 'EMAIL_TAKEN', message: 'An account with this email already exists' },
+                });
+            }
+            updates.email = safeEmail;
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            updates,
+            { returnDocument: 'after', runValidators: true }
+        );
+
+        return res.status(200).json({
+            data: {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    createdAt: user.createdAt,
+                    updatedAt: user.updatedAt,
+                },
+            },
+        });
+    } catch (error) {
+        console.error('Update profile error:', error);
+        return res.status(500).json({
+            error: { code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while updating the profile' },
+        });
+    }
+}
+
+// PATCH /api/v1/auth/password
+// Requires the current password before replacing the stored hash.
+export async function updatePassword(req, res) {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                error: { code: 'VALIDATION', message: 'Current password and new password are required.' },
+            });
+        }
+
+        if (newPassword.length < 8) {
+            return res.status(400).json({
+                error: { code: 'VALIDATION', message: 'New password must be at least 8 characters.' },
+            });
+        }
+
+        const user = await User.findById(req.user._id).select('+passwordHash');
+        if (!user) {
+            return res.status(404).json({
+                error: { code: 'NOT_FOUND', message: 'User not found.' },
+            });
+        }
+
+        const passwordMatches = await user.comparePassword(currentPassword);
+        if (!passwordMatches) {
+            return res.status(401).json({
+                error: { code: 'INVALID_CREDENTIALS', message: 'Current password is incorrect.' },
+            });
+        }
+
+        user.passwordHash = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        return res.status(200).json({ data: { updated: true } });
+    } catch (error) {
+        console.error('Update password error:', error);
+        return res.status(500).json({
+            error: { code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while updating the password' },
+        });
+    }
+}
+
 // DELETE /api/v1/auth/me
 // Deletes the signed-in user and removes their personal footprint from boards.
 export async function deleteAccount(req, res) {

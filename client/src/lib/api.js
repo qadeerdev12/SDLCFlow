@@ -55,6 +55,20 @@ export const authApi = {
             token
         }),
 
+    updateProfile: (updates, token) =>
+        request('/auth/profile', {
+            method: 'PATCH',
+            body: updates,
+            token
+        }),
+
+    updatePassword: (currentPassword, newPassword, token) =>
+        request('/auth/password', {
+            method: 'PATCH',
+            body: { currentPassword, newPassword },
+            token
+        }),
+
     deleteAccount: (password, token) =>
         request('/auth/me', {
             method: 'DELETE',

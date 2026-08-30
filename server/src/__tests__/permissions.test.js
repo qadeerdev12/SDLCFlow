@@ -345,6 +345,49 @@ describe.sequential('REST board permissions', () => {
     expect(remainingCard.assignee).toBeNull();
   });
 
+  it('updates profile details and password with credential checks', async () => {
+    const app = createApp();
+    const user = await register(app, 'Old Name', 'old@example.com');
+    await register(app, 'Taken Email', 'taken@example.com');
+
+    await request(app)
+      .patch('/api/v1/auth/profile')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ name: 'Duplicate', email: 'taken@example.com' })
+      .expect(409);
+
+    const profile = await request(app)
+      .patch('/api/v1/auth/profile')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ name: 'New Name', email: 'new@example.com' })
+      .expect(200);
+
+    expect(profile.body.data.user.name).toBe('New Name');
+    expect(profile.body.data.user.email).toBe('new@example.com');
+
+    await request(app)
+      .patch('/api/v1/auth/password')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ currentPassword: 'wrong-password', newPassword: 'new-password-123' })
+      .expect(401);
+
+    await request(app)
+      .patch('/api/v1/auth/password')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ currentPassword: 'password123', newPassword: 'new-password-123' })
+      .expect(200);
+
+    await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'new@example.com', password: 'password123' })
+      .expect(401);
+
+    await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'new@example.com', password: 'new-password-123' })
+      .expect(200);
+  });
+
   it('keeps owner-only actions out of admin hands', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppHeader from '../components/AppHeader'
 import { useAuth } from '../context/useAuth'
+import { useToast } from '../context/useToast'
 import { authApi } from '../lib/api'
 
 function formatDate(value) {
@@ -25,11 +26,23 @@ function initials(name) {
 }
 
 export default function ProfilePage() {
-  const { user, token, logout } = useAuth()
+  const { user, token, logout, updateUser } = useAuth()
+  const toast = useToast()
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [name, setName] = useState(user?.name || '')
+  const [email, setEmail] = useState(user?.email || '')
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileMessage, setProfileMessage] = useState('')
+  const [profileError, setProfileError] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState('')
+  const [passwordError, setPasswordError] = useState('')
   const [password, setPassword] = useState('')
   const [confirmText, setConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -43,7 +56,11 @@ export default function ProfilePage() {
         setLoading(true)
         setError('')
         const res = await authApi.getProfile(token)
-        if (!cancelled) setProfile(res.data)
+        if (!cancelled) {
+          setProfile(res.data)
+          setName(res.data.user.name || '')
+          setEmail(res.data.user.email || '')
+        }
       } catch (err) {
         if (!cancelled) setError(err.message)
       } finally {
@@ -58,6 +75,9 @@ export default function ProfilePage() {
   const account = profile?.user || user || {}
   const stats = profile?.stats || {}
   const canDelete = password && confirmText === account.email && !deleting
+  const profileChanged = name.trim() !== (account.name || '') || email.trim().toLowerCase() !== (account.email || '')
+  const canSaveProfile = name.trim() && email.trim() && profileChanged && !savingProfile
+  const canSavePassword = currentPassword && newPassword && confirmPassword && newPassword === confirmPassword && !savingPassword
 
   const statCards = [
     { label: 'Boards', value: stats.boards ?? '-' },
@@ -78,11 +98,60 @@ export default function ProfilePage() {
     setDeleteError('')
     try {
       await authApi.deleteAccount(password, token)
+      toast.success('Account deleted')
       logout()
       navigate('/register')
     } catch (err) {
       setDeleteError(err.message)
+      toast.error('Could not delete account', err.message)
       setDeleting(false)
+    }
+  }
+
+  async function handleSaveProfile(e) {
+    e.preventDefault()
+    if (!canSaveProfile) return
+
+    setSavingProfile(true)
+    setProfileMessage('')
+    setProfileError('')
+    try {
+      const res = await authApi.updateProfile({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+      }, token)
+      const nextUser = res.data.user
+      setProfile((current) => current ? { ...current, user: nextUser } : { user: nextUser, stats })
+      updateUser(nextUser)
+      setProfileMessage('Profile updated.')
+      toast.success('Profile updated', 'Your account details were saved.')
+    } catch (err) {
+      setProfileError(err.message)
+      toast.error('Could not update profile', err.message)
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  async function handleSavePassword(e) {
+    e.preventDefault()
+    if (!canSavePassword) return
+
+    setSavingPassword(true)
+    setPasswordMessage('')
+    setPasswordError('')
+    try {
+      await authApi.updatePassword(currentPassword, newPassword, token)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordMessage('Password updated.')
+      toast.success('Password updated', 'Use your new password the next time you sign in.')
+    } catch (err) {
+      setPasswordError(err.message)
+      toast.error('Could not update password', err.message)
+    } finally {
+      setSavingPassword(false)
     }
   }
 
@@ -140,6 +209,129 @@ export default function ProfilePage() {
               These stats help you see how much of CollabBoard is yours, shared, or actively assigned to you.
             </p>
           </aside>
+        </section>
+
+        <section className="mt-4 grid gap-4 lg:grid-cols-2">
+          <form onSubmit={handleSaveProfile} className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Details</p>
+              <h2 className="mt-2 text-lg font-semibold">Account information</h2>
+              <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                Update the name and email shown across your boards, comments, and activity.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              <label>
+                <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Name</span>
+                <input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setProfileMessage('')
+                    setProfileError('')
+                  }}
+                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </label>
+
+              <label>
+                <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Email</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    setProfileMessage('')
+                    setProfileError('')
+                  }}
+                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className={`min-h-5 text-sm ${profileError ? 'text-red-600 dark:text-red-300' : 'text-teal-700 dark:text-teal-300'}`}>
+                {profileError || profileMessage}
+              </p>
+              <button
+                type="submit"
+                disabled={!canSaveProfile}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {savingProfile ? 'Saving...' : 'Save details'}
+              </button>
+            </div>
+          </form>
+
+          <form onSubmit={handleSavePassword} className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Security</p>
+              <h2 className="mt-2 text-lg font-semibold">Change password</h2>
+              <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                Enter your current password before choosing a new one.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              <label>
+                <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Current password</span>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value)
+                    setPasswordMessage('')
+                    setPasswordError('')
+                  }}
+                  className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label>
+                  <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">New password</span>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value)
+                      setPasswordMessage('')
+                      setPasswordError('')
+                    }}
+                    className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  />
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Confirm password</span>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value)
+                      setPasswordMessage('')
+                      setPasswordError('')
+                    }}
+                    className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className={`min-h-5 text-sm ${passwordError ? 'text-red-600 dark:text-red-300' : 'text-teal-700 dark:text-teal-300'}`}>
+                {passwordError || (newPassword && confirmPassword && newPassword !== confirmPassword ? 'Passwords do not match.' : passwordMessage)}
+              </p>
+              <button
+                type="submit"
+                disabled={!canSavePassword}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+              >
+                {savingPassword ? 'Saving...' : 'Update password'}
+              </button>
+            </div>
+          </form>
         </section>
 
         <section className="mt-4 rounded-lg border border-red-200 bg-white p-5 shadow-sm dark:border-red-500/30 dark:bg-zinc-900">

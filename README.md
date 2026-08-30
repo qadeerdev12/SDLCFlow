@@ -21,7 +21,8 @@ The app currently supports:
 - realtime card/list sync between collaborators
 - realtime recent activity timeline
 - global and board-specific activity pages
-- user profile with account statistics and account deletion
+- user profile with account editing, statistics, password changes, and account deletion
+- app-wide toast notifications for key actions and failures
 - realtime member-list updates
 - presence indicators for who is viewing a board
 
