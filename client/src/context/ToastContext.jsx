@@ -68,13 +68,13 @@ export function ToastProvider({ children }) {
 
 function ToastViewport({ toasts, onDismiss }) {
   return (
-    <div className="pointer-events-none fixed inset-x-3 top-3 z-[80] flex flex-col gap-2 sm:inset-x-auto sm:right-5 sm:top-5 sm:w-[calc(100vw-2rem)] sm:max-w-sm">
+    <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[80] flex flex-col-reverse gap-2 sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-[calc(100vw-2rem)] sm:max-w-sm">
       {toasts.map((toast) => {
         const style = TOAST_STYLES[toast.type] || TOAST_STYLES.info
         return (
           <article
             key={toast.id}
-            className={`pointer-events-auto flex items-start gap-3 rounded-lg border p-3 shadow-xl shadow-zinc-900/10 backdrop-blur animate-in slide-in-from-top-2 fade-in dark:shadow-black/30 ${style.className}`}
+            className={`pointer-events-auto flex items-start gap-3 rounded-lg border p-3 shadow-xl shadow-zinc-900/10 backdrop-blur animate-in slide-in-from-bottom-2 fade-in dark:shadow-black/30 ${style.className}`}
           >
             <span className="mt-0.5 shrink-0">{style.icon}</span>
             <div className="min-w-0 flex-1">
