@@ -194,6 +194,39 @@ describe.sequential('REST board permissions', () => {
     await expect(Card.countDocuments({ board: res.body.data.board._id })).resolves.toBe(3);
   });
 
+  it('keeps blank boards empty and lets template visual defaults be overridden', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+
+    const blank = await request(app)
+      .post('/api/v1/boards')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ name: 'Blank board' })
+      .expect(201);
+
+    expect(blank.body.data.lists).toEqual([]);
+    expect(blank.body.data.cards).toEqual([]);
+
+    const customized = await request(app)
+      .post('/api/v1/boards')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        name: 'Custom release',
+        templateId: 'release-plan',
+        emoji: 'deploy',
+        color: 'violet',
+      })
+      .expect(201);
+
+    expect(customized.body.data.board).toMatchObject({
+      name: 'Custom release',
+      emoji: 'deploy',
+      color: 'violet',
+    });
+    expect(customized.body.data.lists.length).toBeGreaterThan(0);
+    expect(customized.body.data.cards.length).toBeGreaterThan(0);
+  });
+
   it('rejects unknown board templates without creating a board', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

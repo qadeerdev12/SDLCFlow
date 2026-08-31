@@ -64,8 +64,8 @@ Deleting an account removes owned boards and their lists/cards/comments/activity
 | GET | `/board-templates` | ✅ | – | `200 { templates }` |
 
 Templates are read-only starter blueprints for new boards. Each template includes
-display metadata plus list names and starter card previews. Creating a board
-from a template is handled by `POST /boards` in the next implementation step.
+display metadata plus list names and starter card previews. `POST /boards`
+accepts an optional `templateId` to create a board from one of these blueprints.
 
 ### 2.3 Boards
 
