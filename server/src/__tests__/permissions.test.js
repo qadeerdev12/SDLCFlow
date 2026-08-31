@@ -654,6 +654,20 @@ describe.sequential('Socket.IO board permissions', () => {
     expect(messagePayload.message._id.toString()).toBe(messageAck.data.message._id.toString());
     await expect(Message.countDocuments({ board: board._id })).resolves.toBe(1);
 
+    const typingBroadcast = new Promise((resolve) => {
+      collaboratorSocket.once('chat:typing', resolve);
+    });
+    const typingAck = await emitWithAck(ownerSocket, 'chat:typing', {
+      boardId: board._id,
+      typing: true,
+    });
+    expect(typingAck.ok).toBe(true);
+    expect(typingAck.data.typing).toBe(true);
+    const typingPayload = await typingBroadcast;
+    expect(typingPayload.boardId).toBe(board._id.toString());
+    expect(typingPayload.user.email).toBe(owner.user.email);
+    expect(typingPayload.typing).toBe(true);
+
     const deniedDelete = await emitWithAck(collaboratorSocket, 'message:delete', {
       boardId: board._id,
       messageId: messageAck.data.message._id,

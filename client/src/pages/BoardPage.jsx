@@ -157,6 +157,7 @@ export default function BoardPage() {
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [messagesError, setMessagesError] = useState('')
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [typingUsers, setTypingUsers] = useState([])
   const [cardSearch, setCardSearch] = useState('')
   const [tagFilter, setTagFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -209,6 +210,7 @@ export default function BoardPage() {
   const dragOriginRef = useRef(null)
   const wasConnectedRef = useRef(false)
   const connectionInitializedRef = useRef(false)
+  const typingTimersRef = useRef(new Map())
 
   const sensors = useSensors(
     // A small distance threshold means a plain click won't start a drag —
@@ -312,6 +314,9 @@ export default function BoardPage() {
       setMessagesLoading(false)
       setMessagesError('')
       setUnreadMessages(0)
+      setTypingUsers([])
+      typingTimersRef.current.forEach((typingTimer) => clearTimeout(typingTimer))
+      typingTimersRef.current.clear()
     }, 0)
     return () => clearTimeout(timer)
   }, [boardId])
@@ -368,6 +373,38 @@ export default function BoardPage() {
       wasConnectedRef.current = false
     }
   }, [connected, connectionError, toast])
+
+  const updateTypingUser = useCallback((typingUser, typing) => {
+    const id = typingUser?.id || typingUser?._id
+    if (!id || String(id) === String(user?.id)) return
+
+    const existingTimer = typingTimersRef.current.get(id)
+    if (existingTimer) clearTimeout(existingTimer)
+
+    if (!typing) {
+      typingTimersRef.current.delete(id)
+      setTypingUsers((prev) => prev.filter((item) => String(item.id || item._id) !== String(id)))
+      return
+    }
+
+    setTypingUsers((prev) => {
+      const nextUser = {
+        id,
+        name: typingUser.name,
+        email: typingUser.email,
+      }
+      if (prev.some((item) => String(item.id || item._id) === String(id))) {
+        return prev.map((item) => (String(item.id || item._id) === String(id) ? nextUser : item))
+      }
+      return [...prev, nextUser].slice(-3)
+    })
+
+    const staleTimer = setTimeout(() => {
+      typingTimersRef.current.delete(id)
+      setTypingUsers((prev) => prev.filter((item) => String(item.id || item._id) !== String(id)))
+    }, 3000)
+    typingTimersRef.current.set(id, staleTimer)
+  }, [user?.id])
 
   useEffect(() => {
     if (!connected) return undefined
@@ -442,6 +479,7 @@ export default function BoardPage() {
 
     function onMessageCreated(payload) {
       if (payload.boardId !== boardId) return
+      updateTypingUser(payload.message?.sender, false)
       appendMessage(payload.message)
       if (!chatPanelOpen) setUnreadMessages((count) => Math.min(count + 1, 99))
     }
@@ -455,6 +493,11 @@ export default function BoardPage() {
       if (payload.boardId !== boardId) return
       setMessages([])
       setUnreadMessages(0)
+    }
+
+    function onChatTyping(payload) {
+      if (payload.boardId !== boardId) return
+      updateTypingUser(payload.user, payload.typing)
     }
 
     const cleanups = [
@@ -472,12 +515,13 @@ export default function BoardPage() {
       onSocketEvent('message:created', onMessageCreated),
       onSocketEvent('message:deleted', onMessageDeleted),
       onSocketEvent('chat:cleared', onChatCleared),
+      onSocketEvent('chat:typing', onChatTyping),
     ]
 
     return () => {
       cleanups.forEach((cleanup) => cleanup())
     }
-  }, [boardId, chatPanelOpen, connected, navigate, onSocketEvent, user?.id])
+  }, [boardId, chatPanelOpen, connected, navigate, onSocketEvent, updateTypingUser, user?.id])
 
   // --- helpers -------------------------------------------------------------
 
@@ -818,6 +862,14 @@ export default function BoardPage() {
       throw err
     }
   }
+
+  const handleTypingChange = useCallback((typing) => {
+    if (!connected || !boardId) return
+    emitWithAck('chat:typing', { boardId, typing }).catch(() => {
+      // Typing is best-effort realtime polish; failed pings should not disturb
+      // the user's actual message flow or show noisy errors.
+    })
+  }, [boardId, connected, emitWithAck])
 
   // --- drag & drop ---------------------------------------------------------
 
@@ -1295,11 +1347,13 @@ export default function BoardPage() {
           currentUserId={user?.id}
           connected={connected}
           currentRole={currentRole}
+          typingUsers={typingUsers}
           onRetry={loadMessages}
           onClose={closeChatPanel}
           onSendMessage={handleSendMessage}
           onDeleteMessage={handleDeleteMessage}
           onClearMessages={handleClearMessages}
+          onTypingChange={handleTypingChange}
         />
       )}
 

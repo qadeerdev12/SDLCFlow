@@ -45,6 +45,13 @@ function dateLabel(value) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function typingLabel(users) {
+  const names = users.map((user) => senderName(user))
+  if (names.length === 1) return `${names[0]} is typing`
+  if (names.length === 2) return `${names[0]} and ${names[1]} are typing`
+  return 'Several teammates are typing'
+}
+
 export default function ChatPanel({
   board,
   messages,
@@ -53,11 +60,13 @@ export default function ChatPanel({
   currentUserId,
   connected,
   currentRole,
+  typingUsers = [],
   onClose,
   onRetry,
   onSendMessage,
   onDeleteMessage,
   onClearMessages,
+  onTypingChange,
 }) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -65,17 +74,53 @@ export default function ChatPanel({
   const [clearing, setClearing] = useState(false)
   const [confirmAction, setConfirmAction] = useState(null)
   const listRef = useRef(null)
+  const typingTimerRef = useRef(null)
+  const lastTypingSentRef = useRef(false)
   const canClearChat = currentRole === 'owner'
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages.length])
+  }, [messages.length, typingUsers.length])
+
+  useEffect(() => () => {
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    if (lastTypingSentRef.current) onTypingChange?.(false)
+  }, [onTypingChange])
+
+  function sendTypingStatus(typing) {
+    if (!onTypingChange || lastTypingSentRef.current === typing) return
+    lastTypingSentRef.current = typing
+    onTypingChange(typing)
+  }
+
+  function scheduleTypingStop() {
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    typingTimerRef.current = setTimeout(() => {
+      sendTypingStatus(false)
+    }, 1400)
+  }
+
+  function handleDraftChange(e) {
+    const value = e.target.value
+    setDraft(value)
+
+    if (value.trim()) {
+      sendTypingStatus(true)
+      scheduleTypingStop()
+      return
+    }
+
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    sendTypingStatus(false)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
     const body = draft.trim()
     if (!body || sending) return
 
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    sendTypingStatus(false)
     setSending(true)
     try {
       await onSendMessage(body)
@@ -239,6 +284,17 @@ export default function ChatPanel({
               </div>
             )
           })}
+
+          {!loading && !error && typingUsers.length > 0 && (
+            <div className="flex items-center gap-2 pl-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              <span className="flex h-7 items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2 dark:border-zinc-800 dark:bg-zinc-900">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500 [animation-delay:-0.2s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500 [animation-delay:-0.1s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500" />
+              </span>
+              <span>{typingLabel(typingUsers)}...</span>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="border-t border-zinc-200 p-3 dark:border-zinc-800">
@@ -247,7 +303,7 @@ export default function ChatPanel({
             <textarea
               id="board-chat-message"
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={handleDraftChange}
               onKeyDown={handleComposerKeyDown}
               rows={2}
               maxLength={2000}

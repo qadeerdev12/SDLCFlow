@@ -119,6 +119,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | `card:delete` | `{ boardId, cardId }` | `{ deleted: true, activity }` |
 | `comment:create` | `{ boardId, cardId, body }` | `{ comment, activity }` |
 | `message:create` | `{ boardId, body }` | `{ message }` |
+| `chat:typing` | `{ boardId, typing }` | `{ typing }` |
 | `message:delete` | `{ boardId, messageId }` | `{ message, activity }` |
 | `chat:clear` | `{ boardId }` | `{ deletedCount, activity }` |
 | `list:create` | `{ boardId, title, position }` | `{ list, activity }` |
@@ -137,6 +138,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | `card:deleted` | `{ boardId, cardId }` | emitted after DB delete |
 | `comment:created` | `{ boardId, cardId, comment }` | emitted after DB create |
 | `message:created` | `{ boardId, message }` | emitted after DB create |
+| `chat:typing` | `{ boardId, user, typing }` | ephemeral typing status, not persisted |
 | `message:deleted` | `{ boardId, message }` | emitted after soft-delete |
 | `chat:cleared` | `{ boardId, deletedCount }` | emitted after owner clears visible history |
 | `list:created` | `{ boardId, list }` | emitted after DB create |
@@ -215,6 +217,11 @@ history, errors, and unread counts. When a `message:created` event arrives while
 the drawer is closed, the board header badge increments; opening the drawer
 resets that count. The chat composer sends on Enter and keeps Shift+Enter for
 multiline messages.
+
+Typing indicators are socket-only polish. The server verifies board membership
+before broadcasting `chat:typing`, but it does not persist the event or create
+activity. The client removes stale typing indicators after a short timeout and
+sends a final `typing: false` when the drawer closes or a message sends.
 
 Individual deletes are soft deletes: the message keeps its timestamp and sender
 but renders as a deleted placeholder. Clear-chat marks the existing messages as

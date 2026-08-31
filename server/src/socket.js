@@ -44,6 +44,14 @@ function normalizeUser(user) {
   };
 }
 
+function emitTypingStatus(socket, boardId, typing) {
+  socket.to(roomName(boardId)).emit('chat:typing', {
+    boardId,
+    user: normalizeUser(socket.data.user),
+    typing,
+  });
+}
+
 function getPresenceList(boardId) {
   const boardPresence = presenceByBoard.get(boardId);
   if (!boardPresence) return [];
@@ -346,6 +354,16 @@ export function configureSockets(io) {
       return { message };
     });
 
+    registerMutation(socket, 'chat:typing', async ({ boardId, typing }) => {
+      const board = await requireBoardMember(socket, boardId);
+      const normalizedBoardId = board._id.toString();
+
+      // Typing is intentionally ephemeral: verify board access, broadcast the
+      // current status, and leave no database record behind.
+      emitTypingStatus(socket, normalizedBoardId, Boolean(typing));
+      return { typing: Boolean(typing) };
+    });
+
     registerMutation(socket, 'message:delete', async ({ boardId, messageId }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
       const message = await deleteBoardMessage({
@@ -460,6 +478,9 @@ export function configureSockets(io) {
     });
 
     socket.on('disconnect', () => {
+      for (const boardId of socket.data.boardIds || []) {
+        emitTypingStatus(socket, boardId, false);
+      }
       removePresence(io, socket);
     });
   });

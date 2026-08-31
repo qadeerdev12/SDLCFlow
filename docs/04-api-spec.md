@@ -175,6 +175,7 @@ Errors use:
 | `card:delete` | `{ boardId, cardId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |
 | `comment:create` | `{ boardId, cardId, body }` | verify membership, persist, broadcast | `{ comment, activity }` |
 | `message:create` | `{ boardId, body }` | verify membership, persist, broadcast | `{ message }` |
+| `chat:typing` | `{ boardId, typing }` | verify membership, broadcast ephemeral status | `{ typing }` |
 | `message:delete` | `{ boardId, messageId }` | verify role/ownership, soft-delete, broadcast | `{ message, activity }` |
 | `chat:clear` | `{ boardId }` | verify owner, clear visible history, broadcast | `{ deletedCount, activity }` |
 | `list:create` | `{ boardId, title, position }` | verify membership, persist, broadcast | `{ list, activity }` |
@@ -192,6 +193,7 @@ Errors use:
 | `card:deleted` | `{ boardId, cardId }` | a card was removed |
 | `comment:created` | `{ boardId, cardId, comment }` | a card comment was added |
 | `message:created` | `{ boardId, message }` | a board chat message was added |
+| `chat:typing` | `{ boardId, user, typing }` | a board member started or stopped typing |
 | `message:deleted` | `{ boardId, message }` | a board chat message was deleted |
 | `chat:cleared` | `{ boardId, deletedCount }` | visible board chat history was cleared |
 | `list:created` | `{ boardId, list }` | a list was added |
