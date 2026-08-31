@@ -5,6 +5,7 @@ import { useToast } from '../context/useToast'
 import { boardApi } from '../lib/api'
 import AppHeader from '../components/AppHeader'
 import BoardCard from '../components/BoardCard'
+import ConfirmDialog from '../components/ConfirmDialog'
 import NewBoardModal from '../components/NewBoardModal'
 
 const SORTS = [
@@ -25,6 +26,8 @@ export default function DashboardPage() {
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
   const [editingBoard, setEditingBoard] = useState(null)
+  const [boardDeleteTarget, setBoardDeleteTarget] = useState(null)
+  const [boardDeleting, setBoardDeleting] = useState(false)
 
   useEffect(() => {
     async function loadBoards() {
@@ -68,16 +71,23 @@ export default function DashboardPage() {
   }
 
   async function handleDelete(board) {
-    const confirmed = window.confirm(`Delete "${board.name}" and all of its lists and cards?`)
-    if (!confirmed) return
+    setBoardDeleteTarget(board)
+  }
 
+  async function confirmDeleteBoard() {
+    if (!boardDeleteTarget) return
+    const board = boardDeleteTarget
+    setBoardDeleting(true)
     try {
       await boardApi.delete(board._id, token)
       setBoards((prev) => prev.filter((b) => b._id !== board._id))
       toast.success('Board deleted', board.name)
+      setBoardDeleteTarget(null)
     } catch (err) {
       setError(err.message)
       toast.error('Could not delete board', err.message)
+    } finally {
+      setBoardDeleting(false)
     }
   }
 
@@ -229,6 +239,17 @@ export default function DashboardPage() {
           board={editingBoard}
           onClose={() => setEditingBoard(null)}
           onCreate={(name, options) => handleUpdate(editingBoard, name, options)}
+        />
+      )}
+
+      {boardDeleteTarget && (
+        <ConfirmDialog
+          title={`Delete "${boardDeleteTarget.name}"?`}
+          description="This will permanently delete the board, its workflow lists, cards, comments, chat messages, and activity history."
+          confirmLabel="Delete board"
+          pending={boardDeleting}
+          onCancel={() => setBoardDeleteTarget(null)}
+          onConfirm={confirmDeleteBoard}
         />
       )}
     </div>

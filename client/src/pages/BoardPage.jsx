@@ -142,6 +142,8 @@ export default function BoardPage() {
   const [activeCard, setActiveCard] = useState(null)  // card being dragged (for overlay)
   const [selectedCard, setSelectedCard] = useState(null)
   const [editingBoard, setEditingBoard] = useState(false)
+  const [boardDeleteOpen, setBoardDeleteOpen] = useState(false)
+  const [boardDeleting, setBoardDeleting] = useState(false)
   const [listDeleteTarget, setListDeleteTarget] = useState(null)
   const [listDeleting, setListDeleting] = useState(false)
   const [managingMembers, setManagingMembers] = useState(false)
@@ -726,9 +728,11 @@ export default function BoardPage() {
   }
 
   async function handleDeleteBoard() {
-    const confirmed = window.confirm(`Delete "${board.name}" and all of its lists and cards?`)
-    if (!confirmed) return
+    setBoardDeleteOpen(true)
+  }
 
+  async function confirmDeleteBoard() {
+    setBoardDeleting(true)
     try {
       await boardApi.delete(boardId, token)
       toast.success('Board deleted', board.name)
@@ -736,6 +740,8 @@ export default function BoardPage() {
     } catch (err) {
       setError(err.message)
       toast.error('Could not delete board', err.message)
+    } finally {
+      setBoardDeleting(false)
     }
   }
 
@@ -1305,6 +1311,17 @@ export default function BoardPage() {
           pending={listDeleting}
           onCancel={() => setListDeleteTarget(null)}
           onConfirm={confirmDeleteList}
+        />
+      )}
+
+      {boardDeleteOpen && (
+        <ConfirmDialog
+          title={`Delete "${board.name}"?`}
+          description="This will permanently delete the board, its workflow lists, cards, comments, chat messages, and activity history."
+          confirmLabel="Delete board"
+          pending={boardDeleting}
+          onCancel={() => setBoardDeleteOpen(false)}
+          onConfirm={confirmDeleteBoard}
         />
       )}
     </div>
