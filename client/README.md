@@ -6,6 +6,7 @@ The client is responsible for:
 
 - authentication screens
 - landing page and dashboard
+- board template selection during board creation
 - kanban board UI
 - card search, tag filtering, and status filtering
 - card comment threads
@@ -84,6 +85,16 @@ It provides:
 12. reset unread chat counts when the drawer opens
 
 See `../docs/06-realtime-architecture.md` for the server-side contract.
+
+---
+
+## Board Templates
+
+`src/pages/DashboardPage.jsx` loads the protected board template catalog through
+`boardApi.listTemplates`. `src/components/NewBoardModal.jsx` shows those
+templates only in create mode; edit mode stays focused on board name, icon, and
+color. Selecting a template passes `templateId` through `boardApi.create`, while
+`Start blank` keeps the existing empty-board flow.
 
 ---
 

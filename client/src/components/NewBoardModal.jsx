@@ -14,12 +14,20 @@ import BoardIcon from './BoardIcon'
 // The dashboard mounts this only while open, so the form starts clean every
 // time and needs no reset. `onCreate` returns a promise; we stay open and show
 // the message if it rejects.
-export default function NewBoardModal({ board, onClose, onCreate }) {
+export default function NewBoardModal({
+  board,
+  templates = [],
+  templatesLoading = false,
+  templatesError = '',
+  onClose,
+  onCreate,
+}) {
   const editing = Boolean(board)
   const toast = useToast()
   const [name, setName] = useState(board?.name || '')
   const [emoji, setEmoji] = useState(board?.emoji || DEFAULT_EMOJI)
   const [color, setColor] = useState(board?.color || DEFAULT_COLOR)
+  const [templateId, setTemplateId] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -38,13 +46,23 @@ export default function NewBoardModal({ board, onClose, onCreate }) {
     setSubmitting(true)
     setError('')
     try {
-      await onCreate(name.trim(), { emoji, color })
+      await onCreate(name.trim(), { emoji, color, templateId: templateId || undefined })
       onClose()
     } catch (err) {
       setError(err.message)
       toast.error(editing ? 'Could not update board' : 'Could not create board', err.message)
       setSubmitting(false)
     }
+  }
+
+  function chooseTemplate(template) {
+    if (editing) return
+    setTemplateId(template?.id || '')
+
+    if (!template) return
+    if (!name.trim()) setName(template.name)
+    if (template.emoji) setEmoji(template.emoji)
+    if (template.color) setColor(template.color)
   }
 
   const c = colorClasses(color)
@@ -58,7 +76,7 @@ export default function NewBoardModal({ board, onClose, onCreate }) {
         role="dialog"
         aria-modal="true"
         aria-label={editing ? 'Edit board' : 'Create a board'}
-        className="w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900"
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900"
       >
         <form onSubmit={handleSubmit}>
           <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
@@ -93,6 +111,78 @@ export default function NewBoardModal({ board, onClose, onCreate }) {
                 {name.trim() || 'Project board name'}
               </span>
             </div>
+
+            {!editing && (
+              <div>
+                <p className="mb-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">Template</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => chooseTemplate(null)}
+                    aria-pressed={!templateId}
+                    className={`rounded-lg border p-3 text-left transition ${
+                      !templateId
+                        ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/15 dark:border-teal-400 dark:bg-teal-500/10'
+                        : 'border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+                      <span className="grid h-8 w-8 place-items-center rounded-lg bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                        <BoardIcon value="code" className="h-4 w-4" />
+                      </span>
+                      Start blank
+                    </span>
+                    <span className="mt-2 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                      Create an empty board and build your workflow yourself.
+                    </span>
+                  </button>
+
+                  {templatesLoading && (
+                    <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                      <div className="h-4 w-32 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+                      <div className="mt-3 h-3 w-full animate-pulse rounded bg-zinc-100 dark:bg-zinc-800/70" />
+                      <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800/70" />
+                    </div>
+                  )}
+
+                  {!templatesLoading && templates.map((template) => {
+                    const active = templateId === template.id
+                    return (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => chooseTemplate(template)}
+                        aria-pressed={active}
+                        className={`rounded-lg border p-3 text-left transition ${
+                          active
+                            ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/15 dark:border-teal-400 dark:bg-teal-500/10'
+                            : 'border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+                          <span className={`grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br text-white ${colorClasses(template.color).gradient}`}>
+                            <BoardIcon value={template.emoji} className="h-4 w-4" />
+                          </span>
+                          {template.name}
+                        </span>
+                        <span className="mt-2 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                          {template.summary}
+                        </span>
+                        <span className="mt-2 block truncate text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+                          {template.lists?.slice(0, 4).join(' -> ')}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {templatesError && (
+                  <p className="mt-2 text-xs text-red-600 dark:text-red-300">
+                    Templates could not load. You can still start blank.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <label htmlFor="board-name" className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">

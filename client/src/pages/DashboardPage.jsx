@@ -20,6 +20,9 @@ export default function DashboardPage() {
   const navigate = useNavigate()
 
   const [boards, setBoards] = useState([])
+  const [templates, setTemplates] = useState([])
+  const [templatesLoading, setTemplatesLoading] = useState(true)
+  const [templatesError, setTemplatesError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
@@ -30,17 +33,27 @@ export default function DashboardPage() {
   const [boardDeleting, setBoardDeleting] = useState(false)
 
   useEffect(() => {
-    async function loadBoards() {
+    async function loadDashboard() {
       try {
-        const res = await boardApi.list(token)
-        setBoards(res.data.boards)
+        const boardsRes = await boardApi.list(token)
+        setBoards(boardsRes.data.boards)
       } catch (err) {
         setError(err.message)
       } finally {
         setLoading(false)
       }
+
+      try {
+        const templatesRes = await boardApi.listTemplates(token)
+        setTemplates(templatesRes.data.templates || [])
+        setTemplatesError('')
+      } catch (err) {
+        setTemplatesError(err.message)
+      } finally {
+        setTemplatesLoading(false)
+      }
     }
-    loadBoards()
+    loadDashboard()
   }, [token])
 
   const visibleBoards = useMemo(() => {
@@ -233,7 +246,15 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {creating && <NewBoardModal onClose={() => setCreating(false)} onCreate={handleCreate} />}
+      {creating && (
+        <NewBoardModal
+          templates={templates}
+          templatesLoading={templatesLoading}
+          templatesError={templatesError}
+          onClose={() => setCreating(false)}
+          onCreate={handleCreate}
+        />
+      )}
       {editingBoard && (
         <NewBoardModal
           board={editingBoard}

@@ -81,14 +81,17 @@ export const authApi = {
 }
 
 export const boardApi = {
+  listTemplates: (token) =>
+    request('/board-templates', { token }),
+
   list: (token) =>
     request('/boards', { token }),
 
   getOne: (boardId, token) =>
     request(`/boards/${boardId}`, { token }),
 
-  create: (name, token, { emoji, color } = {}) =>
-    request('/boards', { method: 'POST', body: { name, emoji, color }, token }),
+  create: (name, token, { emoji, color, templateId } = {}) =>
+    request('/boards', { method: 'POST', body: { name, emoji, color, templateId }, token }),
 
   update: (boardId, updates, token) =>
     request(`/boards/${boardId}`, { method: 'PATCH', body: updates, token }),
