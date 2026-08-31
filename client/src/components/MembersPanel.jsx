@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useToast } from '../context/useToast'
+import ConfirmDialog from './ConfirmDialog'
 
 const ROLES = [
   { value: 'member', label: 'Member' },
@@ -36,14 +37,16 @@ export default function MembersPanel({
   const [role, setRole] = useState('member')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState(null)
+  const [removingId, setRemovingId] = useState(null)
 
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !removeTarget) onClose()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  }, [onClose, removeTarget])
 
   const onlineIds = useMemo(
     () => new Set(presence.map((entry) => entry.user?.id).filter(Boolean)),
@@ -72,15 +75,21 @@ export default function MembersPanel({
   }
 
   async function handleRemove(member) {
-    const name = member.user?.name || member.user?.email || 'this member'
-    const confirmed = window.confirm(`Remove ${name} from ${board.name}?`)
-    if (!confirmed) return
+    setRemoveTarget(member)
+  }
 
+  async function confirmRemoveMember() {
+    if (!removeTarget) return
+    const userId = memberUserId(removeTarget)
+    setRemovingId(userId)
     try {
-      await onRemoveMember(memberUserId(member))
+      await onRemoveMember(userId)
+      setRemoveTarget(null)
     } catch (err) {
       setError(err.message)
       toast.error('Could not remove member', err.message)
+    } finally {
+      setRemovingId(null)
     }
   }
 
@@ -195,8 +204,9 @@ export default function MembersPanel({
                     <button
                       type="button"
                       onClick={() => handleRemove(member)}
+                      disabled={removingId === userId}
                       aria-label={`Remove ${member.user?.name || member.user?.email}`}
-                      className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
+                      className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
                     >
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 6h18" />
@@ -211,6 +221,17 @@ export default function MembersPanel({
           })}
         </div>
       </section>
+
+      {removeTarget && (
+        <ConfirmDialog
+          title={`Remove ${removeTarget.user?.name || removeTarget.user?.email || 'this member'}?`}
+          description={`They will lose access to "${board.name}" and will no longer see this board in their dashboard.`}
+          confirmLabel="Remove member"
+          pending={removingId === memberUserId(removeTarget)}
+          onCancel={() => setRemoveTarget(null)}
+          onConfirm={confirmRemoveMember}
+        />
+      )}
     </div>
   )
 }
