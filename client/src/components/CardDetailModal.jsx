@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { boardApi } from '../lib/api'
 import { CARD_STATUSES, CARD_TAGS, statusDotStyle, tagStyle } from '../lib/cardMeta'
+import ConfirmDialog from './ConfirmDialog'
 
 function memberUserId(member) {
   return member.user?.id || member.user?._id || member.user
@@ -65,6 +66,7 @@ export default function CardDetailModal({
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [comments, setComments] = useState([])
   const [commentsLoading, setCommentsLoading] = useState(true)
   const [commentDraft, setCommentDraft] = useState('')
@@ -73,11 +75,11 @@ export default function CardDetailModal({
 
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !deleteConfirmOpen) onClose()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  }, [deleteConfirmOpen, onClose])
 
   const currentList = useMemo(
     () => lists.find((list) => list._id === listId),
@@ -144,13 +146,16 @@ export default function CardDetailModal({
 
   async function handleDelete() {
     if (saving || deleting) return
-    const confirmed = window.confirm(`Delete "${card.title}"?`)
-    if (!confirmed) return
+    setDeleteConfirmOpen(true)
+  }
 
+  async function confirmDelete() {
+    if (saving || deleting) return
     setDeleting(true)
     setError('')
     try {
       await onDelete(card)
+      setDeleteConfirmOpen(false)
       onClose()
     } catch (err) {
       setError(err.message)
@@ -418,6 +423,17 @@ export default function CardDetailModal({
           </div>
         </div>
       </form>
+
+      {deleteConfirmOpen && (
+        <ConfirmDialog
+          title={`Delete "${card.title}"?`}
+          description="This will permanently remove the card and its comments from this board."
+          confirmLabel="Delete card"
+          pending={deleting}
+          onCancel={() => setDeleteConfirmOpen(false)}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   )
 }
