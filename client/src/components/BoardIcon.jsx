@@ -14,6 +14,13 @@ const ICONS = {
       <path d="M8 14h8" />
     </>
   ),
+  'terminal-square': (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="m8 9 3 3-3 3" />
+      <path d="M13 15h4" />
+    </>
+  ),
   database: (
     <>
       <ellipse cx="12" cy="6" rx="7" ry="3" />
@@ -52,6 +59,15 @@ const ICONS = {
       <circle cx="18" cy="18" r="3" />
       <path d="M6 9v4a5 5 0 0 0 5 5h4" />
       <path d="M6 9v12" />
+    </>
+  ),
+  'git-pull-request': (
+    <>
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="18" cy="18" r="3" />
+      <path d="M6 9v12" />
+      <path d="M18 15V9a3 3 0 0 0-3-3h-3" />
+      <path d="m14 4-2 2 2 2" />
     </>
   ),
   security: (
