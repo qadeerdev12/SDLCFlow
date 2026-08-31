@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppHeader from '../components/AppHeader'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
 import { authApi } from '../lib/api'
@@ -47,6 +48,7 @@ export default function ProfilePage() {
   const [confirmText, setConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -90,10 +92,11 @@ export default function ProfilePage() {
   async function handleDeleteAccount(e) {
     e.preventDefault()
     if (!canDelete) return
+    setDeleteConfirmOpen(true)
+  }
 
-    const confirmed = window.confirm('Delete your account permanently? This cannot be undone.')
-    if (!confirmed) return
-
+  async function confirmDeleteAccount() {
+    if (!canDelete) return
     setDeleting(true)
     setDeleteError('')
     try {
@@ -382,6 +385,17 @@ export default function ProfilePage() {
           )}
         </section>
       </main>
+
+      {deleteConfirmOpen && (
+        <ConfirmDialog
+          title="Delete your account?"
+          description="This permanently removes your account, owned boards, comments, activity records, and assignments. Shared boards you do not own will remain for other members."
+          confirmLabel="Delete account"
+          pending={deleting}
+          onCancel={() => setDeleteConfirmOpen(false)}
+          onConfirm={confirmDeleteAccount}
+        />
+      )}
     </div>
   )
 }
