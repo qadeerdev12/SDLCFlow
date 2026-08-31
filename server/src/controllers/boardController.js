@@ -6,6 +6,7 @@ import Comment from '../models/Comment.js';
 import Message from '../models/Message.js';
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
+import { resolveBoardTemplate, seedBoardFromTemplate } from '../services/boardTemplateService.js';
 
 // Keep in sync with the Board schema's color enum.
 const BOARD_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
@@ -20,8 +21,9 @@ function sendBoardError(res, err) {
 // POST /api/v1/boards  (protected)
 // Creates a board; the creator automatically becomes the owner + first member.
 export async function createBoard(req, res) {
+  let board;
   try {
-    const { name, emoji, color } = req.body;
+    const { name, emoji, color, templateId } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -29,13 +31,17 @@ export async function createBoard(req, res) {
       });
     }
 
+    const template = resolveBoardTemplate(templateId);
+
     // Only accept a color from the known palette; otherwise fall back to the
     // schema default. This keeps a bad value from throwing a validation error.
-    const safeColor = BOARD_COLORS.includes(color) ? color : undefined;
-    const safeEmoji = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : undefined;
+    const requestedColor = color ?? template?.color;
+    const requestedEmoji = emoji ?? template?.emoji;
+    const safeColor = BOARD_COLORS.includes(requestedColor) ? requestedColor : undefined;
+    const safeEmoji = typeof requestedEmoji === 'string' && requestedEmoji.trim() ? requestedEmoji.trim() : undefined;
 
     // req.user was set by the `protect` middleware — that's who's creating this.
-    const board = await Board.create({
+    board = await Board.create({
       name,
       ...(safeEmoji && { emoji: safeEmoji }),
       ...(safeColor && { color: safeColor }),
@@ -43,10 +49,19 @@ export async function createBoard(req, res) {
       members: [{ user: req.user._id, role: 'owner' }], // creator is the owner-member
     });
 
-    return res.status(201).json({ data: { board } });
+    const seeded = await seedBoardFromTemplate(board._id, template);
+
+    return res.status(201).json({ data: { board, ...seeded } });
   } catch (err) {
     console.error('Create board error:', err.message);
-    return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
+    if (board?._id) {
+      await Promise.all([
+        Card.deleteMany({ board: board._id }),
+        List.deleteMany({ board: board._id }),
+        Board.deleteOne({ _id: board._id }),
+      ]);
+    }
+    return sendBoardError(res, err);
   }
 }
 

@@ -161,6 +161,52 @@ describe.sequential('REST board permissions', () => {
     });
   });
 
+  it('creates a board from a template with starter lists and cards', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+
+    const res = await request(app)
+      .post('/api/v1/boards')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ name: 'Sprint board', templateId: 'software-sprint' })
+      .expect(201);
+
+    expect(res.body.data.board).toMatchObject({
+      name: 'Sprint board',
+      emoji: 'code',
+      color: 'indigo',
+    });
+    expect(res.body.data.lists.map((list) => list.title)).toEqual([
+      'Backlog',
+      'Ready',
+      'In Progress',
+      'Code Review',
+      'QA',
+      'Done',
+    ]);
+    expect(res.body.data.cards.map((card) => card.title)).toEqual([
+      'Define sprint goal',
+      'Review open bugs',
+      'Prepare release checklist',
+    ]);
+
+    await expect(List.countDocuments({ board: res.body.data.board._id })).resolves.toBe(6);
+    await expect(Card.countDocuments({ board: res.body.data.board._id })).resolves.toBe(3);
+  });
+
+  it('rejects unknown board templates without creating a board', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+
+    await request(app)
+      .post('/api/v1/boards')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ name: 'Mystery board', templateId: 'unknown-template' })
+      .expect(400);
+
+    await expect(Board.countDocuments({ name: 'Mystery board' })).resolves.toBe(0);
+  });
+
   it('hides private boards from non-members and rejects their mutations', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

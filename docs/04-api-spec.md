@@ -72,10 +72,16 @@ from a template is handled by `POST /boards` in the next implementation step.
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
 | GET | `/boards` | member | – | `200 { boards: [...] }` (boards I belong to) |
-| POST | `/boards` | any auth | `{ name, emoji?, color? }` | `201 { board }` (creator becomes owner) |
+| POST | `/boards` | any auth | `{ name, emoji?, color?, templateId? }` | `201 { board, lists, cards }` (creator becomes owner) |
 | GET | `/boards/:boardId` | member | – | `200 { board, lists, cards }` (full initial load) |
 | PATCH | `/boards/:boardId` | admin | `{ name?, emoji?, color? }` | `200 { board, activity }` |
 | DELETE | `/boards/:boardId` | owner | – | `200 { deleted: true }` |
+
+If `templateId` is omitted, `POST /boards` creates an empty board and returns
+empty `lists` and `cards` arrays. If `templateId` matches a catalog template,
+the server creates the board plus starter lists/cards in one request. Template
+icon/color become defaults unless the request provides explicit `emoji` or
+`color` values.
 
 ### 2.4 Members
 

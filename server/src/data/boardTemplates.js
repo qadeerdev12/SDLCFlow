@@ -100,3 +100,7 @@ export function listBoardTemplates() {
     cards: template.cards.map((card) => ({ ...card })),
   }));
 }
+
+export function getBoardTemplate(templateId) {
+  return listBoardTemplates().find((template) => template.id === templateId) || null;
+}
