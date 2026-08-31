@@ -29,6 +29,7 @@ import NewBoardModal from '../components/NewBoardModal'
 import MembersPanel from '../components/MembersPanel'
 import ActivityPanel from '../components/ActivityPanel'
 import ChatPanel from '../components/ChatPanel'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 function memberUserId(member) {
   return member.user?.id || member.user?._id || member.user
@@ -141,6 +142,8 @@ export default function BoardPage() {
   const [activeCard, setActiveCard] = useState(null)  // card being dragged (for overlay)
   const [selectedCard, setSelectedCard] = useState(null)
   const [editingBoard, setEditingBoard] = useState(false)
+  const [listDeleteTarget, setListDeleteTarget] = useState(null)
+  const [listDeleting, setListDeleting] = useState(false)
   const [managingMembers, setManagingMembers] = useState(false)
   const [presence, setPresence] = useState([])
   const [members, setMembers] = useState([])
@@ -187,6 +190,10 @@ export default function BoardPage() {
     () => Object.values(visibleCardsByList).reduce((sum, cards) => sum + cards.length, 0),
     [visibleCardsByList]
   )
+  const listDeleteCardCount = listDeleteTarget ? cardsByList[listDeleteTarget._id]?.length || 0 : 0
+  const listDeleteDescription = listDeleteTarget
+    ? `This will remove the workflow list${listDeleteCardCount ? ` and ${listDeleteCardCount} ${listDeleteCardCount === 1 ? 'card' : 'cards'}` : ''} from this board.`
+    : ''
 
   // Refs mirror state so drag handlers always read the freshest value even
   // across the re-renders that onDragOver triggers mid-drag.
@@ -681,11 +688,13 @@ export default function BoardPage() {
   }
 
   async function handleDeleteList(list) {
-    const count = cardsRef.current[list._id]?.length || 0
-    const suffix = count ? ` and ${count} ${count === 1 ? 'card' : 'cards'}` : ''
-    const confirmed = window.confirm(`Delete "${list.title}"${suffix}?`)
-    if (!confirmed) return
+    setListDeleteTarget(list)
+  }
 
+  async function confirmDeleteList() {
+    if (!listDeleteTarget) return
+    const list = listDeleteTarget
+    setListDeleting(true)
     try {
       const data = await realtimeOrRest(
         'list:delete',
@@ -700,9 +709,12 @@ export default function BoardPage() {
       })
       prependActivity(data.activity)
       toast.success('List deleted', list.title)
+      setListDeleteTarget(null)
     } catch (err) {
       setError(err.message)
       toast.error('Could not delete list', err.message)
+    } finally {
+      setListDeleting(false)
     }
   }
 
@@ -1282,6 +1294,17 @@ export default function BoardPage() {
           onSendMessage={handleSendMessage}
           onDeleteMessage={handleDeleteMessage}
           onClearMessages={handleClearMessages}
+        />
+      )}
+
+      {listDeleteTarget && (
+        <ConfirmDialog
+          title={`Delete "${listDeleteTarget.title}"?`}
+          description={listDeleteDescription}
+          confirmLabel="Delete list"
+          pending={listDeleting}
+          onCancel={() => setListDeleteTarget(null)}
+          onConfirm={confirmDeleteList}
         />
       )}
     </div>

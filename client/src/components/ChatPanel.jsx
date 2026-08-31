@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ConfirmDialog from './ConfirmDialog'
 
 function userId(value) {
   return value?.id || value?._id || value
@@ -62,6 +63,7 @@ export default function ChatPanel({
   const [sending, setSending] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [clearing, setClearing] = useState(false)
+  const [confirmAction, setConfirmAction] = useState(null)
   const listRef = useRef(null)
   const canClearChat = currentRole === 'owner'
 
@@ -91,25 +93,21 @@ export default function ChatPanel({
     e.currentTarget.form?.requestSubmit()
   }
 
-  async function handleDeleteMessage(message) {
-    const confirmed = window.confirm('Delete this chat message?')
-    if (!confirmed) return
-
+  async function confirmDeleteMessage(message) {
     setDeletingId(message._id)
     try {
       await onDeleteMessage(message)
+      setConfirmAction(null)
     } finally {
       setDeletingId(null)
     }
   }
 
-  async function handleClearMessages() {
-    const confirmed = window.confirm('Clear all chat messages for this board? This cannot be undone in the UI.')
-    if (!confirmed) return
-
+  async function confirmClearMessages() {
     setClearing(true)
     try {
       await onClearMessages()
+      setConfirmAction(null)
     } finally {
       setClearing(false)
     }
@@ -131,7 +129,7 @@ export default function ChatPanel({
             {canClearChat && messages.length > 0 && (
               <button
                 type="button"
-                onClick={handleClearMessages}
+                onClick={() => setConfirmAction({ type: 'clear' })}
                 disabled={clearing}
                 className="rounded-lg px-2 py-1 text-xs font-semibold text-zinc-500 transition hover:bg-zinc-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-red-300"
               >
@@ -215,7 +213,7 @@ export default function ChatPanel({
                         {canDelete && (
                           <button
                             type="button"
-                            onClick={() => handleDeleteMessage(message)}
+                            onClick={() => setConfirmAction({ type: 'delete', message })}
                             disabled={deletingId === message._id}
                             className={`${isMine ? 'text-teal-50/70 hover:text-white' : 'text-zinc-400 hover:text-red-600 dark:hover:text-red-300'} disabled:cursor-not-allowed disabled:opacity-50`}
                             aria-label="Delete message"
@@ -270,6 +268,28 @@ export default function ChatPanel({
           </div>
         </form>
       </aside>
+
+      {confirmAction?.type === 'delete' && (
+        <ConfirmDialog
+          title="Delete this message?"
+          description="This will replace your chat message with a deleted placeholder for everyone viewing the board."
+          confirmLabel="Delete message"
+          pending={deletingId === confirmAction.message._id}
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={() => confirmDeleteMessage(confirmAction.message)}
+        />
+      )}
+
+      {confirmAction?.type === 'clear' && (
+        <ConfirmDialog
+          title="Clear board chat?"
+          description="This clears the visible chat history for this board. Existing messages will no longer appear when members open the chat."
+          confirmLabel="Clear chat"
+          pending={clearing}
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={confirmClearMessages}
+        />
+      )}
     </div>
   )
 }
