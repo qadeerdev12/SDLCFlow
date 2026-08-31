@@ -363,7 +363,6 @@ export default function BoardPage() {
     }
 
     if (connected) {
-      if (wasConnectedRef.current === false) toast.success('Realtime reconnected', 'Live board updates are active again.')
       wasConnectedRef.current = true
       return
     }
