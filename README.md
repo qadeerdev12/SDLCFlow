@@ -147,7 +147,8 @@ send messages. The board header shows an unread badge while the drawer is
 closed, messages are grouped by day, and the composer supports Enter to send
 with Shift+Enter for multiline notes. Typing indicators show when another board
 member is writing. People can delete their own messages, and owners can clear a
-board's chat when a project conversation needs a reset.
+board's chat when a project conversation needs a reset. If a send fails, the
+message stays in the thread with a retry action instead of disappearing.
 
 ### Search, filters, and a dark mode that isn't an afterthought
 

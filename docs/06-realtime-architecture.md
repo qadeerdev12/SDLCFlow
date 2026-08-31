@@ -223,6 +223,12 @@ before broadcasting `chat:typing`, but it does not persist the event or create
 activity. The client removes stale typing indicators after a short timeout and
 sends a final `typing: false` when the drawer closes or a message sends.
 
+Message delivery state is also client-only. `BoardPage.jsx` inserts a temporary
+message with `deliveryStatus: "sending"` before the socket/REST call finishes.
+On success, the temporary message is replaced with the persisted MongoDB
+message. On failure, it remains visible with `deliveryStatus: "failed"` and can
+be retried from the chat bubble.
+
 Individual deletes are soft deletes: the message keeps its timestamp and sender
 but renders as a deleted placeholder. Clear-chat marks the existing messages as
 cleared so the drawer empties for open clients and future history loads start

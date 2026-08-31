@@ -9,7 +9,7 @@ The client is responsible for:
 - kanban board UI
 - card search, tag filtering, and status filtering
 - card comment threads
-- board chat drawer with realtime messages, typing indicators, unread counts, moderation, and keyboard send
+- board chat drawer with realtime messages, typing indicators, delivery retry, unread counts, moderation, and keyboard send
 - card assignee and due date editing
 - global and board-specific activity pages
 - user profile editing, password changes, and account deletion
@@ -80,7 +80,8 @@ It provides:
 8. append realtime activity events to the board timeline
 9. load and append board chat messages
 10. show socket-only typing indicators for other board members
-11. reset unread chat counts when the drawer opens
+11. keep local delivery state for pending and failed chat sends
+12. reset unread chat counts when the drawer opens
 
 See `../docs/06-realtime-architecture.md` for the server-side contract.
 

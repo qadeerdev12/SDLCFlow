@@ -603,9 +603,29 @@ export default function BoardPage() {
     })
   }
 
+  function replaceMessage(messageId, nextMessage) {
+    setMessages((prev) => prev.map((item) => (item._id === messageId ? nextMessage : item)))
+  }
+
   function updateMessage(message) {
     if (!message?._id) return
     setMessages((prev) => prev.map((item) => (item._id === message._id ? message : item)))
+  }
+
+  function buildPendingMessage(body) {
+    const clientId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    return {
+      _id: clientId,
+      clientId,
+      body,
+      createdAt: new Date().toISOString(),
+      sender: {
+        id: user?.id,
+        name: user?.name,
+        email: user?.email,
+      },
+      deliveryStatus: 'sending',
+    }
   }
 
   function closeActivityPanel() {
@@ -814,16 +834,50 @@ export default function BoardPage() {
   }
 
   async function handleSendMessage(body) {
+    const pendingMessage = buildPendingMessage(body)
+    appendMessage(pendingMessage)
+
     try {
       const data = await realtimeOrRest(
         'message:create',
         { boardId, body },
         async () => (await boardApi.createMessage(boardId, body, token)).data
       )
-      appendMessage(data.message)
+      setMessagesError('')
+      replaceMessage(pendingMessage._id, data.message)
     } catch (err) {
-      setMessagesError(err.message)
+      replaceMessage(pendingMessage._id, {
+        ...pendingMessage,
+        deliveryStatus: 'failed',
+        deliveryError: err.message,
+      })
       toast.error('Could not send message', err.message)
+      throw err
+    }
+  }
+
+  async function handleRetryMessage(message) {
+    replaceMessage(message._id, {
+      ...message,
+      deliveryStatus: 'sending',
+      deliveryError: '',
+    })
+
+    try {
+      const data = await realtimeOrRest(
+        'message:create',
+        { boardId, body: message.body },
+        async () => (await boardApi.createMessage(boardId, message.body, token)).data
+      )
+      setMessagesError('')
+      replaceMessage(message._id, data.message)
+    } catch (err) {
+      replaceMessage(message._id, {
+        ...message,
+        deliveryStatus: 'failed',
+        deliveryError: err.message,
+      })
+      toast.error('Retry failed', err.message)
       throw err
     }
   }
@@ -1353,6 +1407,7 @@ export default function BoardPage() {
           onSendMessage={handleSendMessage}
           onDeleteMessage={handleDeleteMessage}
           onClearMessages={handleClearMessages}
+          onRetryMessage={handleRetryMessage}
           onTypingChange={handleTypingChange}
         />
       )}

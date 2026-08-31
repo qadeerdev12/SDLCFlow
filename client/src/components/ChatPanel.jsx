@@ -66,11 +66,13 @@ export default function ChatPanel({
   onSendMessage,
   onDeleteMessage,
   onClearMessages,
+  onRetryMessage,
   onTypingChange,
 }) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  const [retryingId, setRetryingId] = useState(null)
   const [clearing, setClearing] = useState(false)
   const [confirmAction, setConfirmAction] = useState(null)
   const listRef = useRef(null)
@@ -121,10 +123,10 @@ export default function ChatPanel({
 
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
     sendTypingStatus(false)
+    setDraft('')
     setSending(true)
     try {
       await onSendMessage(body)
-      setDraft('')
     } catch {
       // The parent owns the error message so it can also trigger a toast.
     } finally {
@@ -145,6 +147,17 @@ export default function ChatPanel({
       setConfirmAction(null)
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function retryMessage(message) {
+    setRetryingId(message._id)
+    try {
+      await onRetryMessage(message)
+    } catch {
+      // The failed bubble remains in place with its retry affordance.
+    } finally {
+      setRetryingId(null)
     }
   }
 
@@ -232,7 +245,9 @@ export default function ChatPanel({
             const isMine = String(userId(message.sender)) === String(currentUserId)
             const name = senderName(message.sender)
             const isDeleted = Boolean(message.deletedAt)
-            const canDelete = !isDeleted && isMine
+            const isSending = message.deliveryStatus === 'sending'
+            const isFailed = message.deliveryStatus === 'failed'
+            const canDelete = !isDeleted && isMine && !isSending && !isFailed
             const showDateLabel = dateKey(message.createdAt) !== dateKey(messages[index - 1]?.createdAt)
             return (
               <div key={message._id}>
@@ -251,8 +266,8 @@ export default function ChatPanel({
                       {initials(name)}
                     </span>
                   )}
-                  <div className={`max-w-[78%] rounded-lg border px-3 py-2 ${isMine ? 'border-teal-600 bg-teal-600 text-white' : 'border-zinc-200 bg-zinc-50 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100'}`}>
-                    <div className={`mb-1 flex items-center justify-between gap-3 text-[11px] ${isMine ? 'text-teal-50/80' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                  <div className={`max-w-[78%] rounded-lg border px-3 py-2 ${isFailed ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200' : isMine ? 'border-teal-600 bg-teal-600 text-white' : 'border-zinc-200 bg-zinc-50 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100'} ${isSending ? 'opacity-75' : ''}`}>
+                    <div className={`mb-1 flex items-center justify-between gap-3 text-[11px] ${isFailed ? 'text-red-500 dark:text-red-300' : isMine ? 'text-teal-50/80' : 'text-zinc-500 dark:text-zinc-400'}`}>
                       <span className="truncate font-semibold">{isMine ? 'You' : name}</span>
                       <span className="flex shrink-0 items-center gap-2">
                         {canDelete && (
@@ -271,13 +286,26 @@ export default function ChatPanel({
                             </svg>
                           </button>
                         )}
-                        {messageTime(message.createdAt)}
+                        {isSending ? 'Sending...' : isFailed ? 'Not sent' : messageTime(message.createdAt)}
                       </span>
                     </div>
                     {isDeleted ? (
                       <p className={`text-sm italic leading-5 ${isMine ? 'text-teal-50/80' : 'text-zinc-400 dark:text-zinc-500'}`}>Message deleted</p>
                     ) : (
                       <p className="whitespace-pre-wrap break-words text-sm leading-5">{message.body}</p>
+                    )}
+                    {isFailed && (
+                      <div className="mt-2 flex items-center justify-between gap-2 border-t border-red-200 pt-2 text-[11px] dark:border-red-500/20">
+                        <span className="min-w-0 truncate text-red-500 dark:text-red-300">{message.deliveryError || 'Message could not be sent.'}</span>
+                        <button
+                          type="button"
+                          onClick={() => retryMessage(message)}
+                          disabled={retryingId === message._id}
+                          className="shrink-0 rounded-md bg-red-600 px-2 py-1 font-bold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {retryingId === message._id ? 'Retrying' : 'Retry'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </article>
