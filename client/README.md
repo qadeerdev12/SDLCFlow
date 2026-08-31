@@ -14,6 +14,7 @@ The client is responsible for:
 - global and board-specific activity pages
 - user profile editing, password changes, and account deletion
 - app-wide toast notifications
+- reusable in-app confirmation dialogs for destructive actions
 - recent activity panel
 - drag-and-drop with dnd-kit
 - Socket.IO connection lifecycle
@@ -81,6 +82,17 @@ It provides:
 10. reset unread chat counts when the drawer opens
 
 See `../docs/06-realtime-architecture.md` for the server-side contract.
+
+---
+
+## Confirmation Dialogs
+
+`src/components/ConfirmDialog.jsx` is the shared alert dialog for destructive
+actions. Use it instead of `window.confirm` so delete and removal flows keep the
+same styling, dark mode support, Escape behavior, and pending state.
+
+Current usages include chat message deletion, clear chat, workflow list deletion,
+board deletion, card deletion, and member removal.
 
 ---
 

@@ -42,6 +42,7 @@ export default function MembersPanel({
 
   useEffect(() => {
     function onKeyDown(e) {
+      // A nested confirmation dialog owns Escape while it is open.
       if (e.key === 'Escape' && !removeTarget) onClose()
     }
     document.addEventListener('keydown', onKeyDown)
@@ -75,6 +76,7 @@ export default function MembersPanel({
   }
 
   async function handleRemove(member) {
+    // Defer the destructive call until the user confirms in the app dialog.
     setRemoveTarget(member)
   }
 

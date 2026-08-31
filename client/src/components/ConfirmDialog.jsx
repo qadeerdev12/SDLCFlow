@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 
+// Shared destructive-action confirmation. Keep this generic so board, card,
+// member, chat, and account flows can reuse one accessible alert dialog.
 export default function ConfirmDialog({
   title,
   description,
