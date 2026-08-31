@@ -14,6 +14,10 @@ const SORTS = [
   { key: 'name', label: 'Name A-Z' },
 ]
 
+function pluralize(count, singular, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 export default function DashboardPage() {
   const { user, token } = useAuth()
   const toast = useToast()
@@ -106,86 +110,113 @@ export default function DashboardPage() {
 
   const firstName = user?.name?.split(' ')[0]
   const sharedBoards = boards.filter((b) => (b.members?.length ?? 0) > 1).length
+  const ownedBoards = boards.filter((b) => roleFor(b) === 'owner').length
+  const hasFilters = Boolean(query.trim())
 
   return (
     <div className="min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
       <AppHeader />
 
-      <main className="mx-auto max-w-7xl px-5 py-6 sm:px-6">
-        <section className="mb-6 grid gap-4 lg:grid-cols-[1fr_360px]">
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Workspace</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                  {firstName ? `${firstName}'s projects` : 'Project dashboard'}
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                  Track active work, reopen recent boards, and keep your planning surface close to the projects you are building.
-                </p>
+      <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:py-7">
+        <section className="mb-5 rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-stretch">
+            <div className="flex min-w-0 flex-col justify-between gap-5">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Workspace</p>
+                  <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                    {firstName ? `${firstName}'s projects` : 'Project dashboard'}
+                  </h1>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                    Open a board, review active spaces, or start from a software workflow template.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setCreating(true)}
+                  className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500 sm:w-auto"
+                >
+                  <PlusIcon className="h-4 w-4" />
+                  <span>New board</span>
+                </button>
               </div>
 
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <Metric label="Total boards" value={loading ? '-' : boards.length} />
+                <Metric label="Owned by you" value={loading ? '-' : ownedBoards} />
+                <Metric label="Shared spaces" value={loading ? '-' : sharedBoards} />
+                <Metric label="Current view" value={loading ? '-' : visibleBoards.length} />
+              </div>
+            </div>
+
+            <aside className="flex flex-col justify-between rounded-lg border border-zinc-200 bg-zinc-950 p-4 text-white dark:border-zinc-800">
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Quick start</p>
+                  <span className="rounded-md bg-white/10 px-2 py-1 text-xs text-zinc-300">
+                    {templatesLoading ? 'Loading' : pluralize(templates.length, 'template')}
+                  </span>
+                </div>
+                <h2 className="mt-4 text-lg font-semibold">Start with a proven workflow.</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Create a sprint, bug triage, roadmap, release plan, or custom board from the same modal.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="mt-5 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-teal-50"
+              >
+                Browse templates
+                <ArrowRightIcon className="h-4 w-4" />
+              </button>
+            </aside>
+          </div>
+        </section>
+
+        <section className="mb-5 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative min-w-0 flex-1">
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search project boards"
+                aria-label="Search boards"
+                className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-2.5 pl-9 pr-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              {hasFilters && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-zinc-200 px-3 py-2.5 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  Clear search
+                </button>
+              )}
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                aria-label="Sort boards"
+                className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950"
+              >
+                {SORTS.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
               <button
                 onClick={() => setCreating(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-teal-200 bg-teal-50 px-3 py-2.5 text-sm font-semibold text-teal-800 transition hover:bg-teal-100 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200 dark:hover:bg-teal-500/15"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
+                <PlusIcon className="h-4 w-4" />
                 New board
               </button>
             </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <Metric label="Total boards" value={loading ? '-' : boards.length} />
-              <Metric label="Shared spaces" value={loading ? '-' : sharedBoards} />
-              <Metric label="Current view" value={loading ? '-' : visibleBoards.length} />
-            </div>
           </div>
-
-          <aside className="rounded-lg border border-zinc-200 bg-zinc-950 p-5 text-white shadow-sm dark:border-zinc-800">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Focus</p>
-              <span className="rounded-md bg-white/10 px-2 py-1 text-xs text-zinc-300">Live-ready</span>
-            </div>
-            <h2 className="mt-4 text-lg font-semibold">Plan the next useful move.</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">
-              Use one board per project, then keep lists lean: Backlog, Next, In Progress, Review, Done.
-            </p>
-          </aside>
         </section>
-
-        <div className="mb-4 flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center md:justify-between">
-          <div className="relative flex-1">
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search project boards"
-              aria-label="Search boards"
-              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-2.5 pl-9 pr-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950"
-            />
-          </div>
-
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            aria-label="Sort boards"
-            className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950"
-          >
-            {SORTS.map((s) => (
-              <option key={s.key} value={s.key}>{s.label}</option>
-            ))}
-          </select>
-        </div>
 
         {error && (
           <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
@@ -198,52 +229,41 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="min-h-[170px] animate-pulse rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-                <div className="h-10 w-10 rounded-lg bg-zinc-200 dark:bg-zinc-800" />
-                <div className="mt-5 h-4 w-3/4 rounded bg-zinc-200 dark:bg-zinc-800" />
-                <div className="mt-2 h-3 w-1/2 rounded bg-zinc-100 dark:bg-zinc-800/70" />
-              </div>
-            ))}
+        <section>
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-100">Project boards</h2>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                {loading ? 'Loading your workspace...' : `${pluralize(visibleBoards.length, 'board')} shown`}
+              </p>
+            </div>
           </div>
-        ) : boards.length === 0 ? (
-          <EmptyState onCreate={() => setCreating(true)} />
-        ) : visibleBoards.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-white py-16 text-center dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-zinc-500 dark:text-zinc-400">No boards match "{query}".</p>
-            <button onClick={() => setQuery('')} className="mt-2 text-sm font-semibold text-teal-700 hover:underline dark:text-teal-300">
-              Clear search
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {visibleBoards.map((board) => (
-              <BoardCard
-                key={board._id}
-                board={board}
-                role={roleFor(board)}
-                canEdit={['owner', 'admin'].includes(roleFor(board))}
-                canDelete={roleFor(board) === 'owner'}
-                onOpen={() => navigate(`/boards/${board._id}`)}
-                onEdit={setEditingBoard}
-                onDelete={handleDelete}
-              />
-            ))}
 
-            <button
-              onClick={() => setCreating(true)}
-              className="flex min-h-[170px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 bg-white text-zinc-500 transition hover:border-teal-400 hover:text-teal-700 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-teal-500/50 dark:hover:text-teal-300"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              <span className="text-sm font-semibold">New board</span>
-            </button>
-          </div>
-        )}
+          {loading ? (
+            <BoardGridSkeleton />
+          ) : boards.length === 0 ? (
+            <EmptyState templateCount={templates.length} onCreate={() => setCreating(true)} />
+          ) : visibleBoards.length === 0 ? (
+            <NoSearchResults query={query} onClear={() => setQuery('')} />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {visibleBoards.map((board) => (
+                <BoardCard
+                  key={board._id}
+                  board={board}
+                  role={roleFor(board)}
+                  canEdit={['owner', 'admin'].includes(roleFor(board))}
+                  canDelete={roleFor(board) === 'owner'}
+                  onOpen={() => navigate(`/boards/${board._id}`)}
+                  onEdit={setEditingBoard}
+                  onDelete={handleDelete}
+                />
+              ))}
+
+              <CreateBoardTile templateCount={templates.length} onCreate={() => setCreating(true)} />
+            </div>
+          )}
+        </section>
       </main>
 
       {creating && (
@@ -280,33 +300,115 @@ export default function DashboardPage() {
 function Metric({ label, value }) {
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
-      <p className="text-2xl font-semibold text-zinc-950 dark:text-white">{value}</p>
+      <p className="text-xl font-semibold text-zinc-950 dark:text-white sm:text-2xl">{value}</p>
       <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
     </div>
   )
 }
 
-function EmptyState({ onCreate }) {
+function BoardGridSkeleton() {
   return (
-    <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-16 text-center dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="min-h-[180px] animate-pulse rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-center justify-between">
+            <div className="h-10 w-10 rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+            <div className="h-8 w-8 rounded-lg bg-zinc-100 dark:bg-zinc-800/70" />
+          </div>
+          <div className="mt-6 h-4 w-3/4 rounded bg-zinc-200 dark:bg-zinc-800" />
+          <div className="mt-2 h-3 w-1/2 rounded bg-zinc-100 dark:bg-zinc-800/70" />
+          <div className="mt-7 h-8 w-full rounded-lg bg-zinc-100 dark:bg-zinc-800/70" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EmptyState({ templateCount, onCreate }) {
+  return (
+    <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-14 text-center dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-lg bg-teal-600 text-white shadow-lg shadow-teal-600/20">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="9" rx="1" />
-          <rect x="14" y="3" width="7" height="5" rx="1" />
-          <rect x="14" y="12" width="7" height="9" rx="1" />
-          <rect x="3" y="16" width="7" height="5" rx="1" />
-        </svg>
+        <LayoutIcon className="h-7 w-7" />
       </div>
       <h2 className="mt-5 text-lg font-semibold">Create your first project board</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-        Start with one project, add a few lists, then drag cards as the work moves.
+        Start blank or choose from {pluralize(templateCount, 'software template')} with workflow lists and starter cards already in place.
       </p>
       <button
         onClick={onCreate}
-        className="mt-6 rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500"
+        className="mt-6 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500"
       >
+        <PlusIcon className="h-4 w-4" />
         New board
       </button>
     </div>
+  )
+}
+
+function NoSearchResults({ query, onClear }) {
+  return (
+    <div className="rounded-lg border border-dashed border-zinc-300 bg-white py-14 text-center dark:border-zinc-800 dark:bg-zinc-900">
+      <p className="text-zinc-500 dark:text-zinc-400">No boards match "{query}".</p>
+      <button onClick={onClear} className="mt-2 text-sm font-semibold text-teal-700 hover:underline dark:text-teal-300">
+        Clear search
+      </button>
+    </div>
+  )
+}
+
+function CreateBoardTile({ templateCount, onCreate }) {
+  return (
+    <button
+      onClick={onCreate}
+      className="flex min-h-[180px] flex-col justify-between rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-left text-zinc-500 transition hover:-translate-y-0.5 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg hover:shadow-teal-600/10 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-teal-500/50 dark:hover:text-teal-300"
+    >
+      <span className="grid h-10 w-10 place-items-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
+        <PlusIcon className="h-5 w-5" />
+      </span>
+      <span>
+        <span className="block whitespace-nowrap text-sm font-semibold text-zinc-800 dark:text-zinc-100">New board</span>
+        <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+          Start blank or browse {pluralize(templateCount, 'template')}.
+        </span>
+      </span>
+    </button>
+  )
+}
+
+function PlusIcon({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  )
+}
+
+function SearchIcon({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  )
+}
+
+function ArrowRightIcon({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
+    </svg>
+  )
+}
+
+function LayoutIcon({ className = 'h-6 w-6' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="12" width="7" height="9" rx="1" />
+      <rect x="3" y="16" width="7" height="5" rx="1" />
+    </svg>
   )
 }
