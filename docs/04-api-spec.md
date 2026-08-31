@@ -57,7 +57,17 @@ Defines the contract between client and server: the REST API (request/response w
 Profile email updates reject duplicate emails with `409 EMAIL_TAKEN`. Password updates require the current password and a new password of at least 8 characters.
 Deleting an account removes owned boards and their lists/cards/comments/activity, removes the user from shared boards, clears their card assignments, and deletes their comments/activity records.
 
-### 2.2 Boards
+### 2.2 Board templates
+
+| Method | Path | Auth | Body | Returns |
+|---|---|---|---|---|
+| GET | `/board-templates` | ✅ | – | `200 { templates }` |
+
+Templates are read-only starter blueprints for new boards. Each template includes
+display metadata plus list names and starter card previews. Creating a board
+from a template is handled by `POST /boards` in the next implementation step.
+
+### 2.3 Boards
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -67,7 +77,7 @@ Deleting an account removes owned boards and their lists/cards/comments/activity
 | PATCH | `/boards/:boardId` | admin | `{ name?, emoji?, color? }` | `200 { board, activity }` |
 | DELETE | `/boards/:boardId` | owner | – | `200 { deleted: true }` |
 
-### 2.3 Members
+### 2.4 Members
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -84,7 +94,7 @@ Member rules:
 - Admins cannot remove owners.
 - A board must keep at least one owner.
 
-### 2.4 Activity
+### 2.5 Activity
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -92,7 +102,7 @@ Member rules:
 
 Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle`, optional `metadata`, and timestamps. The endpoint returns the latest board activity first.
 
-### 2.5 Board chat
+### 2.6 Board chat
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -109,7 +119,7 @@ hidden from future history loads. Normal chat is stored separately from activity
 so conversation does not flood the audit timeline, but moderation actions create
 activity records.
 
-### 2.6 Lists
+### 2.7 Lists
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -117,7 +127,7 @@ activity records.
 | PATCH | `/boards/:boardId/lists/:listId` | member | `{ title?, position? }` | `200 { list, activity }` |
 | DELETE | `/boards/:boardId/lists/:listId` | member | – | `200 { deleted: true, activity }` |
 
-### 2.7 Cards
+### 2.8 Cards
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -128,7 +138,7 @@ activity records.
 > Card **move** = a `PATCH` changing `listId` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
 > `assignee` must be `null`, empty, or a user id that already belongs to the board. `dueDate` accepts an ISO date/date-time string or `null`.
 
-### 2.8 Comments
+### 2.9 Comments
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|

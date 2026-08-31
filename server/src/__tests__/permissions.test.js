@@ -139,6 +139,28 @@ function waitForConnectError(socket) {
 }
 
 describe.sequential('REST board permissions', () => {
+  it('serves the board template catalog to authenticated users only', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+
+    await request(app)
+      .get('/api/v1/board-templates')
+      .expect(401);
+
+    const res = await request(app)
+      .get('/api/v1/board-templates')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+
+    expect(res.body.data.templates.length).toBeGreaterThan(0);
+    expect(res.body.data.templates[0]).toMatchObject({
+      id: expect.any(String),
+      name: expect.any(String),
+      lists: expect.any(Array),
+      cards: expect.any(Array),
+    });
+  });
+
   it('hides private boards from non-members and rejects their mutations', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');
