@@ -47,7 +47,7 @@ export default function AppHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-200 bg-stone-50/90 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/90">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-[1760px] items-center justify-between px-5 py-3 sm:px-6 2xl:px-8">
         <button onClick={() => navigate('/dashboard')} className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
           <Logo size="md" />
         </button>

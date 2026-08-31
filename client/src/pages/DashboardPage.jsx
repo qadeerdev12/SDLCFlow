@@ -117,9 +117,9 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
       <AppHeader />
 
-      <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:py-7">
+      <main className="mx-auto max-w-[1760px] px-4 py-5 sm:px-6 lg:py-7 2xl:px-8">
         <section className="mb-5 rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-stretch">
+          <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-stretch 2xl:grid-cols-[minmax(0,1fr)_420px]">
             <div className="flex min-w-0 flex-col justify-between gap-5">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0">
@@ -246,7 +246,7 @@ export default function DashboardPage() {
           ) : visibleBoards.length === 0 ? (
             <NoSearchResults query={query} onClear={() => setQuery('')} />
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {visibleBoards.map((board) => (
                 <BoardCard
                   key={board._id}
@@ -308,7 +308,7 @@ function Metric({ label, value }) {
 
 function BoardGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="min-h-[180px] animate-pulse rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center justify-between">
