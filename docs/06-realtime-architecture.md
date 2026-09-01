@@ -146,11 +146,17 @@ The client helper `emitWithAck` rejects the Promise when:
 | `list:updated` | `{ boardId, list }` | emitted after DB update |
 | `list:moved` | `{ boardId, list }` | emitted after DB update |
 | `list:deleted` | `{ boardId, listId }` | emitted after DB delete |
+| `workflow:created` | `{ boardId, workflow, lists, cards }` | emitted after REST workflow creation and template seeding |
 | `members:updated` | `{ boardId, members }` | emitted after REST member changes |
 | `activity:created` | `{ boardId, activity }` | emitted after activity is recorded |
 | `board:error` | `{ code, message }` | emitted only when an event was sent without an ack callback |
 
-Broadcasts use `socket.to(roomName(board._id)).emit(...)`, so the sender is excluded. The sender updates its own UI from the ack response.
+Socket mutation broadcasts use `socket.to(roomName(board._id)).emit(...)`, so the sender is excluded. The sender updates its own UI from the ack response.
+
+REST-triggered broadcasts use the app-level Socket.IO server because there is
+no originating socket to exclude. The client merges `workflow:created` and
+`members:updated` payloads by id, so the requester and collaborators can all
+receive the same canonical state without duplicate rows.
 
 Card/list creation payloads share the REST validation path. `workflowId` is
 optional; when omitted, lists use the board's first workflow and cards inherit
@@ -217,13 +223,14 @@ Member management currently happens through REST endpoints. Those endpoints broa
 
 Activity is fetched over REST on board load and then updated by `activity:created` socket events. Socket mutation senders receive activity in the ack response, while collaborators receive it through the board room broadcast.
 
-Workflows currently have a REST foundation only. `GET /boards/:boardId` returns
+Workflows use REST for creation and Socket.IO for live fan-out. `GET /boards/:boardId` returns
 `workflows`, and `GET/POST /boards/:boardId/workflows` lets members view and
 owners/admins add project areas. New boards receive a default `General`
 workflow, and older boards are lazily backfilled when loaded. Lists/cards that
 do not yet have a workflow are attached to the default workflow before the board
-snapshot is returned. Realtime workflow events will be added after the client UI
-can switch between workflows.
+snapshot is returned. `POST /boards/:boardId/workflows` broadcasts
+`workflow:created` with the saved workflow plus any template-seeded lists/cards
+so open board pages can merge the new project area without a reload.
 
 Board chat history is fetched over REST when the chat drawer opens. New messages use the same socket-first/fallback-to-REST pattern as board mutations. Chat messages are persisted and broadcast as `message:created`, but they are intentionally not recorded in the board activity log.
 

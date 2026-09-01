@@ -243,7 +243,7 @@ Errors use:
 | `list:update` | `{ boardId, listId, updates }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:delete` | `{ boardId, listId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |
 
-### 3.4 Server → Client events (broadcast to the board room, excluding sender)
+### 3.4 Server → Client events (broadcast to the board room)
 
 | Event | Payload | Meaning |
 |---|---|---|
@@ -260,6 +260,7 @@ Errors use:
 | `list:moved` | `{ boardId, list }` | a list moved |
 | `list:updated` | `{ boardId, list }` | a list changed |
 | `list:deleted` | `{ boardId, listId }` | a list was removed |
+| `workflow:created` | `{ boardId, workflow, lists, cards }` | a workflow and any seeded work items were added through REST |
 | `members:updated` | `{ boardId, members }` | board membership changed |
 | `activity:created` | `{ boardId, activity }` | a board activity record was added |
 | `presence:update` | `{ boardId, users: [{ user, socketCount, lastSeen }] }` | who is currently on the board |
@@ -267,7 +268,8 @@ Errors use:
 
 ### 3.5 Ordering of guarantees
 - Server **persists before broadcasting** (system-design §3).
-- Broadcasts exclude the originating socket (it already applied the change optimistically).
+- Socket mutation broadcasts exclude the originating socket (it already applied the change optimistically).
+- REST-triggered broadcasts, such as `workflow:created` and `members:updated`, do not have an originating socket; clients merge them by id so the requester does not see duplicate data.
 - On any failure, the server NACKs the sender via ack and broadcasts nothing.
 
 ---

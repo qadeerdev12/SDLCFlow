@@ -1247,4 +1247,46 @@ describe.sequential('Socket.IO board permissions', () => {
     collaboratorSocket.disconnect();
     await server.close();
   });
+
+  it('broadcasts workflow template additions to joined collaborators', async () => {
+    const server = await startSocketServer();
+    const owner = await register(server.app, 'Owner', 'owner@example.com');
+    const collaborator = await register(server.app, 'Collaborator', 'collab@example.com');
+    const board = await createBoardWithOwner(server.app, owner.token);
+    await addMember(server.app, owner.token, board._id, collaborator.user.email, 'member');
+
+    const collaboratorSocket = connectSocket(server.url, collaborator.token);
+    await waitForConnect(collaboratorSocket);
+    await emitWithAck(collaboratorSocket, 'board:join', { boardId: board._id });
+
+    const workflowBroadcast = new Promise((resolve) => {
+      collaboratorSocket.once('workflow:created', resolve);
+    });
+    const activityBroadcast = new Promise((resolve) => {
+      collaboratorSocket.once('activity:created', resolve);
+    });
+
+    const created = await request(server.app)
+      .post(`/api/v1/boards/${board._id}/workflows`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ workflowTemplateId: 'release-plan' })
+      .expect(201);
+
+    const workflowPayload = await workflowBroadcast;
+    const activityPayload = await activityBroadcast;
+
+    expect(workflowPayload.boardId).toBe(board._id.toString());
+    expect(workflowPayload.workflow._id.toString()).toBe(created.body.data.workflow._id.toString());
+    expect(workflowPayload.workflow.templateKey).toBe('release-plan');
+    expect(workflowPayload.lists.map((list) => list.workflow)).toEqual(
+      workflowPayload.lists.map(() => created.body.data.workflow._id)
+    );
+    expect(workflowPayload.cards.map((card) => card.workflow)).toEqual(
+      workflowPayload.cards.map(() => created.body.data.workflow._id)
+    );
+    expect(activityPayload.activity.action).toBe('workflow.created');
+
+    collaboratorSocket.disconnect();
+    await server.close();
+  });
 });

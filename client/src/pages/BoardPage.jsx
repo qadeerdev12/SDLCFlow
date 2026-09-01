@@ -767,6 +767,11 @@ export default function BoardPage() {
       setSelectedCard((current) => (current?.list === payload.listId ? null : current))
     }
 
+    function onWorkflowCreated(payload) {
+      if (payload.boardId !== boardId) return
+      mergeWorkflowPayload(payload)
+    }
+
     function onMembersUpdated(payload) {
       if (payload.boardId !== boardId) return
       const stillMember = payload.members?.some((member) => String(memberUserId(member)) === String(user?.id))
@@ -817,6 +822,7 @@ export default function BoardPage() {
       onSocketEvent('list:updated', onListChanged),
       onSocketEvent('list:moved', onListChanged),
       onSocketEvent('list:deleted', onListDeleted),
+      onSocketEvent('workflow:created', onWorkflowCreated),
       onSocketEvent('members:updated', onMembersUpdated),
       onSocketEvent('activity:created', onActivityCreated),
       onSocketEvent('message:created', onMessageCreated),
@@ -885,6 +891,37 @@ export default function BoardPage() {
       return next
     })
     setSelectedCard((current) => (current?._id === updatedCard._id ? updatedCard : current))
+  }
+
+  function mergeWorkflowPayload({ workflow, lists: incomingLists = [], cards: incomingCards = [] }) {
+    if (!workflow?._id) return
+
+    setWorkflows((prev) => {
+      const existing = prev.some((item) => item._id === workflow._id)
+      const next = existing
+        ? prev.map((item) => (item._id === workflow._id ? workflow : item))
+        : [...prev, workflow]
+      return next.sort((a, b) => a.position - b.position)
+    })
+
+    setLists((prev) => {
+      const byId = new Map(prev.map((list) => [list._id, list]))
+      for (const list of incomingLists) byId.set(list._id, list)
+      return [...byId.values()].sort((a, b) => a.position - b.position)
+    })
+
+    setCardsByList((prev) => {
+      const next = { ...prev }
+      for (const list of incomingLists) {
+        if (!next[list._id]) next[list._id] = []
+      }
+      for (const card of incomingCards) {
+        const current = next[card.list] || []
+        next[card.list] = [...current.filter((item) => item._id !== card._id), card]
+      }
+      for (const listId in next) next[listId] = [...next[listId]].sort((a, b) => a.position - b.position)
+      return next
+    })
   }
 
   function removeCard(card) {
@@ -1145,18 +1182,7 @@ export default function BoardPage() {
   async function handleAddWorkflow(payload) {
     const res = await boardApi.createWorkflow(boardId, payload, token)
     const { workflow, lists: seededLists = [], cards: seededCards = [], activity } = res.data
-    setWorkflows((prev) => [...prev, workflow].sort((a, b) => a.position - b.position))
-    setLists((prev) => [...prev, ...seededLists].sort((a, b) => a.position - b.position))
-    setCardsByList((prev) => {
-      const next = { ...prev }
-      for (const list of seededLists) next[list._id] = []
-      for (const card of seededCards) {
-        if (!next[card.list]) next[card.list] = []
-        next[card.list].push(card)
-      }
-      for (const listId in next) next[listId] = [...next[listId]].sort((a, b) => a.position - b.position)
-      return next
-    })
+    mergeWorkflowPayload({ workflow, lists: seededLists, cards: seededCards })
     setActiveWorkflowId(workflow._id)
     prependActivity(activity)
     toast.success('Workflow added', workflow.name)

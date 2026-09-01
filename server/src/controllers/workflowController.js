@@ -67,6 +67,16 @@ export async function createWorkflow(req, res) {
       targetTitle: workflow.name,
     });
 
+    // Workflow creation currently happens over REST, so there is no originating
+    // socket to exclude. Clients merge this event by id to avoid duplicates for
+    // the creator and to keep collaborators in sync immediately.
+    req.app.get('io')?.to(`board:${board._id}`).emit('workflow:created', {
+      boardId: board._id.toString(),
+      workflow,
+      lists: seeded.lists || [],
+      cards: seeded.cards || [],
+    });
+
     return res.status(201).json({ data: { workflow, ...seeded, activity } });
   } catch (err) {
     if (workflow?._id) {
