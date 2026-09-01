@@ -183,6 +183,8 @@ describe.sequential('REST board permissions', () => {
       name: 'General',
       templateKey: 'default',
     });
+    expect(res.body.data.lists.every((list) => list.workflow === res.body.data.workflows[0]._id)).toBe(true);
+    expect(res.body.data.cards.every((card) => card.workflow === res.body.data.workflows[0]._id)).toBe(true);
     expect(res.body.data.lists.map((list) => list.title)).toEqual([
       'Backlog',
       'Ready',
@@ -259,8 +261,21 @@ describe.sequential('REST board permissions', () => {
       owner: owner.user.id,
       members: [{ user: owner.user.id, role: 'owner' }],
     });
+    const legacyList = await List.create({
+      board: legacyBoard._id,
+      title: 'Legacy backlog',
+      position: 1000,
+    });
+    const legacyCard = await Card.create({
+      board: legacyBoard._id,
+      list: legacyList._id,
+      title: 'Legacy task',
+      position: 1000,
+    });
 
     await expect(Workflow.countDocuments({ board: legacyBoard._id })).resolves.toBe(0);
+    await expect(List.countDocuments({ board: legacyBoard._id, workflow: null })).resolves.toBe(1);
+    await expect(Card.countDocuments({ board: legacyBoard._id, workflow: null })).resolves.toBe(1);
 
     const loaded = await request(app)
       .get(`/api/v1/boards/${legacyBoard._id}`)
@@ -273,6 +288,10 @@ describe.sequential('REST board permissions', () => {
       templateKey: 'default',
     });
     await expect(Workflow.countDocuments({ board: legacyBoard._id })).resolves.toBe(1);
+    expect(loaded.body.data.lists[0].workflow).toBe(loaded.body.data.workflows[0]._id);
+    expect(loaded.body.data.cards[0].workflow).toBe(loaded.body.data.workflows[0]._id);
+    await expect(List.countDocuments({ board: legacyBoard._id, workflow: null })).resolves.toBe(0);
+    await expect(Card.countDocuments({ board: legacyBoard._id, workflow: null })).resolves.toBe(0);
   });
 
   it('stores optional workflow references on lists and cards without requiring them yet', async () => {

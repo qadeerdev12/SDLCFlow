@@ -82,7 +82,8 @@ Every board has a default `General` workflow. If `templateId` is omitted,
 arrays. If `templateId` matches a catalog template, the server creates the board
 plus starter lists/cards in one request. Template icon/color become defaults
 unless the request provides explicit `emoji` or `color` values. Older boards are
-backfilled with the default workflow the first time they are loaded.
+backfilled with the default workflow the first time they are loaded, and any
+legacy lists/cards without a workflow are attached to that default.
 
 ### 2.4 Workflows
 
@@ -99,9 +100,9 @@ older boards through lazy backfill. Lists/cards still load at board scope until
 the migration step connects them to a workflow.
 
 Implementation note: `List` and `Card` now include optional `workflow`
-references. They remain nullable during the compatibility migration, so existing
-boards keep loading normally until all work items are backfilled and the create
-APIs become workflow-aware.
+references. They remain nullable at the schema level during the compatibility
+migration, but board creation and board loading backfill missing references to
+the default workflow before returning work items to the client.
 
 ### 2.5 Members
 

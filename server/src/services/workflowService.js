@@ -1,4 +1,6 @@
 import Workflow from '../models/Workflow.js';
+import List from '../models/List.js';
+import Card from '../models/Card.js';
 
 const WORKFLOW_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
 export const DEFAULT_WORKFLOW = {
@@ -48,6 +50,26 @@ export async function ensureDefaultWorkflow(boardId) {
       runValidators: true,
     }
   );
+}
+
+export async function backfillBoardWorkItemsToDefaultWorkflow(boardId) {
+  const workflow = await ensureDefaultWorkflow(boardId);
+
+  // During the workflow migration, older lists/cards may not have a workflow
+  // value at all. Mongo treats missing fields as null here, so this updates
+  // both legacy shapes without touching already-scoped work.
+  const [lists, cards] = await Promise.all([
+    List.updateMany({ board: boardId, workflow: null }, { workflow: workflow._id }),
+    Card.updateMany({ board: boardId, workflow: null }, { workflow: workflow._id }),
+  ]);
+
+  return {
+    workflow,
+    modified: {
+      lists: lists.modifiedCount ?? 0,
+      cards: cards.modifiedCount ?? 0,
+    },
+  };
 }
 
 export async function createWorkflow({ boardId, name, position, templateKey, icon, color }) {

@@ -8,7 +8,7 @@ import Workflow from '../models/Workflow.js';
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
 import { resolveBoardTemplate, seedBoardFromTemplate } from '../services/boardTemplateService.js';
-import { ensureDefaultWorkflow } from '../services/workflowService.js';
+import { backfillBoardWorkItemsToDefaultWorkflow, ensureDefaultWorkflow } from '../services/workflowService.js';
 
 // Keep in sync with the Board schema's color enum.
 const BOARD_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
@@ -52,9 +52,12 @@ export async function createBoard(req, res) {
     });
 
     const defaultWorkflow = await ensureDefaultWorkflow(board._id);
-    const seeded = await seedBoardFromTemplate(board._id, template);
+    await seedBoardFromTemplate(board._id, template);
+    await backfillBoardWorkItemsToDefaultWorkflow(board._id);
+    const lists = await List.find({ board: board._id }).sort({ position: 1 });
+    const cards = await Card.find({ board: board._id }).sort({ position: 1 });
 
-    return res.status(201).json({ data: { board, workflows: [defaultWorkflow], ...seeded } });
+    return res.status(201).json({ data: { board, workflows: [defaultWorkflow], lists, cards } });
   } catch (err) {
     console.error('Create board error:', err.message);
     if (board?._id) {
@@ -91,8 +94,8 @@ export async function getBoard(req, res) {
     }
 
     // Older boards are backfilled lazily so every project has a stable workflow
-    // target before lists/cards become workflow-scoped in the next migration.
-    await ensureDefaultWorkflow(board._id);
+    // target and legacy work items are attached before the client reads them.
+    await backfillBoardWorkItemsToDefaultWorkflow(board._id);
 
     // Fetch this board's project structure and work items, ordered by position.
     const workflows = await Workflow.find({ board: board._id }).sort({ position: 1, createdAt: 1 });
