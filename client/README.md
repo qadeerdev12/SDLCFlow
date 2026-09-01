@@ -103,6 +103,11 @@ derives the active workflow's visible lists and cards for filters, drag/drop,
 card details, and new list/card creation. This keeps realtime events simple
 while letting the UI focus one project area at a time.
 
+Owners and admins can add another workflow from the same template catalog while
+viewing a board. The client calls `POST /boards/:boardId/workflows`, appends the
+returned workflow/lists/cards to local state, and selects the new workflow
+immediately.
+
 ---
 
 ## Confirmation Dialogs

@@ -126,6 +126,9 @@ export const boardApi = {
   removeMember: (boardId, userId, token) =>
     request(`/boards/${boardId}/members/${userId}`, { method: 'DELETE', token }),
 
+  createWorkflow: (boardId, payload, token) =>
+    request(`/boards/${boardId}/workflows`, { method: 'POST', body: payload, token }),
+
   createList: (boardId, title, position, token, options = {}) =>
     request(`/boards/${boardId}/lists`, { method: 'POST', body: { title, position, ...options }, token }),
 

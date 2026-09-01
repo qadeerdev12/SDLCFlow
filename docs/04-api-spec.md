@@ -94,7 +94,7 @@ attached to that default.
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
 | GET | `/boards/:boardId/workflows` | member | – | `200 { workflows }` |
-| POST | `/boards/:boardId/workflows` | admin | `{ name, position?, templateKey?, icon?, color? }` | `201 { workflow, activity }` |
+| POST | `/boards/:boardId/workflows` | admin | `{ name?, position?, workflowTemplateId?, templateId?, templateKey?, icon?, color? }` | `201 { workflow, lists, cards, activity }` |
 
 Workflows are top-level project areas inside a board, such as a release plan,
 software sprint, bug triage, roadmap, or a custom planning track. This is the
@@ -104,6 +104,11 @@ created from a workflow template get that template as their starter workflow,
 and older boards use lazy backfill. Lists/cards are workflow-aware on create,
 while board snapshots still include all board work until the client adds a
 workflow switcher.
+
+When `workflowTemplateId` is provided to `POST /boards/:boardId/workflows`, the
+server creates a new workflow from that template and seeds its lists/cards.
+`templateId` is accepted as a compatibility alias. If no template id is provided,
+the route creates an empty custom workflow from the supplied name/metadata.
 
 Implementation note: `List` and `Card` now include optional `workflow`
 references. They remain nullable at the schema level during the compatibility

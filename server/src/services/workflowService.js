@@ -102,10 +102,14 @@ export async function backfillBoardWorkItemsToDefaultWorkflow(boardId) {
 }
 
 export async function createWorkflow({ boardId, name, position, templateKey, icon, color }) {
+  const lastWorkflow = position === undefined
+    ? await Workflow.findOne({ board: boardId }).sort({ position: -1 }).select('position')
+    : null;
+
   return Workflow.create({
     board: boardId,
     name: safeWorkflowName(name),
-    position: position ?? 1000,
+    position: position ?? ((lastWorkflow?.position || 0) + 1000),
     ...(templateKey !== undefined && { templateKey: String(templateKey).trim() || 'custom' }),
     ...(icon !== undefined && { icon: String(icon).trim() || 'workflow' }),
     ...(color !== undefined && { color: safeWorkflowColor(color) }),

@@ -590,6 +590,68 @@ describe.sequential('REST board permissions', () => {
     await expect(Activity.countDocuments({ board: board._id, action: 'workflow.created' })).resolves.toBe(1);
   });
 
+  it('creates a workflow from a template inside an existing board', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const admin = await register(app, 'Admin', 'admin@example.com');
+    const member = await register(app, 'Member', 'member@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    await addMember(app, owner.token, board._id, admin.user.email, 'admin');
+    await addMember(app, owner.token, board._id, member.user.email, 'member');
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/workflows`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .send({ workflowTemplateId: 'bug-triage' })
+      .expect(403);
+
+    const created = await request(app)
+      .post(`/api/v1/boards/${board._id}/workflows`)
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({ workflowTemplateId: 'bug-triage' })
+      .expect(201);
+
+    expect(created.body.data.workflow).toMatchObject({
+      name: 'Bug Triage',
+      templateKey: 'bug-triage',
+      icon: 'bug',
+      color: 'rose',
+      position: 2000,
+    });
+    expect(created.body.data.lists.map((list) => list.title)).toEqual([
+      'Reported',
+      'Reproducing',
+      'Prioritized',
+      'Fixing',
+      'Verifying',
+      'Closed',
+    ]);
+    expect(created.body.data.cards.map((card) => card.workflow)).toEqual(
+      created.body.data.cards.map(() => created.body.data.workflow._id)
+    );
+    expect(created.body.data.activity.action).toBe('workflow.created');
+
+    await expect(Workflow.countDocuments({ board: board._id })).resolves.toBe(2);
+    await expect(List.countDocuments({ board: board._id, workflow: created.body.data.workflow._id })).resolves.toBe(6);
+    await expect(Card.countDocuments({ board: board._id, workflow: created.body.data.workflow._id })).resolves.toBe(3);
+  });
+
+  it('rejects unknown workflow templates on existing boards without partial data', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/workflows`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ workflowTemplateId: 'missing-template' })
+      .expect(400);
+
+    await expect(Workflow.countDocuments({ board: board._id })).resolves.toBe(1);
+    await expect(List.countDocuments({ board: board._id })).resolves.toBe(0);
+    await expect(Card.countDocuments({ board: board._id })).resolves.toBe(0);
+  });
+
   it('hides private boards from non-members and rejects their mutations', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');
