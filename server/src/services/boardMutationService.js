@@ -1,8 +1,10 @@
 import Card from '../models/Card.js';
 import List from '../models/List.js';
 import Board from '../models/Board.js';
+import Workflow from '../models/Workflow.js';
 import mongoose from 'mongoose';
 import Comment from '../models/Comment.js';
+import { ensureDefaultWorkflow } from './workflowService.js';
 
 const CARD_TAGS = ['Task', 'Feature', 'Bug', 'Design', 'Research', 'Docs', 'Chore'];
 const CARD_STATUSES = ['Todo', 'In Progress', 'Review', 'Blocked', 'Done'];
@@ -22,6 +24,27 @@ async function assertListBelongsToBoard(boardId, listId) {
     throw err;
   }
   return list;
+}
+
+async function resolveWorkflowForBoard(boardId, workflowId) {
+  if (!workflowId) return ensureDefaultWorkflow(boardId);
+
+  if (!mongoose.Types.ObjectId.isValid(workflowId)) {
+    const err = new Error('Workflow id is invalid.');
+    err.statusCode = 400;
+    err.code = 'VALIDATION';
+    throw err;
+  }
+
+  const workflow = await Workflow.findOne({ _id: workflowId, board: boardId });
+  if (!workflow) {
+    const err = new Error('Workflow not found.');
+    err.statusCode = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  return workflow;
 }
 
 function safeEnumValue(value, allowed, fieldName) {
@@ -75,7 +98,7 @@ async function populateCardPeople(card) {
   return card.populate('assignee', 'name email');
 }
 
-export async function createList({ boardId, title, position }) {
+export async function createList({ boardId, title, position, workflowId }) {
   const safeTitle = typeof title === 'string' ? title.trim() : '';
   if (!safeTitle) {
     const err = new Error('List title is required.');
@@ -84,8 +107,11 @@ export async function createList({ boardId, title, position }) {
     throw err;
   }
 
+  const workflow = await resolveWorkflowForBoard(boardId, workflowId);
+
   return List.create({
     board: boardId,
+    workflow: workflow._id,
     title: safeTitle,
     position: position ?? 1000,
   });
@@ -138,7 +164,7 @@ export async function deleteList({ boardId, listId }) {
   return true;
 }
 
-export async function createCard({ boardId, title, listId, position, tag, status, assignee, dueDate }) {
+export async function createCard({ boardId, title, listId, position, tag, status, assignee, dueDate, workflowId }) {
   const safeTitle = typeof title === 'string' ? title.trim() : '';
   if (!safeTitle || !listId) {
     const err = new Error('Card title and listId are required.');
@@ -147,12 +173,26 @@ export async function createCard({ boardId, title, listId, position, tag, status
     throw err;
   }
 
-  await assertListBelongsToBoard(boardId, listId);
+  const list = await assertListBelongsToBoard(boardId, listId);
+  const workflow = workflowId
+    ? await resolveWorkflowForBoard(boardId, workflowId)
+    : list.workflow
+      ? await resolveWorkflowForBoard(boardId, list.workflow)
+      : await resolveWorkflowForBoard(boardId);
+
+  if (list.workflow && list.workflow.toString() !== workflow._id.toString()) {
+    const err = new Error('Card workflow must match the target list workflow.');
+    err.statusCode = 400;
+    err.code = 'VALIDATION';
+    throw err;
+  }
+
   const safeAssigneeId = await safeAssignee(boardId, assignee);
   const safeCardDueDate = safeDueDate(dueDate);
 
   const card = await Card.create({
     board: boardId,
+    workflow: workflow._id,
     list: listId,
     title: safeTitle,
     ...(tag !== undefined && { tag: safeEnumValue(tag, CARD_TAGS, 'Card tag') }),

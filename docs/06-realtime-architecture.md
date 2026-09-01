@@ -114,7 +114,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | Event | Payload | Ack data |
 |---|---|---|
 | `board:join` | `{ boardId }` | `{ boardId, presence }` |
-| `card:create` | `{ boardId, title, listId, position, tag?, status?, assignee?, dueDate? }` | `{ card, activity }` |
+| `card:create` | `{ boardId, title, listId, position, workflowId?, tag?, status?, assignee?, dueDate? }` | `{ card, activity }` |
 | `card:update` | `{ boardId, cardId, updates }` | `{ card, activity }` |
 | `card:move` | `{ boardId, cardId, list, position }` | `{ card, activity }` |
 | `card:delete` | `{ boardId, cardId }` | `{ deleted: true, activity }` |
@@ -123,7 +123,7 @@ The client helper `emitWithAck` rejects the Promise when:
 | `chat:typing` | `{ boardId, typing }` | `{ typing }` |
 | `message:delete` | `{ boardId, messageId }` | `{ message, activity }` |
 | `chat:clear` | `{ boardId }` | `{ deletedCount, activity }` |
-| `list:create` | `{ boardId, title, position }` | `{ list, activity }` |
+| `list:create` | `{ boardId, title, position, workflowId? }` | `{ list, activity }` |
 | `list:update` | `{ boardId, listId, updates }` | `{ list, activity }` |
 | `list:move` | `{ boardId, listId, position }` | `{ list, activity }` |
 | `list:delete` | `{ boardId, listId }` | `{ deleted: true, activity }` |
@@ -152,7 +152,10 @@ The client helper `emitWithAck` rejects the Promise when:
 
 Broadcasts use `socket.to(roomName(board._id)).emit(...)`, so the sender is excluded. The sender updates its own UI from the ack response.
 
-Card mutation payloads share the REST validation path. `updates.assignee` must be empty/null or a member of the board, and `updates.dueDate` must be a valid date string or null.
+Card/list creation payloads share the REST validation path. `workflowId` is
+optional; when omitted, lists use the board's default workflow and cards inherit
+the target list's workflow. `updates.assignee` must be empty/null or a member of
+the board, and `updates.dueDate` must be a valid date string or null.
 
 ---
 

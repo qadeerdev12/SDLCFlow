@@ -17,12 +17,12 @@ function sendMutationError(res, err) {
 // POST /api/v1/boards/:boardId/lists
 export async function createList(req, res) {
   try {
-    const { title, position } = req.body;
+    const { title, position, workflowId } = req.body;
     const board = await getBoardIfRole(req.params.boardId, req.user._id, ['owner', 'admin', 'member']);
     if (!board) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
-    const list = await createListMutation({ boardId: board._id, title, position });
+    const list = await createListMutation({ boardId: board._id, title, position, workflowId });
     const activity = await recordActivity({
       io: req.app.get('io'),
       boardId: board._id,

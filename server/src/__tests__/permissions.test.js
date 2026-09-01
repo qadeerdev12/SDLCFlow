@@ -331,6 +331,95 @@ describe.sequential('REST board permissions', () => {
     expect(legacyCard.workflow).toBeNull();
   });
 
+  it('creates lists and cards in the requested workflow with a default fallback', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    const defaultWorkflow = await Workflow.findOne({ board: board._id, templateKey: 'default' });
+    const triageWorkflow = await Workflow.create({
+      board: board._id,
+      name: 'Bug triage',
+      templateKey: 'bug-triage',
+      icon: 'bug',
+      color: 'rose',
+      position: 2000,
+    });
+
+    const defaultList = await request(app)
+      .post(`/api/v1/boards/${board._id}/lists`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ title: 'Default backlog', position: 1000 })
+      .expect(201);
+    expect(defaultList.body.data.list.workflow).toBe(defaultWorkflow._id.toString());
+
+    const triageList = await request(app)
+      .post(`/api/v1/boards/${board._id}/lists`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ title: 'Triage backlog', workflowId: triageWorkflow._id, position: 2000 })
+      .expect(201);
+    expect(triageList.body.data.list.workflow).toBe(triageWorkflow._id.toString());
+
+    const defaultCard = await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ listId: defaultList.body.data.list._id, title: 'Default card', position: 1000 })
+      .expect(201);
+    expect(defaultCard.body.data.card.workflow).toBe(defaultWorkflow._id.toString());
+
+    const triageCard = await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        listId: triageList.body.data.list._id,
+        workflowId: triageWorkflow._id,
+        title: 'Triage card',
+        position: 1000,
+      })
+      .expect(201);
+    expect(triageCard.body.data.card.workflow).toBe(triageWorkflow._id.toString());
+  });
+
+  it('rejects list/card creation with invalid or mismatched workflows', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    const otherBoard = await createBoardWithOwner(app, owner.token, 'Other project');
+    const otherWorkflow = await Workflow.findOne({ board: otherBoard._id, templateKey: 'default' });
+    const defaultList = await createListForBoard(app, owner.token, board._id, 'Default backlog');
+    const customWorkflow = await Workflow.create({
+      board: board._id,
+      name: 'Release plan',
+      templateKey: 'release-plan',
+      icon: 'deploy',
+      color: 'emerald',
+      position: 2000,
+    });
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/lists`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ title: 'Broken list', workflowId: 'not-an-id' })
+      .expect(400);
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/lists`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ title: 'Wrong project list', workflowId: otherWorkflow._id })
+      .expect(404);
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ listId: defaultList._id, title: 'Wrong project card', workflowId: otherWorkflow._id })
+      .expect(404);
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ listId: defaultList._id, title: 'Mismatched card', workflowId: customWorkflow._id })
+      .expect(400);
+  });
+
   it('lets board members view workflows and only owners/admins create them', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

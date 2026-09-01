@@ -150,20 +150,25 @@ activity records.
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
-| POST | `/boards/:boardId/lists` | member | `{ title, position }` | `201 { list, activity }` |
+| POST | `/boards/:boardId/lists` | member | `{ title, position, workflowId? }` | `201 { list, activity }` |
 | PATCH | `/boards/:boardId/lists/:listId` | member | `{ title?, position? }` | `200 { list, activity }` |
 | DELETE | `/boards/:boardId/lists/:listId` | member | – | `200 { deleted: true, activity }` |
+
+If `workflowId` is omitted, new lists are created in the board's default
+`General` workflow. If provided, the workflow must belong to the board.
 
 ### 2.9 Cards
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
-| POST | `/boards/:boardId/cards` | member | `{ listId, title, position, tag?, status?, assignee?, dueDate? }` | `201 { card, activity }` |
+| POST | `/boards/:boardId/cards` | member | `{ listId, title, position, workflowId?, tag?, status?, assignee?, dueDate? }` | `201 { card, activity }` |
 | PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, tag?, status?, assignee?, dueDate?, list?, position? }` | `200 { card, activity }` |
 | DELETE | `/boards/:boardId/cards/:cardId` | member | – | `200 { deleted: true, activity }` |
 
 > Card **move** = a `PATCH` changing `listId` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
 > `assignee` must be `null`, empty, or a user id that already belongs to the board. `dueDate` accepts an ISO date/date-time string or `null`.
+> If `workflowId` is omitted, the card inherits the target list's workflow. If
+> provided, it must belong to the board and match the target list's workflow.
 
 ### 2.10 Comments
 
@@ -206,7 +211,7 @@ Errors use:
 | Event | Payload | Server action | Ack data |
 |---|---|---|---|
 | `board:join` | `{ boardId }` | verify membership → join room | `{ boardId, presence }` |
-| `card:create` | `{ boardId, listId, title, position, tag?, status?, assignee?, dueDate? }` | verify membership, persist, broadcast | `{ card, activity }` |
+| `card:create` | `{ boardId, listId, title, position, workflowId?, tag?, status?, assignee?, dueDate? }` | verify membership, persist, broadcast | `{ card, activity }` |
 | `card:move` | `{ boardId, cardId, list, position }` | verify membership, persist, broadcast | `{ card, activity }` |
 | `card:update` | `{ boardId, cardId, updates }` | verify membership, persist, broadcast | `{ card, activity }` |
 | `card:delete` | `{ boardId, cardId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |
@@ -215,7 +220,7 @@ Errors use:
 | `chat:typing` | `{ boardId, typing }` | verify membership, broadcast ephemeral status | `{ typing }` |
 | `message:delete` | `{ boardId, messageId }` | verify role/ownership, soft-delete, broadcast | `{ message, activity }` |
 | `chat:clear` | `{ boardId }` | verify owner, clear visible history, broadcast | `{ deletedCount, activity }` |
-| `list:create` | `{ boardId, title, position }` | verify membership, persist, broadcast | `{ list, activity }` |
+| `list:create` | `{ boardId, title, position, workflowId? }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:move` | `{ boardId, listId, position }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:update` | `{ boardId, listId, updates }` | verify membership, persist, broadcast | `{ list, activity }` |
 | `list:delete` | `{ boardId, listId }` | verify membership, persist, broadcast | `{ deleted: true, activity }` |

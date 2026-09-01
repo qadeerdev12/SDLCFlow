@@ -228,9 +228,9 @@ export function configureSockets(io) {
       }
     });
 
-    registerMutation(socket, 'card:create', async ({ boardId, title, listId, position, tag, status, assignee, dueDate }) => {
+    registerMutation(socket, 'card:create', async ({ boardId, title, listId, position, tag, status, assignee, dueDate, workflowId }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
-      const card = await createCard({ boardId: board._id, title, listId, position, tag, status, assignee, dueDate });
+      const card = await createCard({ boardId: board._id, title, listId, position, tag, status, assignee, dueDate, workflowId });
       const activity = await recordActivity({
         socket,
         boardId: board._id,
@@ -412,9 +412,9 @@ export function configureSockets(io) {
       return { deletedCount, activity };
     });
 
-    registerMutation(socket, 'list:create', async ({ boardId, title, position }) => {
+    registerMutation(socket, 'list:create', async ({ boardId, title, position, workflowId }) => {
       const board = await requireBoardRole(socket, boardId, ['owner', 'admin', 'member']);
-      const list = await createList({ boardId: board._id, title, position });
+      const list = await createList({ boardId: board._id, title, position, workflowId });
       const activity = await recordActivity({
         socket,
         boardId: board._id,
