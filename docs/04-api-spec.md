@@ -98,6 +98,11 @@ templates under it. Every board gets a default `General` workflow, including
 older boards through lazy backfill. Lists/cards still load at board scope until
 the migration step connects them to a workflow.
 
+Implementation note: `List` and `Card` now include optional `workflow`
+references. They remain nullable during the compatibility migration, so existing
+boards keep loading normally until all work items are backfilled and the create
+APIs become workflow-aware.
+
 ### 2.5 Members
 
 | Method | Path | Min role | Body | Returns |

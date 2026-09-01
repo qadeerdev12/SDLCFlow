@@ -275,6 +275,43 @@ describe.sequential('REST board permissions', () => {
     await expect(Workflow.countDocuments({ board: legacyBoard._id })).resolves.toBe(1);
   });
 
+  it('stores optional workflow references on lists and cards without requiring them yet', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    const workflow = await Workflow.findOne({ board: board._id, templateKey: 'default' });
+
+    const workflowList = await List.create({
+      board: board._id,
+      workflow: workflow._id,
+      title: 'Workflow backlog',
+      position: 1000,
+    });
+    const legacyList = await List.create({
+      board: board._id,
+      title: 'Legacy backlog',
+      position: 2000,
+    });
+    const workflowCard = await Card.create({
+      board: board._id,
+      workflow: workflow._id,
+      list: workflowList._id,
+      title: 'Workflow-scoped card',
+      position: 1000,
+    });
+    const legacyCard = await Card.create({
+      board: board._id,
+      list: legacyList._id,
+      title: 'Legacy card',
+      position: 2000,
+    });
+
+    expect(workflowList.workflow.toString()).toBe(workflow._id.toString());
+    expect(workflowCard.workflow.toString()).toBe(workflow._id.toString());
+    expect(legacyList.workflow).toBeNull();
+    expect(legacyCard.workflow).toBeNull();
+  });
+
   it('lets board members view workflows and only owners/admins create them', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

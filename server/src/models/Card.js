@@ -9,6 +9,12 @@ const cardSchema = new mongoose.Schema(
       required: true,
       index: true,            // scope all card queries by board
     },
+    workflow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Workflow',
+      default: null,
+      index: true,            // optional until legacy cards are backfilled
+    },
     list: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'List',

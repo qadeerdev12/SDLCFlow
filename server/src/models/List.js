@@ -9,6 +9,12 @@ const listSchema = new mongoose.Schema(
       required: true,
       index: true,            // we always query lists by their board
     },
+    workflow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Workflow',
+      default: null,
+      index: true,            // optional during migration; required in a later slice
+    },
     title: {
       type: String,
       required: [true, 'List title is required'],
