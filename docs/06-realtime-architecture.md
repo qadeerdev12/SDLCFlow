@@ -154,8 +154,11 @@ Broadcasts use `socket.to(roomName(board._id)).emit(...)`, so the sender is excl
 
 Card/list creation payloads share the REST validation path. `workflowId` is
 optional; when omitted, lists use the board's default workflow and cards inherit
-the target list's workflow. `updates.assignee` must be empty/null or a member of
-the board, and `updates.dueDate` must be a valid date string or null.
+the target list's workflow. Card moves are constrained to the card's current
+workflow, and direct `workflow`/`workflowId` updates are rejected for both lists
+and cards until the client has an intentional cross-workflow move flow.
+`updates.assignee` must be empty/null or a member of the board, and
+`updates.dueDate` must be a valid date string or null.
 
 ---
 

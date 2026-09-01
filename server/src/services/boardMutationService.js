@@ -13,35 +13,54 @@ const CARD_STATUSES = ['Todo', 'In Progress', 'Review', 'Blocked', 'Done'];
 // controllers and Socket.IO handlers both call these functions so validation,
 // cross-board checks, and persisted document shapes stay consistent.
 
+function makeMutationError(message, statusCode = 400, code = 'VALIDATION') {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  err.code = code;
+  return err;
+}
+
 // Cards may move between lists, but never across boards. Checking the target
 // list here protects both REST PATCH calls and realtime card:move events.
 async function assertListBelongsToBoard(boardId, listId) {
   const list = await List.findOne({ _id: listId, board: boardId });
   if (!list) {
-    const err = new Error('List not found.');
-    err.statusCode = 404;
-    err.code = 'NOT_FOUND';
-    throw err;
+    throw makeMutationError('List not found.', 404, 'NOT_FOUND');
   }
   return list;
+}
+
+async function assertCardBelongsToBoard(boardId, cardId) {
+  const card = await Card.findOne({ _id: cardId, board: boardId });
+  if (!card) {
+    throw makeMutationError('Card not found.', 404, 'NOT_FOUND');
+  }
+  return card;
 }
 
 async function resolveWorkflowForBoard(boardId, workflowId) {
   if (!workflowId) return ensureDefaultWorkflow(boardId);
 
   if (!mongoose.Types.ObjectId.isValid(workflowId)) {
-    const err = new Error('Workflow id is invalid.');
-    err.statusCode = 400;
-    err.code = 'VALIDATION';
-    throw err;
+    throw makeMutationError('Workflow id is invalid.');
   }
 
   const workflow = await Workflow.findOne({ _id: workflowId, board: boardId });
   if (!workflow) {
-    const err = new Error('Workflow not found.');
-    err.statusCode = 404;
-    err.code = 'NOT_FOUND';
-    throw err;
+    throw makeMutationError('Workflow not found.', 404, 'NOT_FOUND');
+  }
+
+  return workflow;
+}
+
+async function ensureListHasWorkflow(boardId, list) {
+  const workflow = list.workflow
+    ? await resolveWorkflowForBoard(boardId, list.workflow)
+    : await ensureDefaultWorkflow(boardId);
+
+  if (!list.workflow) {
+    await List.updateOne({ _id: list._id, board: boardId, workflow: null }, { workflow: workflow._id });
+    list.workflow = workflow._id;
   }
 
   return workflow;
@@ -51,10 +70,7 @@ function safeEnumValue(value, allowed, fieldName) {
   if (value === undefined) return undefined;
   if (allowed.includes(value)) return value;
 
-  const err = new Error(`${fieldName} is invalid.`);
-  err.statusCode = 400;
-  err.code = 'VALIDATION';
-  throw err;
+  throw makeMutationError(`${fieldName} is invalid.`);
 }
 
 function safeDueDate(value) {
@@ -63,10 +79,7 @@ function safeDueDate(value) {
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    const err = new Error('Due date is invalid.');
-    err.statusCode = 400;
-    err.code = 'VALIDATION';
-    throw err;
+    throw makeMutationError('Due date is invalid.');
   }
 
   return date;
@@ -77,18 +90,12 @@ async function safeAssignee(boardId, userId) {
   if (userId === null || userId === '') return null;
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
-    const err = new Error('Assignee is invalid.');
-    err.statusCode = 400;
-    err.code = 'VALIDATION';
-    throw err;
+    throw makeMutationError('Assignee is invalid.');
   }
 
   const board = await Board.findOne({ _id: boardId, 'members.user': userId }).select('_id');
   if (!board) {
-    const err = new Error('Assignee must be a board member.');
-    err.statusCode = 400;
-    err.code = 'VALIDATION';
-    throw err;
+    throw makeMutationError('Assignee must be a board member.');
   }
 
   return userId;
@@ -101,10 +108,7 @@ async function populateCardPeople(card) {
 export async function createList({ boardId, title, position, workflowId }) {
   const safeTitle = typeof title === 'string' ? title.trim() : '';
   if (!safeTitle) {
-    const err = new Error('List title is required.');
-    err.statusCode = 400;
-    err.code = 'VALIDATION';
-    throw err;
+    throw makeMutationError('List title is required.');
   }
 
   const workflow = await resolveWorkflowForBoard(boardId, workflowId);
@@ -119,13 +123,14 @@ export async function createList({ boardId, title, position, workflowId }) {
 
 export async function updateList({ boardId, listId, updates }) {
   const safeUpdates = {};
+  if (updates.workflow !== undefined || updates.workflowId !== undefined) {
+    throw makeMutationError('Moving lists between workflows is not supported yet.');
+  }
+
   if (updates.title !== undefined) {
     const safeTitle = typeof updates.title === 'string' ? updates.title.trim() : '';
     if (!safeTitle) {
-      const err = new Error('List title is required.');
-      err.statusCode = 400;
-      err.code = 'VALIDATION';
-      throw err;
+      throw makeMutationError('List title is required.');
     }
     safeUpdates.title = safeTitle;
   }
@@ -138,10 +143,7 @@ export async function updateList({ boardId, listId, updates }) {
   );
 
   if (!list) {
-    const err = new Error('List not found.');
-    err.statusCode = 404;
-    err.code = 'NOT_FOUND';
-    throw err;
+    throw makeMutationError('List not found.', 404, 'NOT_FOUND');
   }
 
   return list;
@@ -150,10 +152,7 @@ export async function updateList({ boardId, listId, updates }) {
 export async function deleteList({ boardId, listId }) {
   const list = await List.findOneAndDelete({ _id: listId, board: boardId });
   if (!list) {
-    const err = new Error('List not found.');
-    err.statusCode = 404;
-    err.code = 'NOT_FOUND';
-    throw err;
+    throw makeMutationError('List not found.', 404, 'NOT_FOUND');
   }
 
   // Lists own their visible cards in the UI. Deleting the list also removes
@@ -167,24 +166,16 @@ export async function deleteList({ boardId, listId }) {
 export async function createCard({ boardId, title, listId, position, tag, status, assignee, dueDate, workflowId }) {
   const safeTitle = typeof title === 'string' ? title.trim() : '';
   if (!safeTitle || !listId) {
-    const err = new Error('Card title and listId are required.');
-    err.statusCode = 400;
-    err.code = 'VALIDATION';
-    throw err;
+    throw makeMutationError('Card title and listId are required.');
   }
 
   const list = await assertListBelongsToBoard(boardId, listId);
   const workflow = workflowId
     ? await resolveWorkflowForBoard(boardId, workflowId)
-    : list.workflow
-      ? await resolveWorkflowForBoard(boardId, list.workflow)
-      : await resolveWorkflowForBoard(boardId);
+    : await ensureListHasWorkflow(boardId, list);
 
   if (list.workflow && list.workflow.toString() !== workflow._id.toString()) {
-    const err = new Error('Card workflow must match the target list workflow.');
-    err.statusCode = 400;
-    err.code = 'VALIDATION';
-    throw err;
+    throw makeMutationError('Card workflow must match the target list workflow.');
   }
 
   const safeAssigneeId = await safeAssignee(boardId, assignee);
@@ -207,13 +198,14 @@ export async function createCard({ boardId, title, listId, position, tag, status
 
 export async function updateCard({ boardId, cardId, updates }) {
   const safeUpdates = {};
+  if (updates.workflow !== undefined || updates.workflowId !== undefined) {
+    throw makeMutationError('Moving cards between workflows is not supported yet.');
+  }
+
   if (updates.title !== undefined) {
     const safeTitle = typeof updates.title === 'string' ? updates.title.trim() : '';
     if (!safeTitle) {
-      const err = new Error('Card title is required.');
-      err.statusCode = 400;
-      err.code = 'VALIDATION';
-      throw err;
+      throw makeMutationError('Card title is required.');
     }
     safeUpdates.title = safeTitle;
   }
@@ -224,8 +216,18 @@ export async function updateCard({ boardId, cardId, updates }) {
   if (updates.dueDate !== undefined) safeUpdates.dueDate = safeDueDate(updates.dueDate);
   if (updates.position !== undefined) safeUpdates.position = updates.position;
   if (updates.list !== undefined) {
-    await assertListBelongsToBoard(boardId, updates.list);
+    const [card, targetList] = await Promise.all([
+      assertCardBelongsToBoard(boardId, cardId),
+      assertListBelongsToBoard(boardId, updates.list),
+    ]);
+    const targetWorkflow = await ensureListHasWorkflow(boardId, targetList);
+
+    if (card.workflow && card.workflow.toString() !== targetWorkflow._id.toString()) {
+      throw makeMutationError('Cards cannot be moved to a list in another workflow.');
+    }
+
     safeUpdates.list = updates.list;
+    safeUpdates.workflow = targetWorkflow._id;
   }
 
   const card = await Card.findOneAndUpdate(
@@ -235,10 +237,7 @@ export async function updateCard({ boardId, cardId, updates }) {
   ).populate('assignee', 'name email');
 
   if (!card) {
-    const err = new Error('Card not found.');
-    err.statusCode = 404;
-    err.code = 'NOT_FOUND';
-    throw err;
+    throw makeMutationError('Card not found.', 404, 'NOT_FOUND');
   }
 
   return card;
@@ -247,10 +246,7 @@ export async function updateCard({ boardId, cardId, updates }) {
 export async function deleteCard({ boardId, cardId }) {
   const card = await Card.findOneAndDelete({ _id: cardId, board: boardId });
   if (!card) {
-    const err = new Error('Card not found.');
-    err.statusCode = 404;
-    err.code = 'NOT_FOUND';
-    throw err;
+    throw makeMutationError('Card not found.', 404, 'NOT_FOUND');
   }
 
   await Comment.deleteMany({ board: boardId, card: card._id });

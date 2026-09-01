@@ -96,8 +96,9 @@ Workflows are top-level project areas inside a board, such as a release plan,
 software sprint, bug triage, roadmap, or a custom planning track. This is the
 foundation for treating a board as a project and grouping several workflow
 templates under it. Every board gets a default `General` workflow, including
-older boards through lazy backfill. Lists/cards still load at board scope until
-the migration step connects them to a workflow.
+older boards through lazy backfill. Lists/cards are workflow-aware on create,
+while board snapshots still include all board work until the client adds a
+workflow switcher.
 
 Implementation note: `List` and `Card` now include optional `workflow`
 references. They remain nullable at the schema level during the compatibility
@@ -156,6 +157,9 @@ activity records.
 
 If `workflowId` is omitted, new lists are created in the board's default
 `General` workflow. If provided, the workflow must belong to the board.
+List workflow reassignment is not supported yet; `PATCH` rejects direct
+`workflow` or `workflowId` changes so cards do not silently jump between project
+areas.
 
 ### 2.9 Cards
 
@@ -165,10 +169,13 @@ If `workflowId` is omitted, new lists are created in the board's default
 | PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, tag?, status?, assignee?, dueDate?, list?, position? }` | `200 { card, activity }` |
 | DELETE | `/boards/:boardId/cards/:cardId` | member | – | `200 { deleted: true, activity }` |
 
-> Card **move** = a `PATCH` changing `listId` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
+> Card **move** = a `PATCH` changing `list` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
 > `assignee` must be `null`, empty, or a user id that already belongs to the board. `dueDate` accepts an ISO date/date-time string or `null`.
 > If `workflowId` is omitted, the card inherits the target list's workflow. If
 > provided, it must belong to the board and match the target list's workflow.
+> Card moves are constrained to the card's current workflow. Direct
+> `workflow`/`workflowId` updates are rejected until the UI supports an explicit
+> cross-workflow move.
 
 ### 2.10 Comments
 

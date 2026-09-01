@@ -420,6 +420,85 @@ describe.sequential('REST board permissions', () => {
       .expect(400);
   });
 
+  it('keeps card moves inside a workflow and backfills legacy move targets', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    const defaultWorkflow = await Workflow.findOne({ board: board._id, templateKey: 'default' });
+    const sourceList = await createListForBoard(app, owner.token, board._id, 'Ready');
+    const targetList = await createListForBoard(app, owner.token, board._id, 'Doing');
+    const legacyTarget = await List.create({
+      board: board._id,
+      title: 'Legacy QA',
+      position: 3000,
+    });
+    const card = await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ listId: sourceList._id, title: 'Move me', position: 1000 })
+      .expect(201);
+
+    const moved = await request(app)
+      .patch(`/api/v1/boards/${board._id}/cards/${card.body.data.card._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ list: targetList._id, position: 2000 })
+      .expect(200);
+    expect(moved.body.data.card.list).toBe(targetList._id.toString());
+    expect(moved.body.data.card.workflow).toBe(defaultWorkflow._id.toString());
+
+    const legacyMove = await request(app)
+      .patch(`/api/v1/boards/${board._id}/cards/${card.body.data.card._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ list: legacyTarget._id, position: 3000 })
+      .expect(200);
+    const updatedLegacyTarget = await List.findById(legacyTarget._id);
+    expect(legacyMove.body.data.card.workflow).toBe(defaultWorkflow._id.toString());
+    expect(updatedLegacyTarget.workflow.toString()).toBe(defaultWorkflow._id.toString());
+  });
+
+  it('rejects direct workflow updates and cross-workflow card moves', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    const customWorkflow = await Workflow.create({
+      board: board._id,
+      name: 'Release plan',
+      templateKey: 'release-plan',
+      icon: 'deploy',
+      color: 'emerald',
+      position: 2000,
+    });
+    const defaultList = await createListForBoard(app, owner.token, board._id, 'Default backlog');
+    const releaseList = await request(app)
+      .post(`/api/v1/boards/${board._id}/lists`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ title: 'Release backlog', workflowId: customWorkflow._id, position: 2000 })
+      .expect(201);
+    const card = await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ listId: defaultList._id, title: 'Default card', position: 1000 })
+      .expect(201);
+
+    await request(app)
+      .patch(`/api/v1/boards/${board._id}/lists/${defaultList._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ workflowId: customWorkflow._id })
+      .expect(400);
+
+    await request(app)
+      .patch(`/api/v1/boards/${board._id}/cards/${card.body.data.card._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ workflowId: customWorkflow._id })
+      .expect(400);
+
+    await request(app)
+      .patch(`/api/v1/boards/${board._id}/cards/${card.body.data.card._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ list: releaseList.body.data.list._id, position: 2000 })
+      .expect(400);
+  });
+
   it('lets board members view workflows and only owners/admins create them', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');
