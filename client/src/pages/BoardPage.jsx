@@ -30,6 +30,7 @@ import MembersPanel from '../components/MembersPanel'
 import ActivityPanel from '../components/ActivityPanel'
 import ChatPanel from '../components/ChatPanel'
 import ConfirmDialog from '../components/ConfirmDialog'
+import BoardIcon from '../components/BoardIcon'
 
 function memberUserId(member) {
   return member.user?.id || member.user?._id || member.user
@@ -106,7 +107,7 @@ function BoardLoadError({ message, onRetry, onBack }) {
   )
 }
 
-function BoardEmptyState({ boardName }) {
+function BoardEmptyState({ boardName, workflowName }) {
   return (
     <div className="grid min-h-[360px] w-full place-items-center rounded-lg border border-dashed border-zinc-300 bg-white px-4 text-center dark:border-zinc-800 dark:bg-zinc-900">
       <div className="max-w-sm">
@@ -117,10 +118,53 @@ function BoardEmptyState({ boardName }) {
             <path d="M4 18h7" />
           </svg>
         </div>
-        <p className="mt-4 font-semibold text-zinc-900 dark:text-zinc-100">{boardName} is ready for its first workflow.</p>
+        <p className="mt-4 font-semibold text-zinc-900 dark:text-zinc-100">{workflowName || boardName} is ready for its first list.</p>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Create lists like Backlog, Next, In Progress, and Review from the top bar.</p>
       </div>
     </div>
+  )
+}
+
+function WorkflowSwitcher({ workflows, activeWorkflowId, onSelect, listsByWorkflow, cardsByWorkflow }) {
+  if (workflows.length <= 1) return null
+
+  return (
+    <section className="mx-4 mt-4 rounded-lg border border-zinc-200 bg-white p-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex gap-2 overflow-x-auto">
+        {workflows.map((workflow) => {
+          const active = workflow._id === activeWorkflowId
+          const listCount = listsByWorkflow[workflow._id] || 0
+          const cardCount = cardsByWorkflow[workflow._id] || 0
+
+          return (
+            <button
+              key={workflow._id}
+              type="button"
+              onClick={() => onSelect(workflow._id)}
+              aria-pressed={active}
+              className={`group flex min-w-[210px] items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                active
+                  ? 'border-teal-500 bg-teal-50 text-teal-950 shadow-sm dark:border-teal-400 dark:bg-teal-500/10 dark:text-teal-100'
+                  : 'border-transparent text-zinc-600 hover:border-zinc-200 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:border-zinc-800 dark:hover:bg-zinc-950'
+              }`}
+            >
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
+                active ? 'bg-teal-600 text-white dark:bg-teal-400 dark:text-zinc-950' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300'
+              }`}>
+                <BoardIcon value={workflow.icon || 'workflow'} className="h-[18px] w-[18px]" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{workflow.name}</span>
+                <span className={`mt-0.5 block text-xs ${active ? 'text-teal-700 dark:text-teal-200' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                  {listCount} {listCount === 1 ? 'list' : 'lists'} · {cardCount} {cardCount === 1 ? 'card' : 'cards'}
+                </span>
+              </span>
+              {active && <span className="h-2 w-2 shrink-0 rounded-full bg-teal-500 dark:bg-teal-300" />}
+            </button>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -133,6 +177,8 @@ export default function BoardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [board, setBoard] = useState(null)
+  const [workflows, setWorkflows] = useState([])
+  const [activeWorkflowId, setActiveWorkflowId] = useState('')
   const [lists, setLists] = useState([])              // ordered by position
   const [cardsByList, setCardsByList] = useState({})  // listId -> ordered cards
   const [loading, setLoading] = useState(true)
@@ -166,9 +212,36 @@ export default function BoardPage() {
   const canDeleteBoard = currentRole === 'owner'
   const { connected, connectionError, emitWithAck, onSocketEvent } = useSocket(token)
 
+  const activeWorkflow = workflows.find((workflow) => workflow._id === activeWorkflowId) || workflows[0] || null
+  const activeLists = useMemo(
+    () => {
+      if (!activeWorkflowId) return lists
+      return lists.filter((list) => list.workflow === activeWorkflowId)
+    },
+    [activeWorkflowId, lists]
+  )
+  const activeCardsByList = useMemo(() => {
+    const next = {}
+    for (const list of activeLists) next[list._id] = cardsByList[list._id] || []
+    return next
+  }, [activeLists, cardsByList])
+  const listsByWorkflow = useMemo(() => {
+    const counts = {}
+    for (const list of lists) counts[list.workflow] = (counts[list.workflow] || 0) + 1
+    return counts
+  }, [lists])
+  const cardsByWorkflow = useMemo(() => {
+    const counts = {}
+    for (const listId in cardsByList) {
+      const workflowId = lists.find((list) => list._id === listId)?.workflow
+      if (!workflowId) continue
+      counts[workflowId] = (counts[workflowId] || 0) + cardsByList[listId].length
+    }
+    return counts
+  }, [cardsByList, lists])
   const totalCardCount = useMemo(
-    () => Object.values(cardsByList).reduce((sum, cards) => sum + cards.length, 0),
-    [cardsByList]
+    () => Object.values(activeCardsByList).reduce((sum, cards) => sum + cards.length, 0),
+    [activeCardsByList]
   )
   const filtersActive = Boolean(cardSearch.trim()) || tagFilter !== 'all' || statusFilter !== 'all'
   const activityPanelOpen = searchParams.get('panel') === 'activity'
@@ -177,8 +250,8 @@ export default function BoardPage() {
     const query = cardSearch.trim().toLowerCase()
     const next = {}
 
-    for (const listId in cardsByList) {
-      next[listId] = cardsByList[listId].filter((card) => {
+    for (const listId in activeCardsByList) {
+      next[listId] = activeCardsByList[listId].filter((card) => {
         const titleAndDescription = `${card.title || ''} ${card.description || ''}`.toLowerCase()
         const matchesSearch = !query || titleAndDescription.includes(query)
         const matchesTag = tagFilter === 'all' || (card.tag || 'Task') === tagFilter
@@ -188,7 +261,7 @@ export default function BoardPage() {
     }
 
     return next
-  }, [cardsByList, cardSearch, tagFilter, statusFilter])
+  }, [activeCardsByList, cardSearch, tagFilter, statusFilter])
   const filteredCardCount = useMemo(
     () => Object.values(visibleCardsByList).reduce((sum, cards) => sum + cards.length, 0),
     [visibleCardsByList]
@@ -201,8 +274,10 @@ export default function BoardPage() {
   // Refs mirror state so drag handlers always read the freshest value even
   // across the re-renders that onDragOver triggers mid-drag.
   const listsRef = useRef(lists)
+  const activeListsRef = useRef(activeLists)
   const cardsRef = useRef(cardsByList)
   useEffect(() => { listsRef.current = lists }, [lists])
+  useEffect(() => { activeListsRef.current = activeLists }, [activeLists])
   useEffect(() => { cardsRef.current = cardsByList }, [cardsByList])
 
   // Snapshot taken at drag start so a failed persist (or a drop outside) can roll back.
@@ -247,6 +322,11 @@ export default function BoardPage() {
       for (const id in byList) byList[id].sort((a, b) => a.position - b.position)
       setBoard(res.data.board)
       setMembers(res.data.board.members || [])
+      setWorkflows(res.data.workflows || [])
+      setActiveWorkflowId((current) => {
+        if ((res.data.workflows || []).some((workflow) => workflow._id === current)) return current
+        return res.data.workflows?.[0]?._id || ''
+      })
       setLists(sortedLists)
       setCardsByList(byList)
       setError('')
@@ -666,10 +746,11 @@ export default function BoardPage() {
       const listCards = cardsByList[listId] || []
       const last = listCards[listCards.length - 1]
       const position = positionBetween(last?.position, undefined)
+      const workflowId = lists.find((list) => list._id === listId)?.workflow || activeWorkflowId || undefined
       const data = await realtimeOrRest(
         'card:create',
-        { boardId, title, listId, position },
-        async () => (await boardApi.createCard(boardId, title, listId, position, token)).data
+        { boardId, title, listId, position, workflowId },
+        async () => (await boardApi.createCard(boardId, title, listId, position, token, { workflowId })).data
       )
       setCardsByList((prev) => ({ ...prev, [listId]: [...(prev[listId] || []), data.card] }))
       prependActivity(data.activity)
@@ -685,14 +766,15 @@ export default function BoardPage() {
     e.preventDefault()
     if (!newListTitle.trim()) return
     try {
-      const last = lists[lists.length - 1]
+      const last = activeLists[activeLists.length - 1]
       const position = positionBetween(last?.position, undefined)
+      const workflowId = activeWorkflowId || workflows[0]?._id
       const data = await realtimeOrRest(
         'list:create',
-        { boardId, title: newListTitle, position },
-        async () => (await boardApi.createList(boardId, newListTitle, position, token)).data
+        { boardId, title: newListTitle, position, workflowId },
+        async () => (await boardApi.createList(boardId, newListTitle, position, token, { workflowId })).data
       )
-      setLists([...lists, data.list])
+      setLists((prev) => [...prev, data.list].sort((a, b) => a.position - b.position))
       setCardsByList((prev) => ({ ...prev, [data.list._id]: [] }))
       prependActivity(data.activity)
       setNewListTitle('')
@@ -985,7 +1067,7 @@ export default function BoardPage() {
   }
 
   function finishListDrag(active, over) {
-    const current = listsRef.current
+    const current = activeListsRef.current
     const oldIndex = current.findIndex((l) => l._id === active.id)
     const newIndex = current.findIndex((l) => l._id === over.id)
     if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
@@ -993,7 +1075,7 @@ export default function BoardPage() {
     const reordered = arrayMove(current, oldIndex, newIndex)
     const position = positionForIndex(reordered, newIndex)
     const withPos = reordered.map((l) => (l._id === active.id ? { ...l, position } : l))
-    setLists(withPos)
+    setLists((prev) => prev.map((list) => withPos.find((item) => item._id === list._id) || list).sort((a, b) => a.position - b.position))
 
     realtimeOrRest(
       'list:move',
@@ -1093,7 +1175,7 @@ export default function BoardPage() {
               <BoardSwitcher currentBoard={board} />
               <div className="mt-1 hidden items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:flex">
                 <span>
-                  {lists.length} lists · {filtersActive ? `${filteredCardCount} of ${totalCardCount}` : totalCardCount} cards
+                  {activeWorkflow ? `${activeWorkflow.name} · ` : ''}{activeLists.length} lists · {filtersActive ? `${filteredCardCount} of ${totalCardCount}` : totalCardCount} cards
                 </span>
                 <span>·</span>
                 <span className={`inline-flex items-center gap-1.5 ${connected ? 'text-teal-700 dark:text-teal-300' : 'text-zinc-500 dark:text-zinc-400'}`}>
@@ -1209,6 +1291,17 @@ export default function BoardPage() {
         </div>
       </header>
 
+      <WorkflowSwitcher
+        workflows={workflows}
+        activeWorkflowId={activeWorkflowId}
+        onSelect={(workflowId) => {
+          setActiveWorkflowId(workflowId)
+          setSelectedCard(null)
+        }}
+        listsByWorkflow={listsByWorkflow}
+        cardsByWorkflow={cardsByWorkflow}
+      />
+
       <section className="mx-4 mt-4 flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">Search cards</span>
@@ -1256,7 +1349,7 @@ export default function BoardPage() {
 
         <div className="flex items-center justify-between gap-3 md:justify-end">
           <span className="whitespace-nowrap text-xs font-medium text-zinc-500 dark:text-zinc-400">
-            {filtersActive ? `${filteredCardCount} of ${totalCardCount} shown` : `${totalCardCount} total cards`}
+            {filtersActive ? `${filteredCardCount} of ${totalCardCount} shown` : `${totalCardCount} cards in ${activeWorkflow?.name || 'this workflow'}`}
           </span>
           {filtersActive && (
             <button
@@ -1305,8 +1398,8 @@ export default function BoardPage() {
         onDragEnd={handleDragEnd}
       >
         <div className="flex min-h-[calc(100dvh-238px)] gap-4 overflow-x-auto px-4 py-4 sm:min-h-[calc(100dvh-204px)] lg:min-h-[calc(100dvh-164px)]">
-          <SortableContext items={lists.map((l) => l._id)} strategy={horizontalListSortingStrategy}>
-            {lists.map((list) => (
+          <SortableContext items={activeLists.map((l) => l._id)} strategy={horizontalListSortingStrategy}>
+            {activeLists.map((list) => (
               <BoardColumn
                 key={list._id}
                 list={list}
@@ -1323,8 +1416,8 @@ export default function BoardPage() {
             ))}
           </SortableContext>
 
-          {lists.length === 0 && (
-            <BoardEmptyState boardName={board.name} />
+          {activeLists.length === 0 && (
+            <BoardEmptyState boardName={board.name} workflowName={activeWorkflow?.name} />
           )}
         </div>
 
@@ -1344,7 +1437,7 @@ export default function BoardPage() {
         <CardDetailModal
           boardId={boardId}
           card={selectedCard}
-          lists={lists}
+          lists={activeLists}
           members={members}
           token={token}
           connected={connected}

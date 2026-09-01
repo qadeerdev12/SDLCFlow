@@ -14,6 +14,16 @@ const ICONS = {
       <path d="M8 14h8" />
     </>
   ),
+  workflow: (
+    <>
+      <rect x="4" y="4" width="6" height="6" rx="1.5" />
+      <rect x="14" y="4" width="6" height="6" rx="1.5" />
+      <rect x="9" y="14" width="6" height="6" rx="1.5" />
+      <path d="M10 7h4" />
+      <path d="M17 10v2a2 2 0 0 1-2 2h-3" />
+      <path d="M7 10v2a2 2 0 0 0 2 2h3" />
+    </>
+  ),
   'terminal-square': (
     <>
       <rect x="3" y="4" width="18" height="16" rx="2" />

@@ -97,6 +97,12 @@ color. Selecting a template passes `templateId` through `boardApi.create` for
 backward compatibility; the server treats it as the starter workflow template.
 `Start blank` keeps the existing empty-board flow.
 
+`src/pages/BoardPage.jsx` renders project workflows as a horizontal switcher
+above the board. The board keeps the full list/card snapshot in state, then
+derives the active workflow's visible lists and cards for filters, drag/drop,
+card details, and new list/card creation. This keeps realtime events simple
+while letting the UI focus one project area at a time.
+
 ---
 
 ## Confirmation Dialogs

@@ -126,8 +126,8 @@ export const boardApi = {
   removeMember: (boardId, userId, token) =>
     request(`/boards/${boardId}/members/${userId}`, { method: 'DELETE', token }),
 
-  createList: (boardId, title, position, token) =>
-    request(`/boards/${boardId}/lists`, { method: 'POST', body: { title, position }, token }),
+  createList: (boardId, title, position, token, options = {}) =>
+    request(`/boards/${boardId}/lists`, { method: 'POST', body: { title, position, ...options }, token }),
 
   createCard: (boardId, title, listId, position, token, options = {}) =>
     request(`/boards/${boardId}/cards`, { method: 'POST', body: { title, listId, position, ...options }, token }),
