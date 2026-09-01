@@ -29,6 +29,7 @@ const activitySchema = new mongoose.Schema(
         'comment.created',
         'message.deleted',
         'chat.cleared',
+        'workflow.created',
         'member.added',
         'member.role_updated',
         'member.removed',
@@ -36,7 +37,7 @@ const activitySchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ['board', 'list', 'card', 'member', 'message'],
+      enum: ['board', 'list', 'card', 'member', 'message', 'workflow'],
       required: true,
     },
     targetId: {

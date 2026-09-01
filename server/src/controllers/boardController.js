@@ -4,6 +4,7 @@ import List from '../models/List.js';
 import Card from '../models/Card.js';
 import Comment from '../models/Comment.js';
 import Message from '../models/Message.js';
+import Workflow from '../models/Workflow.js';
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
 import { resolveBoardTemplate, seedBoardFromTemplate } from '../services/boardTemplateService.js';
@@ -86,14 +87,15 @@ export async function getBoard(req, res) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
 
-    // Fetch this board's lists and cards, ordered by position.
+    // Fetch this board's project structure and work items, ordered by position.
+    const workflows = await Workflow.find({ board: board._id }).sort({ position: 1, createdAt: 1 });
     const lists = await List.find({ board: board._id }).sort({ position: 1 });
     const cards = await Card.find({ board: board._id })
       .sort({ position: 1 })
       .populate('assignee', 'name email');
 
     await board.populate('members.user', 'name email');
-    return res.status(200).json({ data: { board, lists, cards } });
+    return res.status(200).json({ data: { board, workflows, lists, cards } });
   } catch (err) {
     console.error('Get board error:', err.message);
     return res.status(500).json({ error: { code: 'SERVER', message: 'Something went wrong.' } });
@@ -164,6 +166,7 @@ export async function deleteBoard(req, res) {
     await Card.deleteMany({ board: board._id });
     await Comment.deleteMany({ board: board._id });
     await Message.deleteMany({ board: board._id });
+    await Workflow.deleteMany({ board: board._id });
     await List.deleteMany({ board: board._id });
     await Board.deleteOne({ _id: board._id });
 

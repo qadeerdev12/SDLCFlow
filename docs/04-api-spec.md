@@ -73,7 +73,7 @@ accepts an optional `templateId` to create a board from one of these blueprints.
 |---|---|---|---|---|
 | GET | `/boards` | member | – | `200 { boards: [...] }` (boards I belong to) |
 | POST | `/boards` | any auth | `{ name, emoji?, color?, templateId? }` | `201 { board, lists, cards }` (creator becomes owner) |
-| GET | `/boards/:boardId` | member | – | `200 { board, lists, cards }` (full initial load) |
+| GET | `/boards/:boardId` | member | – | `200 { board, workflows, lists, cards }` (full initial load) |
 | PATCH | `/boards/:boardId` | admin | `{ name?, emoji?, color? }` | `200 { board, activity }` |
 | DELETE | `/boards/:boardId` | owner | – | `200 { deleted: true }` |
 
@@ -83,7 +83,21 @@ the server creates the board plus starter lists/cards in one request. Template
 icon/color become defaults unless the request provides explicit `emoji` or
 `color` values.
 
-### 2.4 Members
+### 2.4 Workflows
+
+| Method | Path | Min role | Body | Returns |
+|---|---|---|---|---|
+| GET | `/boards/:boardId/workflows` | member | – | `200 { workflows }` |
+| POST | `/boards/:boardId/workflows` | admin | `{ name, position?, templateKey?, icon?, color? }` | `201 { workflow, activity }` |
+
+Workflows are top-level project areas inside a board, such as a release plan,
+software sprint, bug triage, roadmap, or a custom planning track. This is the
+foundation for treating a board as a project and grouping several workflow
+templates under it. In this first slice, workflows are stored and permissioned
+but lists/cards still load at board scope until the migration step connects them
+to a workflow.
+
+### 2.5 Members
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -100,7 +114,7 @@ Member rules:
 - Admins cannot remove owners.
 - A board must keep at least one owner.
 
-### 2.5 Activity
+### 2.6 Activity
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -108,7 +122,7 @@ Member rules:
 
 Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle`, optional `metadata`, and timestamps. The endpoint returns the latest board activity first.
 
-### 2.6 Board chat
+### 2.7 Board chat
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -125,7 +139,7 @@ hidden from future history loads. Normal chat is stored separately from activity
 so conversation does not flood the audit timeline, but moderation actions create
 activity records.
 
-### 2.7 Lists
+### 2.8 Lists
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -133,7 +147,7 @@ activity records.
 | PATCH | `/boards/:boardId/lists/:listId` | member | `{ title?, position? }` | `200 { list, activity }` |
 | DELETE | `/boards/:boardId/lists/:listId` | member | – | `200 { deleted: true, activity }` |
 
-### 2.8 Cards
+### 2.9 Cards
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -144,7 +158,7 @@ activity records.
 > Card **move** = a `PATCH` changing `listId` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
 > `assignee` must be `null`, empty, or a user id that already belongs to the board. `dueDate` accepts an ISO date/date-time string or `null`.
 
-### 2.9 Comments
+### 2.10 Comments
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|

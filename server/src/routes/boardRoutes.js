@@ -7,6 +7,7 @@ import { createCard, updateCard, deleteCard } from '../controllers/cardControlle
 import { getMembers, addMember, updateMemberRole, removeMember } from '../controllers/memberController.js';
 import { getActivities } from '../controllers/activityController.js';
 import { getCardComments, createCardComment } from '../controllers/commentController.js';
+import { createWorkflow, getWorkflows } from '../controllers/workflowController.js';
 import {
   clearBoardChat,
   createBoardChatMessage,
@@ -35,6 +36,10 @@ router.delete('/:boardId/members/:userId', removeMember);
 
 // Activity
 router.get('/:boardId/activities', getActivities);
+
+// Workflows
+router.get('/:boardId/workflows', getWorkflows);
+router.post('/:boardId/workflows', createWorkflow);
 
 // Board chat
 router.get('/:boardId/messages', getBoardMessages);

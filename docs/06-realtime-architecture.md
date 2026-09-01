@@ -28,6 +28,7 @@ This document explains how SDLCFlow's Socket.IO layer works today. It is meant f
 | `server/src/services/boardMutationService.js` | Shared card/list write logic used by both REST controllers and socket handlers |
 | `server/src/services/activityService.js` | Shared board activity logging and realtime activity broadcast |
 | `server/src/services/chatService.js` | Shared board chat validation, persistence, deletion, and clearing |
+| `server/src/services/workflowService.js` | Shared project workflow validation and persistence |
 | `server/src/controllers/cardController.js` | REST card endpoints, delegated to the shared mutation service |
 | `server/src/controllers/listController.js` | REST list endpoints, delegated to the shared mutation service |
 | `server/src/controllers/messageController.js` | REST board chat history, message creation, and moderation |
@@ -209,6 +210,11 @@ On reconnect, the board re-joins its room and re-fetches the full board snapshot
 Member management currently happens through REST endpoints. Those endpoints broadcast `members:updated` to the board room so open board pages update their members panel and permissions live. If the current user is removed from a board, the client redirects them back to the dashboard.
 
 Activity is fetched over REST on board load and then updated by `activity:created` socket events. Socket mutation senders receive activity in the ack response, while collaborators receive it through the board room broadcast.
+
+Workflows currently have a REST foundation only. `GET /boards/:boardId` returns
+`workflows`, and `GET/POST /boards/:boardId/workflows` lets members view and
+owners/admins add project areas. Realtime workflow events will be added after
+lists/cards are migrated from board scope into workflow scope.
 
 Board chat history is fetched over REST when the chat drawer opens. New messages use the same socket-first/fallback-to-REST pattern as board mutations. Chat messages are persisted and broadcast as `message:created`, but they are intentionally not recorded in the board activity log.
 

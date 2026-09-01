@@ -15,6 +15,7 @@ import User from '../models/User.js';
 import Activity from '../models/Activity.js';
 import Comment from '../models/Comment.js';
 import Message from '../models/Message.js';
+import Workflow from '../models/Workflow.js';
 
 let mongo;
 
@@ -34,6 +35,7 @@ afterEach(async () => {
     Activity.deleteMany({}),
     Comment.deleteMany({}),
     Message.deleteMany({}),
+    Workflow.deleteMany({}),
   ]);
 });
 
@@ -238,6 +240,65 @@ describe.sequential('REST board permissions', () => {
       .expect(400);
 
     await expect(Board.countDocuments({ name: 'Mystery board' })).resolves.toBe(0);
+  });
+
+  it('lets board members view workflows and only owners/admins create them', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const admin = await register(app, 'Admin', 'admin@example.com');
+    const member = await register(app, 'Member', 'member@example.com');
+    const outsider = await register(app, 'Outsider', 'outsider@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    await addMember(app, owner.token, board._id, admin.user.email, 'admin');
+    await addMember(app, owner.token, board._id, member.user.email, 'member');
+
+    await request(app)
+      .get(`/api/v1/boards/${board._id}/workflows`)
+      .set('Authorization', `Bearer ${outsider.token}`)
+      .expect(404);
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/workflows`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .send({ name: 'Member-created sprint' })
+      .expect(403);
+
+    await request(app)
+      .post(`/api/v1/boards/${board._id}/workflows`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ name: '', position: 1000 })
+      .expect(400);
+
+    const created = await request(app)
+      .post(`/api/v1/boards/${board._id}/workflows`)
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({
+        name: 'Bug triage',
+        templateKey: 'bug-triage',
+        icon: 'bug',
+        color: 'rose',
+        position: 2000,
+      })
+      .expect(201);
+
+    expect(created.body.data.workflow).toMatchObject({
+      name: 'Bug triage',
+      templateKey: 'bug-triage',
+      icon: 'bug',
+      color: 'rose',
+      position: 2000,
+    });
+    expect(created.body.data.activity.action).toBe('workflow.created');
+
+    const workflows = await request(app)
+      .get(`/api/v1/boards/${board._id}/workflows`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .expect(200);
+
+    expect(workflows.body.data.workflows).toHaveLength(1);
+    expect(workflows.body.data.workflows[0].name).toBe('Bug triage');
+    await expect(Workflow.countDocuments({ board: board._id })).resolves.toBe(1);
+    await expect(Activity.countDocuments({ board: board._id, action: 'workflow.created' })).resolves.toBe(1);
   });
 
   it('hides private boards from non-members and rejects their mutations', async () => {
