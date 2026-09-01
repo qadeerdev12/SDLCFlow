@@ -3,6 +3,7 @@ import cors from 'cors';
 import authRoutes from './routes/authRoutes.js';
 import boardRoutes from './routes/boardRoutes.js';
 import boardTemplateRoutes from './routes/boardTemplateRoutes.js';
+import workflowTemplateRoutes from './routes/workflowTemplateRoutes.js';
 
 export function allowedClientOrigins() {
   return (process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
@@ -24,6 +25,7 @@ export function createApp({ io } = {}) {
 
   app.use(express.json());
   app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/workflow-templates', workflowTemplateRoutes);
   app.use('/api/v1/board-templates', boardTemplateRoutes);
   app.use('/api/v1/boards', boardRoutes);
 

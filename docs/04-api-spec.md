@@ -57,33 +57,37 @@ Defines the contract between client and server: the REST API (request/response w
 Profile email updates reject duplicate emails with `409 EMAIL_TAKEN`. Password updates require the current password and a new password of at least 8 characters.
 Deleting an account removes owned boards and their lists/cards/comments/activity, removes the user from shared boards, clears their card assignments, and deletes their comments/activity records.
 
-### 2.2 Board templates
+### 2.2 Workflow templates
 
 | Method | Path | Auth | Body | Returns |
 |---|---|---|---|---|
+| GET | `/workflow-templates` | ✅ | – | `200 { templates }` |
 | GET | `/board-templates` | ✅ | – | `200 { templates }` |
 
-Templates are read-only starter blueprints for new boards. Each template includes
-display metadata plus list names and starter card previews. `POST /boards`
-accepts an optional `templateId` to create a board from one of these blueprints.
+Workflow templates are read-only starter blueprints for project areas inside a
+board. Each template includes display metadata plus list names and starter card
+previews. `GET /board-templates` remains as a compatibility alias for the
+current client and older integrations.
 
 ### 2.3 Boards
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
 | GET | `/boards` | member | – | `200 { boards: [...] }` (boards I belong to) |
-| POST | `/boards` | any auth | `{ name, emoji?, color?, templateId? }` | `201 { board, workflows, lists, cards }` (creator becomes owner) |
+| POST | `/boards` | any auth | `{ name, emoji?, color?, workflowTemplateId?, templateId? }` | `201 { board, workflows, lists, cards }` (creator becomes owner) |
 | GET | `/boards/:boardId` | member | – | `200 { board, workflows, lists, cards }` (full initial load) |
 | PATCH | `/boards/:boardId` | admin | `{ name?, emoji?, color? }` | `200 { board, activity }` |
 | DELETE | `/boards/:boardId` | owner | – | `200 { deleted: true }` |
 
-Every board has a default `General` workflow. If `templateId` is omitted,
-`POST /boards` creates that workflow and returns empty `lists` and `cards`
-arrays. If `templateId` matches a catalog template, the server creates the board
-plus starter lists/cards in one request. Template icon/color become defaults
-unless the request provides explicit `emoji` or `color` values. Older boards are
-backfilled with the default workflow the first time they are loaded, and any
-legacy lists/cards without a workflow are attached to that default.
+Every board starts with one workflow. If no template id is provided,
+`POST /boards` creates the default `General` workflow and returns empty `lists`
+and `cards` arrays. If `workflowTemplateId` matches a catalog template, the
+server creates a workflow from that template and seeds its lists/cards in one
+request. `templateId` remains as a compatibility alias for the same value.
+Template icon/color become board defaults unless the request provides explicit
+`emoji` or `color` values. Older boards are backfilled with the default workflow
+the first time they are loaded, and any legacy lists/cards without a workflow are
+attached to that default.
 
 ### 2.4 Workflows
 
@@ -95,8 +99,9 @@ legacy lists/cards without a workflow are attached to that default.
 Workflows are top-level project areas inside a board, such as a release plan,
 software sprint, bug triage, roadmap, or a custom planning track. This is the
 foundation for treating a board as a project and grouping several workflow
-templates under it. Every board gets a default `General` workflow, including
-older boards through lazy backfill. Lists/cards are workflow-aware on create,
+templates under it. Blank boards get a default `General` workflow, boards
+created from a workflow template get that template as their starter workflow,
+and older boards use lazy backfill. Lists/cards are workflow-aware on create,
 while board snapshots still include all board work until the client adds a
 workflow switcher.
 
@@ -155,8 +160,9 @@ activity records.
 | PATCH | `/boards/:boardId/lists/:listId` | member | `{ title?, position? }` | `200 { list, activity }` |
 | DELETE | `/boards/:boardId/lists/:listId` | member | – | `200 { deleted: true, activity }` |
 
-If `workflowId` is omitted, new lists are created in the board's default
-`General` workflow. If provided, the workflow must belong to the board.
+If `workflowId` is omitted, new lists are created in the board's first workflow.
+For blank projects that is `General`; for projects started from a template, it
+is the starter workflow. If provided, the workflow must belong to the board.
 List workflow reassignment is not supported yet; `PATCH` rejects direct
 `workflow` or `workflowId` changes so cards do not silently jump between project
 areas.

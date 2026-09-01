@@ -6,7 +6,7 @@ The client is responsible for:
 
 - authentication screens
 - landing page and dashboard
-- board template selection during board creation
+- workflow template selection during board creation
 - kanban board UI
 - card search, tag filtering, and status filtering
 - card comment threads
@@ -88,12 +88,13 @@ See `../docs/06-realtime-architecture.md` for the server-side contract.
 
 ---
 
-## Board Templates
+## Workflow Templates
 
-`src/pages/DashboardPage.jsx` loads the protected board template catalog through
-`boardApi.listTemplates`. `src/components/NewBoardModal.jsx` shows those
+`src/pages/DashboardPage.jsx` loads the protected workflow template catalog
+through `boardApi.listTemplates`. `src/components/NewBoardModal.jsx` shows those
 templates only in create mode; edit mode stays focused on board name, icon, and
-color. Selecting a template passes `templateId` through `boardApi.create`, while
+color. Selecting a template passes `templateId` through `boardApi.create` for
+backward compatibility; the server treats it as the starter workflow template.
 `Start blank` keeps the existing empty-board flow.
 
 ---

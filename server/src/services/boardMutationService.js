@@ -4,7 +4,7 @@ import Board from '../models/Board.js';
 import Workflow from '../models/Workflow.js';
 import mongoose from 'mongoose';
 import Comment from '../models/Comment.js';
-import { ensureDefaultWorkflow } from './workflowService.js';
+import { ensureDefaultWorkflow, getFallbackWorkflow } from './workflowService.js';
 
 const CARD_TAGS = ['Task', 'Feature', 'Bug', 'Design', 'Research', 'Docs', 'Chore'];
 const CARD_STATUSES = ['Todo', 'In Progress', 'Review', 'Blocked', 'Done'];
@@ -39,7 +39,7 @@ async function assertCardBelongsToBoard(boardId, cardId) {
 }
 
 async function resolveWorkflowForBoard(boardId, workflowId) {
-  if (!workflowId) return ensureDefaultWorkflow(boardId);
+  if (!workflowId) return getFallbackWorkflow(boardId);
 
   if (!mongoose.Types.ObjectId.isValid(workflowId)) {
     throw makeMutationError('Workflow id is invalid.');

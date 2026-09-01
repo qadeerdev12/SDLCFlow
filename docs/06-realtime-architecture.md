@@ -153,7 +153,7 @@ The client helper `emitWithAck` rejects the Promise when:
 Broadcasts use `socket.to(roomName(board._id)).emit(...)`, so the sender is excluded. The sender updates its own UI from the ack response.
 
 Card/list creation payloads share the REST validation path. `workflowId` is
-optional; when omitted, lists use the board's default workflow and cards inherit
+optional; when omitted, lists use the board's first workflow and cards inherit
 the target list's workflow. Card moves are constrained to the card's current
 workflow, and direct `workflow`/`workflowId` updates are rejected for both lists
 and cards until the client has an intentional cross-workflow move flow.

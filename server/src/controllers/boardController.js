@@ -7,8 +7,8 @@ import Message from '../models/Message.js';
 import Workflow from '../models/Workflow.js';
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
-import { resolveBoardTemplate, seedBoardFromTemplate } from '../services/boardTemplateService.js';
-import { backfillBoardWorkItemsToDefaultWorkflow, ensureDefaultWorkflow } from '../services/workflowService.js';
+import { resolveWorkflowTemplate, seedWorkflowFromTemplate } from '../services/workflowTemplateService.js';
+import { backfillBoardWorkItemsToDefaultWorkflow, ensureStarterWorkflow } from '../services/workflowService.js';
 
 // Keep in sync with the Board schema's color enum.
 const BOARD_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
@@ -25,7 +25,7 @@ function sendBoardError(res, err) {
 export async function createBoard(req, res) {
   let board;
   try {
-    const { name, emoji, color, templateId } = req.body;
+    const { name, emoji, color, templateId, workflowTemplateId } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -33,7 +33,7 @@ export async function createBoard(req, res) {
       });
     }
 
-    const template = resolveBoardTemplate(templateId);
+    const template = resolveWorkflowTemplate(workflowTemplateId || templateId);
 
     // Only accept a color from the known palette; otherwise fall back to the
     // schema default. This keeps a bad value from throwing a validation error.
@@ -51,13 +51,12 @@ export async function createBoard(req, res) {
       members: [{ user: req.user._id, role: 'owner' }], // creator is the owner-member
     });
 
-    const defaultWorkflow = await ensureDefaultWorkflow(board._id);
-    await seedBoardFromTemplate(board._id, template);
-    await backfillBoardWorkItemsToDefaultWorkflow(board._id);
+    const starterWorkflow = await ensureStarterWorkflow(board._id, template);
+    await seedWorkflowFromTemplate(board._id, starterWorkflow._id, template);
     const lists = await List.find({ board: board._id }).sort({ position: 1 });
     const cards = await Card.find({ board: board._id }).sort({ position: 1 });
 
-    return res.status(201).json({ data: { board, workflows: [defaultWorkflow], lists, cards } });
+    return res.status(201).json({ data: { board, workflows: [starterWorkflow], lists, cards } });
   } catch (err) {
     console.error('Create board error:', err.message);
     if (board?._id) {

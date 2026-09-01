@@ -141,16 +141,16 @@ function waitForConnectError(socket) {
 }
 
 describe.sequential('REST board permissions', () => {
-  it('serves the board template catalog to authenticated users only', async () => {
+  it('serves the workflow template catalog and keeps the old board-template alias', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');
 
     await request(app)
-      .get('/api/v1/board-templates')
+      .get('/api/v1/workflow-templates')
       .expect(401);
 
     const res = await request(app)
-      .get('/api/v1/board-templates')
+      .get('/api/v1/workflow-templates')
       .set('Authorization', `Bearer ${owner.token}`)
       .expect(200);
 
@@ -161,9 +161,15 @@ describe.sequential('REST board permissions', () => {
       lists: expect.any(Array),
       cards: expect.any(Array),
     });
+
+    const alias = await request(app)
+      .get('/api/v1/board-templates')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(alias.body.data.templates[0].id).toBe(res.body.data.templates[0].id);
   });
 
-  it('creates a board from a template with starter lists and cards', async () => {
+  it('creates a board from a workflow template with starter lists and cards', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');
 
@@ -180,8 +186,8 @@ describe.sequential('REST board permissions', () => {
     });
     expect(res.body.data.workflows).toHaveLength(1);
     expect(res.body.data.workflows[0]).toMatchObject({
-      name: 'General',
-      templateKey: 'default',
+      name: 'Software Sprint',
+      templateKey: 'software-sprint',
     });
     expect(res.body.data.lists.every((list) => list.workflow === res.body.data.workflows[0]._id)).toBe(true);
     expect(res.body.data.cards.every((card) => card.workflow === res.body.data.workflows[0]._id)).toBe(true);
@@ -202,6 +208,32 @@ describe.sequential('REST board permissions', () => {
     await expect(List.countDocuments({ board: res.body.data.board._id })).resolves.toBe(6);
     await expect(Card.countDocuments({ board: res.body.data.board._id })).resolves.toBe(3);
     await expect(Workflow.countDocuments({ board: res.body.data.board._id })).resolves.toBe(1);
+  });
+
+  it('accepts workflowTemplateId as the canonical board creation template field', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+
+    const res = await request(app)
+      .post('/api/v1/boards')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ name: 'Release project', workflowTemplateId: 'release-plan' })
+      .expect(201);
+
+    expect(res.body.data.workflows[0]).toMatchObject({
+      name: 'Release Plan',
+      templateKey: 'release-plan',
+    });
+    expect(res.body.data.lists.map((list) => list.workflow)).toEqual(
+      res.body.data.lists.map(() => res.body.data.workflows[0]._id)
+    );
+
+    const list = await request(app)
+      .post(`/api/v1/boards/${res.body.data.board._id}/lists`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ title: 'Extra release check', position: 9000 })
+      .expect(201);
+    expect(list.body.data.list.workflow).toBe(res.body.data.workflows[0]._id);
   });
 
   it('keeps blank boards empty and lets template visual defaults be overridden', async () => {
@@ -239,7 +271,7 @@ describe.sequential('REST board permissions', () => {
     expect(customized.body.data.workflows).toHaveLength(1);
   });
 
-  it('rejects unknown board templates without creating a board', async () => {
+  it('rejects unknown workflow templates without creating a board', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');
 

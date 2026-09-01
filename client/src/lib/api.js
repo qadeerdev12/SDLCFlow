@@ -82,7 +82,7 @@ export const authApi = {
 
 export const boardApi = {
   listTemplates: (token) =>
-    request('/board-templates', { token }),
+    request('/workflow-templates', { token }),
 
   list: (token) =>
     request('/boards', { token }),
@@ -91,7 +91,7 @@ export const boardApi = {
     request(`/boards/${boardId}`, { token }),
 
   create: (name, token, { emoji, color, templateId } = {}) =>
-    request('/boards', { method: 'POST', body: { name, emoji, color, templateId }, token }),
+    request('/boards', { method: 'POST', body: { name, emoji, color, workflowTemplateId: templateId }, token }),
 
   update: (boardId, updates, token) =>
     request(`/boards/${boardId}`, { method: 'PATCH', body: updates, token }),

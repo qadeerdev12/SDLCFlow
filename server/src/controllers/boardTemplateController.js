@@ -1,12 +1,8 @@
-import { listBoardTemplates } from '../data/boardTemplates.js';
+import { getWorkflowTemplates } from './workflowTemplateController.js';
 
 // GET /api/v1/board-templates (protected)
-// Returns starter board blueprints. Actual board creation from a template is
-// handled separately so the catalog stays read-only and easy to cache later.
+// Compatibility alias for the current client. The canonical route is now
+// /api/v1/workflow-templates because templates seed workflows inside projects.
 export async function getBoardTemplates(req, res) {
-  return res.status(200).json({
-    data: {
-      templates: listBoardTemplates(),
-    },
-  });
+  return getWorkflowTemplates(req, res);
 }

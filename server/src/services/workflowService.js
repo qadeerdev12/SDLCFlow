@@ -52,6 +52,35 @@ export async function ensureDefaultWorkflow(boardId) {
   );
 }
 
+export async function getFallbackWorkflow(boardId) {
+  const existingWorkflow = await Workflow.findOne({ board: boardId }).sort({ position: 1, createdAt: 1 });
+  return existingWorkflow || ensureDefaultWorkflow(boardId);
+}
+
+export async function ensureStarterWorkflow(boardId, template) {
+  if (!template) return ensureDefaultWorkflow(boardId);
+
+  return Workflow.findOneAndUpdate(
+    { board: boardId, templateKey: template.id },
+    {
+      $setOnInsert: {
+        board: boardId,
+        name: template.name,
+        templateKey: template.id,
+        icon: template.icon || template.emoji || 'workflow',
+        color: WORKFLOW_COLORS.includes(template.color) ? template.color : 'slate',
+        position: 1000,
+      },
+    },
+    {
+      returnDocument: 'after',
+      upsert: true,
+      setDefaultsOnInsert: true,
+      runValidators: true,
+    }
+  );
+}
+
 export async function backfillBoardWorkItemsToDefaultWorkflow(boardId) {
   const workflow = await ensureDefaultWorkflow(boardId);
 

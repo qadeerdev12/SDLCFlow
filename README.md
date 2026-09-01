@@ -49,11 +49,11 @@ toast if the server disagrees.
 Ordering uses fractional positions, so moving one card writes one document
 instead of renumbering the column.
 
-New boards can start blank or from a software-focused template. SDLCFlow ships
-with starter workflows for sprints, GitHub-style issue tracking, bug triage,
-roadmaps, personal development, and release planning. Templates seed the board's
-lists and starter cards server-side, so the setup is one reliable request instead
-of a chain of client-side creates.
+New projects can start blank or from a software-focused workflow template.
+SDLCFlow ships with starter workflows for sprints, GitHub-style issue tracking,
+bug triage, roadmaps, personal development, and release planning. Templates seed
+the starter workflow's lists and cards server-side, so setup is one reliable
+request instead of a chain of client-side creates.
 
 <div align="center">
 
@@ -282,7 +282,7 @@ client/src/
 
 server/src/
   controllers/  REST handlers
-  data/         read-only board template catalog
+  data/         read-only workflow template catalog
   services/     shared mutation, chat and activity logic
   socket.js     handshake auth, rooms, presence, board events, chat events
   models/       User, Board, List, Card, Comment, Message, Activity
