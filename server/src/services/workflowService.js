@@ -1,6 +1,13 @@
 import Workflow from '../models/Workflow.js';
 
 const WORKFLOW_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
+export const DEFAULT_WORKFLOW = {
+  name: 'General',
+  templateKey: 'default',
+  icon: 'workflow',
+  color: 'slate',
+  position: 1000,
+};
 
 function makeValidationError(message) {
   const err = new Error(message);
@@ -23,6 +30,24 @@ function safeWorkflowColor(color) {
 
 export async function listWorkflows(boardId) {
   return Workflow.find({ board: boardId }).sort({ position: 1, createdAt: 1 });
+}
+
+export async function ensureDefaultWorkflow(boardId) {
+  return Workflow.findOneAndUpdate(
+    { board: boardId, templateKey: DEFAULT_WORKFLOW.templateKey },
+    {
+      $setOnInsert: {
+        board: boardId,
+        ...DEFAULT_WORKFLOW,
+      },
+    },
+    {
+      returnDocument: 'after',
+      upsert: true,
+      setDefaultsOnInsert: true,
+      runValidators: true,
+    }
+  );
 }
 
 export async function createWorkflow({ boardId, name, position, templateKey, icon, color }) {

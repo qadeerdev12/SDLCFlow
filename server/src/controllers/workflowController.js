@@ -1,5 +1,9 @@
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
-import { createWorkflow as createWorkflowMutation, listWorkflows } from '../services/workflowService.js';
+import {
+  createWorkflow as createWorkflowMutation,
+  ensureDefaultWorkflow,
+  listWorkflows,
+} from '../services/workflowService.js';
 import { recordActivity } from '../services/activityService.js';
 
 function sendWorkflowError(res, err) {
@@ -19,6 +23,7 @@ export async function getWorkflows(req, res) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
 
+    await ensureDefaultWorkflow(board._id);
     const workflows = await listWorkflows(board._id);
     return res.status(200).json({ data: { workflows } });
   } catch (err) {

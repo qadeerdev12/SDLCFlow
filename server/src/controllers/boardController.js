@@ -8,6 +8,7 @@ import Workflow from '../models/Workflow.js';
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
 import { resolveBoardTemplate, seedBoardFromTemplate } from '../services/boardTemplateService.js';
+import { ensureDefaultWorkflow } from '../services/workflowService.js';
 
 // Keep in sync with the Board schema's color enum.
 const BOARD_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
@@ -50,15 +51,17 @@ export async function createBoard(req, res) {
       members: [{ user: req.user._id, role: 'owner' }], // creator is the owner-member
     });
 
+    const defaultWorkflow = await ensureDefaultWorkflow(board._id);
     const seeded = await seedBoardFromTemplate(board._id, template);
 
-    return res.status(201).json({ data: { board, ...seeded } });
+    return res.status(201).json({ data: { board, workflows: [defaultWorkflow], ...seeded } });
   } catch (err) {
     console.error('Create board error:', err.message);
     if (board?._id) {
       await Promise.all([
         Card.deleteMany({ board: board._id }),
         List.deleteMany({ board: board._id }),
+        Workflow.deleteMany({ board: board._id }),
         Board.deleteOne({ _id: board._id }),
       ]);
     }
@@ -86,6 +89,10 @@ export async function getBoard(req, res) {
     if (!board) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
+
+    // Older boards are backfilled lazily so every project has a stable workflow
+    // target before lists/cards become workflow-scoped in the next migration.
+    await ensureDefaultWorkflow(board._id);
 
     // Fetch this board's project structure and work items, ordered by position.
     const workflows = await Workflow.find({ board: board._id }).sort({ position: 1, createdAt: 1 });

@@ -178,6 +178,11 @@ describe.sequential('REST board permissions', () => {
       emoji: 'code',
       color: 'indigo',
     });
+    expect(res.body.data.workflows).toHaveLength(1);
+    expect(res.body.data.workflows[0]).toMatchObject({
+      name: 'General',
+      templateKey: 'default',
+    });
     expect(res.body.data.lists.map((list) => list.title)).toEqual([
       'Backlog',
       'Ready',
@@ -194,6 +199,7 @@ describe.sequential('REST board permissions', () => {
 
     await expect(List.countDocuments({ board: res.body.data.board._id })).resolves.toBe(6);
     await expect(Card.countDocuments({ board: res.body.data.board._id })).resolves.toBe(3);
+    await expect(Workflow.countDocuments({ board: res.body.data.board._id })).resolves.toBe(1);
   });
 
   it('keeps blank boards empty and lets template visual defaults be overridden', async () => {
@@ -208,6 +214,7 @@ describe.sequential('REST board permissions', () => {
 
     expect(blank.body.data.lists).toEqual([]);
     expect(blank.body.data.cards).toEqual([]);
+    expect(blank.body.data.workflows.map((workflow) => workflow.name)).toEqual(['General']);
 
     const customized = await request(app)
       .post('/api/v1/boards')
@@ -227,6 +234,7 @@ describe.sequential('REST board permissions', () => {
     });
     expect(customized.body.data.lists.length).toBeGreaterThan(0);
     expect(customized.body.data.cards.length).toBeGreaterThan(0);
+    expect(customized.body.data.workflows).toHaveLength(1);
   });
 
   it('rejects unknown board templates without creating a board', async () => {
@@ -240,6 +248,31 @@ describe.sequential('REST board permissions', () => {
       .expect(400);
 
     await expect(Board.countDocuments({ name: 'Mystery board' })).resolves.toBe(0);
+    await expect(Workflow.countDocuments({})).resolves.toBe(0);
+  });
+
+  it('backfills a default workflow when an older board is opened', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const legacyBoard = await Board.create({
+      name: 'Legacy board',
+      owner: owner.user.id,
+      members: [{ user: owner.user.id, role: 'owner' }],
+    });
+
+    await expect(Workflow.countDocuments({ board: legacyBoard._id })).resolves.toBe(0);
+
+    const loaded = await request(app)
+      .get(`/api/v1/boards/${legacyBoard._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+
+    expect(loaded.body.data.workflows).toHaveLength(1);
+    expect(loaded.body.data.workflows[0]).toMatchObject({
+      name: 'General',
+      templateKey: 'default',
+    });
+    await expect(Workflow.countDocuments({ board: legacyBoard._id })).resolves.toBe(1);
   });
 
   it('lets board members view workflows and only owners/admins create them', async () => {
@@ -295,9 +328,9 @@ describe.sequential('REST board permissions', () => {
       .set('Authorization', `Bearer ${member.token}`)
       .expect(200);
 
-    expect(workflows.body.data.workflows).toHaveLength(1);
-    expect(workflows.body.data.workflows[0].name).toBe('Bug triage');
-    await expect(Workflow.countDocuments({ board: board._id })).resolves.toBe(1);
+    expect(workflows.body.data.workflows).toHaveLength(2);
+    expect(workflows.body.data.workflows.map((workflow) => workflow.name)).toEqual(['General', 'Bug triage']);
+    await expect(Workflow.countDocuments({ board: board._id })).resolves.toBe(2);
     await expect(Activity.countDocuments({ board: board._id, action: 'workflow.created' })).resolves.toBe(1);
   });
 

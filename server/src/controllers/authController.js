@@ -7,6 +7,7 @@ import Card from "../models/Card.js";
 import Comment from "../models/Comment.js";
 import Activity from "../models/Activity.js";
 import Message from "../models/Message.js";
+import Workflow from "../models/Workflow.js";
 
 //Helper: create a signed JWT carrying the user's id.
 // The token is signed with our secret so it can't be forged.
@@ -300,6 +301,7 @@ export async function deleteAccount(req, res) {
             Message.deleteMany({ board: { $in: ownedBoardIds } }),
             Card.deleteMany({ board: { $in: ownedBoardIds } }),
             List.deleteMany({ board: { $in: ownedBoardIds } }),
+            Workflow.deleteMany({ board: { $in: ownedBoardIds } }),
             Activity.deleteMany({ board: { $in: ownedBoardIds } }),
             Board.deleteMany({ _id: { $in: ownedBoardIds } }),
         ]);

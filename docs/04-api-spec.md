@@ -72,16 +72,17 @@ accepts an optional `templateId` to create a board from one of these blueprints.
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
 | GET | `/boards` | member | – | `200 { boards: [...] }` (boards I belong to) |
-| POST | `/boards` | any auth | `{ name, emoji?, color?, templateId? }` | `201 { board, lists, cards }` (creator becomes owner) |
+| POST | `/boards` | any auth | `{ name, emoji?, color?, templateId? }` | `201 { board, workflows, lists, cards }` (creator becomes owner) |
 | GET | `/boards/:boardId` | member | – | `200 { board, workflows, lists, cards }` (full initial load) |
 | PATCH | `/boards/:boardId` | admin | `{ name?, emoji?, color? }` | `200 { board, activity }` |
 | DELETE | `/boards/:boardId` | owner | – | `200 { deleted: true }` |
 
-If `templateId` is omitted, `POST /boards` creates an empty board and returns
-empty `lists` and `cards` arrays. If `templateId` matches a catalog template,
-the server creates the board plus starter lists/cards in one request. Template
-icon/color become defaults unless the request provides explicit `emoji` or
-`color` values.
+Every board has a default `General` workflow. If `templateId` is omitted,
+`POST /boards` creates that workflow and returns empty `lists` and `cards`
+arrays. If `templateId` matches a catalog template, the server creates the board
+plus starter lists/cards in one request. Template icon/color become defaults
+unless the request provides explicit `emoji` or `color` values. Older boards are
+backfilled with the default workflow the first time they are loaded.
 
 ### 2.4 Workflows
 
@@ -93,9 +94,9 @@ icon/color become defaults unless the request provides explicit `emoji` or
 Workflows are top-level project areas inside a board, such as a release plan,
 software sprint, bug triage, roadmap, or a custom planning track. This is the
 foundation for treating a board as a project and grouping several workflow
-templates under it. In this first slice, workflows are stored and permissioned
-but lists/cards still load at board scope until the migration step connects them
-to a workflow.
+templates under it. Every board gets a default `General` workflow, including
+older boards through lazy backfill. Lists/cards still load at board scope until
+the migration step connects them to a workflow.
 
 ### 2.5 Members
 
