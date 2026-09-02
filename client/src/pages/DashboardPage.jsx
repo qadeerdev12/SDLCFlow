@@ -449,23 +449,25 @@ function CommitStatCards({ points }) {
 function CommitHeatmap({ days }) {
   const values = days.length ? days : Array.from({ length: 70 }, (_, index) => ({ date: `empty-${index}`, count: 0 }))
   const compactOffset = Math.max(values.length - 35, 0)
+  const mediumOffset = Math.max(values.length - 56, 0)
   const maxValue = Math.max(...values.map((day) => day.count || 0), 1)
 
   return (
     <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-950">
       <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Calendar</h4>
-      <div className="mt-2 grid grid-cols-[repeat(7,18px)] gap-1 xl:grid-cols-[repeat(14,18px)]">
+      <div className="mt-2 grid grid-cols-[repeat(7,18px)] gap-1 md:grid-cols-[repeat(14,18px)]">
         {values.map((day, index) => (
           <span
             key={day.date}
             title={`${day.date}: ${day.count || 0} commits`}
-            className={`${index < compactOffset ? 'hidden xl:block' : 'block'} h-[18px] w-[18px] rounded ${heatmapClass(day.count || 0, maxValue)}`}
+            className={`${index < compactOffset ? 'hidden' : 'block'} ${index < mediumOffset ? 'md:hidden 2xl:block' : 'md:block'} h-[18px] w-[18px] rounded ${heatmapClass(day.count || 0, maxValue)}`}
           />
         ))}
       </div>
       <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-        <span className="xl:hidden">Last 35 days</span>
-        <span className="hidden xl:inline">Last 70 days</span>
+        <span className="md:hidden">Last 35 days</span>
+        <span className="hidden md:inline 2xl:hidden">Last 56 days</span>
+        <span className="hidden 2xl:inline">Last 70 days</span>
       </p>
     </div>
   )
