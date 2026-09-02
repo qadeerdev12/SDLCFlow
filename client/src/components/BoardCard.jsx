@@ -69,7 +69,7 @@ export default function BoardCard({ board, role, canEdit, canDelete, onOpen, onE
                     }}
                     className="flex w-full items-center px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
                   >
-                    Edit board
+                    Edit project
                   </button>
                 )}
                 {canDelete && (
@@ -81,7 +81,7 @@ export default function BoardCard({ board, role, canEdit, canDelete, onOpen, onE
                     }}
                     className="flex w-full items-center px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
                   >
-                    Delete board
+                    Delete project
                   </button>
                 )}
               </div>

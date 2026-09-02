@@ -82,9 +82,9 @@ export default function ProfilePage() {
   const canSavePassword = currentPassword && newPassword && confirmPassword && newPassword === confirmPassword && !savingPassword
 
   const statCards = [
-    { label: 'Boards', value: stats.boards ?? '-' },
-    { label: 'Owned boards', value: stats.ownedBoards ?? '-' },
-    { label: 'Shared boards', value: stats.sharedBoards ?? '-' },
+    { label: 'Projects', value: stats.boards ?? '-' },
+    { label: 'Owned projects', value: stats.ownedBoards ?? '-' },
+    { label: 'Shared projects', value: stats.sharedBoards ?? '-' },
     { label: 'Assigned cards', value: stats.assignedCards ?? '-' },
     { label: 'Comments', value: stats.comments ?? '-' },
   ]
@@ -220,7 +220,7 @@ export default function ProfilePage() {
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Details</p>
               <h2 className="mt-2 text-lg font-semibold">Account information</h2>
               <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                Update the name and email shown across your boards, comments, and activity.
+                Update the name and email shown across your projects, comments, and activity.
               </p>
             </div>
 
@@ -343,7 +343,7 @@ export default function ProfilePage() {
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-red-600 dark:text-red-300">Danger zone</p>
               <h2 className="mt-2 text-lg font-semibold">Delete account</h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                This removes your account, owned boards, comments, activity records, and assignments. Shared boards you do not own will remain for other members.
+                This removes your account, owned projects, comments, activity records, and assignments. Shared projects you do not own will remain for other members.
               </p>
             </div>
           </div>
@@ -389,7 +389,7 @@ export default function ProfilePage() {
       {deleteConfirmOpen && (
         <ConfirmDialog
           title="Delete your account?"
-          description="This permanently removes your account, owned boards, comments, activity records, and assignments. Shared boards you do not own will remain for other members."
+          description="This permanently removes your account, owned projects, comments, activity records, and assignments. Shared projects you do not own will remain for other members."
           confirmLabel="Delete account"
           pending={deleting}
           onCancel={() => setDeleteConfirmOpen(false)}

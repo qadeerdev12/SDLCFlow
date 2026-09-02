@@ -176,7 +176,7 @@ export default function ChatPanel({
       <aside className="flex h-full w-full max-w-md flex-col border-l border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
         <header className="flex items-start justify-between gap-3 border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Board chat</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Project chat</p>
             <h2 className="mt-1 truncate text-lg font-semibold text-zinc-950 dark:text-zinc-100">{board?.name}</h2>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
               <span className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-teal-500' : 'bg-zinc-400'}`} />
@@ -235,8 +235,8 @@ export default function ChatPanel({
                     <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
                   </svg>
                 </div>
-                <p className="mt-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Start the board conversation.</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">Share decisions, blockers, and quick project notes with everyone on this board.</p>
+                <p className="mt-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Start the project conversation.</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">Share decisions, blockers, and quick notes with everyone on this project.</p>
               </div>
             </div>
           )}
@@ -335,7 +335,7 @@ export default function ChatPanel({
               onKeyDown={handleComposerKeyDown}
               rows={2}
               maxLength={2000}
-              placeholder="Message this board"
+              placeholder="Message this project"
               className="max-h-32 min-h-10 flex-1 resize-none bg-transparent px-1 py-1 text-sm text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
             />
             <button
@@ -356,7 +356,7 @@ export default function ChatPanel({
       {confirmAction?.type === 'delete' && (
         <ConfirmDialog
           title="Delete this message?"
-          description="This will replace your chat message with a deleted placeholder for everyone viewing the board."
+          description="This will replace your chat message with a deleted placeholder for everyone viewing the project."
           confirmLabel="Delete message"
           pending={deletingId === confirmAction.message._id}
           onCancel={() => setConfirmAction(null)}
@@ -366,8 +366,8 @@ export default function ChatPanel({
 
       {confirmAction?.type === 'clear' && (
         <ConfirmDialog
-          title="Clear board chat?"
-          description="This clears the visible chat history for this board. Existing messages will no longer appear when members open the chat."
+          title="Clear project chat?"
+          description="This clears the visible chat history for this project. Existing messages will no longer appear when members open the chat."
           confirmLabel="Clear chat"
           pending={clearing}
           onCancel={() => setConfirmAction(null)}

@@ -427,7 +427,7 @@ export default function CardDetailModal({
       {deleteConfirmOpen && (
         <ConfirmDialog
           title={`Delete "${card.title}"?`}
-          description="This will permanently remove the card and its comments from this board."
+          description="This will permanently remove the card and its comments from this project."
           confirmLabel="Delete card"
           pending={deleting}
           onCancel={() => setDeleteConfirmOpen(false)}

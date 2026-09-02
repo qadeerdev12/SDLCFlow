@@ -103,7 +103,7 @@ export default function MembersPanel({
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="Board members"
+        aria-label="Project members"
         className="flex max-h-dvh w-full max-w-2xl flex-col overflow-hidden border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[calc(100dvh-2rem)] sm:rounded-lg"
       >
         <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
@@ -227,7 +227,7 @@ export default function MembersPanel({
       {removeTarget && (
         <ConfirmDialog
           title={`Remove ${removeTarget.user?.name || removeTarget.user?.email || 'this member'}?`}
-          description={`They will lose access to "${board.name}" and will no longer see this board in their dashboard.`}
+          description={`They will lose access to "${board.name}" and will no longer see this project in their dashboard.`}
           confirmLabel="Remove member"
           pending={removingId === memberUserId(removeTarget)}
           onCancel={() => setRemoveTarget(null)}

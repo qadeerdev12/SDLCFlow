@@ -37,7 +37,7 @@ export default function LoginPage() {
         <div className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Welcome back</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-100">Log in to SDLCFlow</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">Return to your project boards and keep the work moving.</p>
+          <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">Return to your projects and keep the work moving.</p>
         </div>
 
         {error && (
@@ -83,7 +83,7 @@ function AuthShell({ children, dark, toggle }) {
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Project OS</p>
           <h2 className="mt-4 max-w-lg text-4xl font-semibold leading-tight">Pick up exactly where your project left off.</h2>
           <p className="mt-4 max-w-md text-sm leading-6 text-zinc-300">
-            Jump back into live boards, review recent changes, and keep decisions beside the work.
+            Jump back into live projects, review recent changes, and keep decisions beside the work.
           </p>
         </div>
 
@@ -92,7 +92,7 @@ function AuthShell({ children, dark, toggle }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">Product rebuild</p>
-                <p className="mt-1 text-xs text-zinc-400">Sprint board · 18 open tasks</p>
+                <p className="mt-1 text-xs text-zinc-400">Sprint workflow · 18 open tasks</p>
               </div>
               <span className="rounded-full bg-teal-400 px-2.5 py-1 text-xs font-bold text-zinc-950">Live</span>
             </div>
@@ -110,7 +110,7 @@ function AuthShell({ children, dark, toggle }) {
             </div>
             <div className="mt-3 rounded-lg border border-white/10 bg-zinc-950/70 p-3">
               <div className="mb-2 flex items-center justify-between text-xs">
-                <span className="font-semibold text-zinc-200">Realtime board events</span>
+                <span className="font-semibold text-zinc-200">Realtime project events</span>
                 <span className="text-teal-300">2m ago</span>
               </div>
               <div className="h-2 rounded-full bg-zinc-800">
@@ -122,8 +122,8 @@ function AuthShell({ children, dark, toggle }) {
           <div className="grid gap-3">
             {[
               ['Plan sprint lists', 'Shape Backlog, Review, and Done around your workflow.'],
-              ['Chat beside the board', 'Keep quick project decisions attached to the workspace.'],
-              ['Return to recent work', 'Open the boards and activity that moved while you were away.'],
+              ['Chat beside the work', 'Keep quick project decisions attached to the workspace.'],
+              ['Return to recent work', 'Open the projects and activity that moved while you were away.'],
             ].map(([title, text]) => (
               <div key={title} className="rounded-lg border border-white/10 bg-white/5 p-4">
                 <p className="text-sm font-semibold text-zinc-100">{title}</p>

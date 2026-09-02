@@ -4,7 +4,7 @@
 
 # SDLCFlow
 
-**A real-time project board for software teams — plan work, move it across the lifecycle, and watch your teammates do the same, live.**
+**A real-time project workspace for software teams — plan work, move it across the lifecycle, and watch your teammates do the same, live.**
 
 ![React 19](https://img.shields.io/badge/React-19-111?style=flat-square)
 ![Node](https://img.shields.io/badge/Node-Express%205-111?style=flat-square)
@@ -23,7 +23,7 @@ open the same board, the interesting questions start: who is allowed to move thi
 card, what happens when both of them drag it at once, how does the second browser
 find out, and what does the app do when the connection drops mid-drag?
 
-SDLCFlow is a full-stack project board built around those questions rather than
+SDLCFlow is a full-stack project workspace built around those questions rather than
 around the CRUD. Every mutation is authorised on the server, persisted, recorded
 in an activity log, acknowledged to the sender, and broadcast to everyone else on
 the board — over WebSockets, in that order.
@@ -38,13 +38,14 @@ the board — over WebSockets, in that order.
 
 ## Features
 
-### One board per project, lists for the states work moves through
+### Projects contain workflows, workflows contain tasks
 
-Boards carry a name, one of ten engineering icons, and a colour, so a workspace of
-six projects stays readable. Inside a board, lists are the workflow states and
-cards are the work. Both drag with [dnd-kit](https://dndkit.com) and both persist
-their new order the moment you drop them — optimistically, with a rollback and a
-toast if the server disagrees.
+Projects carry a name, one of ten engineering icons, and a colour, so a
+workspace of six active builds stays readable. Inside a project, workflows group
+different kinds of work, lists are the states work moves through, and cards are
+the tasks. Lists and cards both drag with [dnd-kit](https://dndkit.com) and both
+persist their new order the moment you drop them — optimistically, with a
+rollback and a toast if the server disagrees.
 
 Ordering uses fractional positions, so moving one card writes one document
 instead of renumbering the column.
@@ -57,7 +58,7 @@ areas.
 
 <div align="center">
 
-<img src="docs/screenshots/dashboard.png" width="880" alt="The SDLCFlow dashboard listing six project boards with role badges, member counts and a search field">
+<img src="docs/screenshots/dashboard.png" width="880" alt="The SDLCFlow dashboard listing six projects with role badges, member counts and a search field">
 
 </div>
 
@@ -144,27 +145,27 @@ across every board you belong to at `/activity`.
 
 </div>
 
-### Board chat for project conversation
+### Project chat for project conversation
 
-Every board has its own realtime chat drawer. Messages are persisted to MongoDB,
+Every project has its own realtime chat drawer. Messages are persisted to MongoDB,
 loaded over REST when the drawer opens, and sent over Socket.IO when connected
-with REST fallback when the socket is unavailable. Only board members can read or
-send messages. The board header shows an unread badge while the drawer is
+with REST fallback when the socket is unavailable. Only project members can read or
+send messages. The project header shows an unread badge while the drawer is
 closed, messages are grouped by day, and the composer supports Enter to send
-with Shift+Enter for multiline notes. Typing indicators show when another board
-member is writing. People can delete their own messages, and owners can clear a
-board's chat when a project conversation needs a reset. If a send fails, the
+with Shift+Enter for multiline notes. Typing indicators show when another
+project member is writing. People can delete their own messages, and owners can
+clear a project's chat when a conversation needs a reset. If a send fails, the
 message stays in the thread with a retry action instead of disappearing.
 
 ### Search, filters, and a dark mode that isn't an afterthought
 
-Boards filter by name and sort by recent activity, creation date, or name. Cards
+Projects filter by name and sort by recent activity, creation date, or name. Cards
 filter by title, description, tag, and status, with the counts updating as you
 type. The theme follows your OS by default and is remembered once you override it.
 
 <div align="center">
 
-<img src="docs/screenshots/board-dark.png" width="880" alt="The same project board rendered in dark mode">
+<img src="docs/screenshots/board-dark.png" width="880" alt="The same project workspace rendered in dark mode">
 
 </div>
 

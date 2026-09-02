@@ -96,7 +96,7 @@ lists/cards without a workflow are attached to that default.
 Workflows are top-level project areas inside a board, such as a release plan,
 software sprint, bug triage, roadmap, or a custom planning track. This is the
 foundation for treating a board as a project and grouping several workflow
-templates under it. New boards get a default `General` workflow, and older
+templates under it. New projects get a default `General` workflow, and older
 boards use lazy backfill. Lists/cards are workflow-aware on create and board
 snapshots include all workflows plus all board work so the client can switch
 between project areas without reloading.
@@ -136,7 +136,7 @@ Member rules:
 
 Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle`, optional `metadata`, and timestamps. The endpoint returns the latest board activity first.
 
-### 2.7 Board chat
+### 2.7 Project chat
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|

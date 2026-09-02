@@ -65,7 +65,7 @@ export default function ActivityPage() {
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Activity</p>
             <h1 className="mt-1 truncate text-2xl font-bold text-zinc-950 dark:text-zinc-100">
-              {boardId ? board?.name || 'Board activity' : 'All activity'}
+              {boardId ? board?.name || 'Project activity' : 'All activity'}
             </h1>
           </div>
 
@@ -78,7 +78,7 @@ export default function ActivityPage() {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="m15 18-6-6 6-6" />
               </svg>
-              Board
+              Project
             </button>
           ) : (
             <Link
@@ -99,7 +99,7 @@ export default function ActivityPage() {
             loading={loading}
             error={error}
             onRetry={loadActivity}
-            emptyTitle={boardId ? 'This board has no activity yet.' : 'No activity yet.'}
+            emptyTitle={boardId ? 'This project has no activity yet.' : 'No activity yet.'}
             emptyDescription="Create cards, move work, or invite collaborators to start the timeline."
           />
         </section>

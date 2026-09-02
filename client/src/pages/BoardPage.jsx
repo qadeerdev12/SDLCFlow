@@ -92,7 +92,7 @@ function BoardLoadError({ message, onRetry, onBack }) {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
-        <h1 className="mt-4 text-lg font-bold">Could not load this board</h1>
+        <h1 className="mt-4 text-lg font-bold">Could not load this project</h1>
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{message}</p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <button type="button" onClick={onRetry} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500">
@@ -629,7 +629,7 @@ export default function BoardPage() {
   )
   const listDeleteCardCount = listDeleteTarget ? cardsByList[listDeleteTarget._id]?.length || 0 : 0
   const listDeleteDescription = listDeleteTarget
-    ? `This will remove the workflow list${listDeleteCardCount ? ` and ${listDeleteCardCount} ${listDeleteCardCount === 1 ? 'card' : 'cards'}` : ''} from this board.`
+    ? `This will remove the workflow list${listDeleteCardCount ? ` and ${listDeleteCardCount} ${listDeleteCardCount === 1 ? 'card' : 'cards'}` : ''} from this project.`
     : ''
 
   // Refs mirror state so drag handlers always read the freshest value even
@@ -1288,7 +1288,7 @@ export default function BoardPage() {
     const res = await boardApi.update(boardId, { name, ...options }, token)
     setBoard(res.data.board)
     prependActivity(res.data.activity)
-    toast.success('Board updated', res.data.board.name)
+    toast.success('Project updated', res.data.board.name)
   }
 
   async function handleDeleteBoard() {
@@ -1299,11 +1299,11 @@ export default function BoardPage() {
     setBoardDeleting(true)
     try {
       await boardApi.delete(boardId, token)
-      toast.success('Board deleted', board.name)
+      toast.success('Project deleted', board.name)
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)
-      toast.error('Could not delete board', err.message)
+      toast.error('Could not delete project', err.message)
     } finally {
       setBoardDeleting(false)
     }
@@ -1689,7 +1689,7 @@ export default function BoardPage() {
                     type="button"
                     onClick={handleDeleteBoard}
                     className="grid h-10 w-10 place-items-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:bg-zinc-900 dark:text-red-300 dark:hover:bg-red-500/10"
-                    aria-label="Delete board"
+                    aria-label="Delete project"
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 6h18" />
@@ -1988,8 +1988,8 @@ export default function BoardPage() {
       {boardDeleteOpen && (
         <ConfirmDialog
           title={`Delete "${board.name}"?`}
-          description="This will permanently delete the board, its workflow lists, cards, comments, chat messages, and activity history."
-          confirmLabel="Delete board"
+          description="This will permanently delete the project, its workflow lists, cards, comments, chat messages, and activity history."
+          confirmLabel="Delete project"
           pending={boardDeleting}
           onCancel={() => setBoardDeleteOpen(false)}
           onConfirm={confirmDeleteBoard}

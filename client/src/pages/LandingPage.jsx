@@ -9,7 +9,7 @@ const previewColumns = [
     cards: [
       { title: 'Map project milestones', tag: 'Planning', status: 'Ready', assignee: 'JS', due: 'Aug 31', tone: 'teal' },
       { title: 'Collect customer notes', tag: 'Research', status: 'Draft', assignee: 'AL', due: 'Sep 2', tone: 'amber' },
-      { title: 'Scope mobile board view', tag: 'Design', status: 'Next', assignee: 'DK', due: 'Sep 4', tone: 'cyan' },
+      { title: 'Scope mobile project view', tag: 'Design', status: 'Next', assignee: 'DK', due: 'Sep 4', tone: 'cyan' },
     ],
   },
   {
@@ -24,7 +24,7 @@ const previewColumns = [
     title: 'Done',
     count: 12,
     cards: [
-      { title: 'Auth and board access', tag: 'API', status: 'Shipped', assignee: 'DK', due: 'Done', tone: 'cyan' },
+      { title: 'Auth and project access', tag: 'API', status: 'Shipped', assignee: 'DK', due: 'Done', tone: 'cyan' },
       { title: 'List ordering system', tag: 'Core', status: 'Shipped', assignee: 'JS', due: 'Done', tone: 'teal' },
     ],
   },
@@ -32,8 +32,8 @@ const previewColumns = [
 
 const features = [
   {
-    title: 'Realtime board sync',
-    text: 'Move cards, edit tasks, and update lists while every board viewer stays in sync.',
+    title: 'Realtime project sync',
+    text: 'Move cards, edit tasks, and update lists while every project member stays in sync.',
     icon: 'layout',
   },
   {
@@ -42,13 +42,13 @@ const features = [
     icon: 'detail',
   },
   {
-    title: 'Board chat',
-    text: 'Keep quick project decisions beside the board with realtime messages, unread counts, and owner-controlled chat clearing.',
+    title: 'Project chat',
+    text: 'Keep quick project decisions beside the work with realtime messages, unread counts, and owner-controlled chat clearing.',
     icon: 'chat',
   },
   {
     title: 'Activity timeline',
-    text: 'Track board changes from one global activity view or inside a specific project.',
+    text: 'Track project changes from one global activity view or inside a specific project.',
     icon: 'activity',
   },
   {
@@ -58,7 +58,7 @@ const features = [
   },
   {
     title: 'Search and filters',
-    text: 'Focus boards by task title, tag, or status when the project starts to fill up.',
+    text: 'Focus work by task title, tag, or status when the project starts to fill up.',
     icon: 'filter',
   },
   {
@@ -72,8 +72,8 @@ const features = [
     icon: 'target',
   },
   {
-    title: 'Board management',
-    text: 'Rename or delete boards, lists, and cards as your project shape changes.',
+    title: 'Project management',
+    text: 'Rename or delete projects, workflows, lists, and cards as your project shape changes.',
     icon: 'settings',
   },
 ]
@@ -83,7 +83,7 @@ const workflow = ['Capture', 'Prioritise', 'Build', 'Review', 'Ship']
 const activity = [
   { person: 'JS', action: 'moved Realtime drag persistence to Review', time: '2m ago' },
   { person: 'AL', action: 'commented on Dashboard filters', time: '9m ago' },
-  { person: 'DK', action: 'assigned Auth and board access to John Smith', time: '18m ago' },
+  { person: 'DK', action: 'assigned Auth and project access to John Smith', time: '18m ago' },
 ]
 
 const taskHighlights = [
@@ -133,7 +133,7 @@ export default function LandingPage() {
               Project command center
             </p>
             <h1 className="landing-rise landing-delay-1 text-4xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl dark:text-white">
-              Bring your projects into one live board.
+              Bring your projects into one live workspace.
             </h1>
             <p className="landing-rise landing-delay-2 mt-5 text-lg leading-8 text-zinc-600 dark:text-zinc-300">
               SDLCFlow gives you a focused Jira-style workspace for planning, prioritising, and shipping the projects you are building now.
@@ -170,12 +170,12 @@ export default function LandingPage() {
               <div className="flex items-start justify-between gap-4 border-b border-zinc-200 pb-4 dark:border-zinc-800">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Card detail</p>
-                  <h3 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">Ship realtime board events</h3>
+                  <h3 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">Ship realtime project events</h3>
                 </div>
                 <span className="landing-pulse rounded-full bg-teal-100 px-2.5 py-1 text-xs font-bold text-teal-800 dark:bg-teal-400 dark:text-zinc-950">Synced</span>
               </div>
               <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                Persist socket mutations, broadcast updates to board members, and recover missed changes after reconnect.
+                Persist socket mutations, broadcast updates to project members, and recover missed changes after reconnect.
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {taskHighlights.map((item) => (
@@ -214,7 +214,7 @@ export default function LandingPage() {
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-300">Workflow</p>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-white">A simple path from idea to done.</h2>
                 <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                  Shape each board around a practical delivery loop. Keep the columns obvious, keep the cards moving, and avoid burying your project in ceremony.
+                  Shape each workflow around a practical delivery loop. Keep the columns obvious, keep the cards moving, and avoid burying your project in ceremony.
                 </p>
               </div>
 
@@ -240,7 +240,7 @@ export default function LandingPage() {
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Realtime collaboration</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">See momentum as it happens.</h2>
               <p className="mt-4 text-sm leading-6 text-zinc-300">
-                SDLCFlow is designed around shared state: cards move, boards update, and collaborators stay oriented without refreshing or asking what changed.
+                SDLCFlow is designed around shared state: cards move, projects update, and collaborators stay oriented without refreshing or asking what changed.
               </p>
               <div className="mt-8 grid grid-cols-3 gap-3">
                 <StatDark value="3" label="active members" />
@@ -273,7 +273,7 @@ export default function LandingPage() {
           <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Ready</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white">Start with one software project board.</h2>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white">Start with one software project.</h2>
             </div>
             <Link to="/register" className="landing-button rounded-lg bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500">
               Create workspace
@@ -291,7 +291,7 @@ function HeroBoard() {
       <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
         <div>
           <p className="text-sm font-semibold text-zinc-950 dark:text-white">Product rebuild</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Sprint board · 18 open tasks</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Sprint workflow · 18 open tasks</p>
         </div>
         <div className="flex -space-x-2">
           {['JS', 'AL', 'DK'].map((person) => (
@@ -352,7 +352,7 @@ function LandingChatPreview() {
     <>
       <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-3 py-3 dark:border-zinc-800">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Board chat</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Project chat</p>
           <p className="mt-0.5 truncate font-semibold text-zinc-950 dark:text-zinc-100">Product rebuild</p>
           <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
             <span className="landing-pulse h-1.5 w-1.5 rounded-full bg-teal-500" />
@@ -399,7 +399,7 @@ function LandingChatPreview() {
       </div>
       <div className="border-t border-zinc-200 p-2 dark:border-zinc-800">
         <div className="flex items-end gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900">
-          <span className="min-h-8 flex-1 px-1 py-1 text-zinc-400">Message this board</span>
+          <span className="min-h-8 flex-1 px-1 py-1 text-zinc-400">Message this project</span>
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-teal-600 text-white">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
               <path d="m22 2-7 20-4-9-9-4Z" />

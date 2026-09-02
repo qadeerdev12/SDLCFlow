@@ -225,14 +225,14 @@ Activity is fetched over REST on board load and then updated by `activity:create
 
 Workflows use REST for creation and Socket.IO for live fan-out. `GET /boards/:boardId` returns
 `workflows`, and `GET/POST /boards/:boardId/workflows` lets members view and
-owners/admins add project areas. New boards receive a default `General`
+owners/admins add project areas. New projects receive a default `General`
 workflow, and older boards are lazily backfilled when loaded. Lists/cards that
 do not yet have a workflow are attached to the default workflow before the board
 snapshot is returned. `POST /boards/:boardId/workflows` broadcasts
 `workflow:created` with the saved workflow plus any template-seeded lists/cards
 so open board pages can merge the new project area without a reload.
 
-Board chat history is fetched over REST when the chat drawer opens. New messages use the same socket-first/fallback-to-REST pattern as board mutations. Chat messages are persisted and broadcast as `message:created`, but they are intentionally not recorded in the board activity log.
+Project chat history is fetched over REST when the chat drawer opens. New messages use the same socket-first/fallback-to-REST pattern as board mutations. Chat messages are persisted and broadcast as `message:created`, but they are intentionally not recorded in the board activity log.
 
 The client keeps chat state board-scoped. Switching boards clears loaded chat
 history, errors, and unread counts. When a `message:created` event arrives while
