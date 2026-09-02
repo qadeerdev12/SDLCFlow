@@ -32,6 +32,7 @@ const activitySchema = new mongoose.Schema(
         'workflow.created',
         'github.repo_linked',
         'github.repo_unlinked',
+        'github.commit_synced',
         'member.added',
         'member.role_updated',
         'member.removed',

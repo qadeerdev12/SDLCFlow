@@ -1,4 +1,5 @@
 import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
+import Activity from '../models/Activity.js';
 import GitHubAccount from '../models/GitHubAccount.js';
 import { recordActivity } from '../services/activityService.js';
 import { fetchGitHubCommits, fetchGitHubRepositoryStats } from '../services/githubService.js';
@@ -83,6 +84,51 @@ function normalizeRepositoryPayload(body) {
     private: Boolean(body.private),
     language,
   };
+}
+
+async function recordNewCommitActivities({ req, boardId, integration, commits }) {
+  const shas = commits.map((commit) => commit.sha).filter(Boolean);
+  if (shas.length === 0) return [];
+
+  const existingActivities = await Activity.find({
+    board: boardId,
+    action: 'github.commit_synced',
+    'metadata.sha': { $in: shas },
+  }).select('metadata.sha');
+  const existingShas = new Set(existingActivities.map((activity) => activity.metadata?.sha).filter(Boolean));
+
+  // Keep activity useful without flooding the timeline on the first repository sync.
+  const newCommits = commits
+    .filter((commit) => commit.sha && !existingShas.has(commit.sha))
+    .slice(0, 5)
+    .reverse();
+  const activities = [];
+
+  for (const commit of newCommits) {
+    const title = safeString(commit.message.split('\n')[0]) || commit.shortSha;
+    const activity = await recordActivity({
+      io: req.app.get('io'),
+      boardId,
+      actorId: req.user._id,
+      action: 'github.commit_synced',
+      targetType: 'integration',
+      targetId: integration._id,
+      targetTitle: title,
+      metadata: {
+        provider: 'github',
+        repoFullName: integration.repoFullName,
+        sha: commit.sha,
+        shortSha: commit.shortSha,
+        htmlUrl: commit.htmlUrl,
+        authorName: commit.authorName,
+        authorUsername: commit.authorUsername,
+        committedAt: commit.committedAt,
+      },
+    });
+    activities.push(activity);
+  }
+
+  return activities;
 }
 
 // GET /api/v1/boards/:boardId/integrations/github
@@ -200,11 +246,18 @@ export async function getBoardGitHubCommits(req, res) {
 
     integration.lastSyncedAt = new Date();
     await integration.save();
+    const activities = await recordNewCommitActivities({
+      req,
+      boardId: board._id,
+      integration,
+      commits,
+    });
 
     return res.status(200).json({
       data: {
         integration: serializeIntegration(integration),
         commits,
+        activities,
         lastSyncedAt: integration.lastSyncedAt,
       },
     });

@@ -346,6 +346,87 @@ describe.sequential('REST board permissions', () => {
       });
   });
 
+  it('records newly synced GitHub commits in project activity without duplicates', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const member = await register(app, 'Member', 'member@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    await addMember(app, owner.token, board._id, member.user.email, 'member');
+
+    const githubAccount = await GitHubAccount.create({
+      user: owner.user.id,
+      githubId: '12345',
+      username: 'octocat',
+      accessToken: 'owner-token',
+      scopes: ['read:user', 'user:email', 'repo'],
+    });
+    await BoardGitHubIntegration.create({
+      board: board._id,
+      connectedBy: owner.user.id,
+      githubAccount: githubAccount._id,
+      repoId: '1001',
+      repoOwner: 'octocat',
+      repoName: 'sdlcflow',
+      repoFullName: 'octocat/sdlcflow',
+      repoUrl: 'https://github.com/octocat/sdlcflow',
+      defaultBranch: 'main',
+    });
+
+    const previousFetch = global.fetch;
+    global.fetch = async () => ({
+      ok: true,
+      json: async () => [
+        {
+          sha: 'abc1234567890',
+          html_url: 'https://github.com/octocat/sdlcflow/commit/abc1234',
+          commit: {
+            message: 'Ship GitHub activity feed\n\nConnect commits to the timeline.',
+            author: { name: 'Alex Kim', date: '2026-09-02T00:00:00.000Z' },
+          },
+          author: { login: 'alexkim', avatar_url: 'https://avatars.githubusercontent.com/u/1?v=4' },
+        },
+        {
+          sha: 'def9876543210',
+          html_url: 'https://github.com/octocat/sdlcflow/commit/def9876',
+          commit: {
+            message: 'Polish repository panel',
+            author: { name: 'Jamie Lee', date: '2026-09-01T00:00:00.000Z' },
+          },
+          author: { login: 'jamielee', avatar_url: 'https://avatars.githubusercontent.com/u/2?v=4' },
+        },
+      ],
+    });
+
+    try {
+      const firstSync = await request(app)
+        .get(`/api/v1/boards/${board._id}/github/commits`)
+        .set('Authorization', `Bearer ${member.token}`)
+        .expect(200);
+      expect(firstSync.body.data.commits).toHaveLength(2);
+      expect(firstSync.body.data.activities).toHaveLength(2);
+      expect(firstSync.body.data.activities[1]).toMatchObject({
+        action: 'github.commit_synced',
+        targetTitle: 'Ship GitHub activity feed',
+      });
+      expect(firstSync.body.data.activities[1].metadata).toMatchObject({
+        repoFullName: 'octocat/sdlcflow',
+        sha: 'abc1234567890',
+        shortSha: 'abc1234',
+        authorUsername: 'alexkim',
+      });
+      await expect(Activity.countDocuments({ board: board._id, action: 'github.commit_synced' })).resolves.toBe(2);
+
+      const secondSync = await request(app)
+        .get(`/api/v1/boards/${board._id}/github/commits`)
+        .set('Authorization', `Bearer ${member.token}`)
+        .expect(200);
+      expect(secondSync.body.data.activities).toEqual([]);
+      await expect(Activity.countDocuments({ board: board._id, action: 'github.commit_synced' })).resolves.toBe(2);
+    } finally {
+      global.fetch = previousFetch;
+    }
+  });
+
   it('serves the workflow template catalog and keeps the old board-template alias', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

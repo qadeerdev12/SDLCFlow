@@ -11,8 +11,10 @@ const ACTION_LABELS = {
   'comment.created': 'commented on a card',
   'message.deleted': 'deleted a chat message',
   'chat.cleared': 'cleared board chat',
+  'workflow.created': 'created a workflow',
   'github.repo_linked': 'linked a GitHub repository',
   'github.repo_unlinked': 'unlinked a GitHub repository',
+  'github.commit_synced': 'synced a GitHub commit',
   'member.added': 'added a member',
   'member.role_updated': 'changed a member role',
   'member.removed': 'removed a member',
@@ -40,6 +42,9 @@ function activityTitle(activity) {
   }
   if (activity.action === 'member.added' && activity.metadata?.role) {
     return `${activity.targetTitle} as ${activity.metadata.role}`
+  }
+  if (activity.action === 'github.commit_synced' && activity.metadata?.shortSha) {
+    return `${activity.targetTitle} (${activity.metadata.shortSha})`
   }
   return activity.targetTitle
 }

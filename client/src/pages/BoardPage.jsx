@@ -1221,6 +1221,8 @@ export default function BoardPage() {
       const res = await boardApi.getGitHubCommits(boardId, token)
       setGithubCommits(res.data.commits || [])
       setGithubIntegration(res.data.integration)
+      const syncedActivities = res.data.activities || []
+      syncedActivities.forEach((activity) => prependActivity(activity))
       setGithubCommitsLoaded(true)
     } catch (err) {
       setGithubCommitsError(err.message)

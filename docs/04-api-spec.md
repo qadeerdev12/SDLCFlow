@@ -108,7 +108,7 @@ tokens immediately.
 | GET | `/boards/:boardId/integrations/github` | member | – | `200 { integration }` |
 | PUT | `/boards/:boardId/integrations/github` | admin | `{ id/repoId, fullName/repoFullName, htmlUrl/repoUrl, owner/repoOwner?, name/repoName?, defaultBranch?, private?, language? }` | `200 { integration, activity }` |
 | DELETE | `/boards/:boardId/integrations/github` | admin | – | `200 { unlinked, integration: null, activity }` |
-| GET | `/boards/:boardId/github/commits` | member | – | `200 { integration, commits, lastSyncedAt }` |
+| GET | `/boards/:boardId/github/commits` | member | – | `200 { integration, commits, activities, lastSyncedAt }` |
 | GET | `/boards/:boardId/github/stats` | member | – | `200 { integration, stats, lastSyncedAt }` |
 
 Project GitHub integrations link one repository to one board/project. Members
@@ -119,7 +119,9 @@ repository object returned by `GET /integrations/github/repos`, using either
 Linking and unlinking repositories creates project activity records.
 Members can load recent commits for the linked repository. Commit reads use the
 GitHub token associated with the linked repository, so collaborators do not need
-their own GitHub connection just to view project commit activity.
+their own GitHub connection just to view project commit activity. Newly seen
+commits are recorded as `github.commit_synced` activity entries, deduped by
+commit SHA so refreshes do not flood the project timeline.
 Repository stats currently include `openPullRequests` and `openIssues`, also
 using the linked repository token.
 
