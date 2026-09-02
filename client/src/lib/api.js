@@ -128,6 +128,9 @@ export const boardApi = {
   unlinkGitHubRepo: (boardId, token) =>
     request(`/boards/${boardId}/integrations/github`, { method: 'DELETE', token }),
 
+  getGitHubCommits: (boardId, token) =>
+    request(`/boards/${boardId}/github/commits`, { token }),
+
   getMessages: (boardId, token) =>
     request(`/boards/${boardId}/messages`, { token }),
 

@@ -36,6 +36,25 @@ function memberUserId(member) {
   return member.user?.id || member.user?._id || member.user
 }
 
+function formatRelativeDate(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Unknown time'
+
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.floor(diffMs / 60000)
+  if (diffMinutes < 1) return 'Just now'
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 7) return `${diffDays}d ago`
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+  }).format(date)
+}
+
 function BoardLoadingSkeleton() {
   return (
     <div className="min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
@@ -574,11 +593,16 @@ function GitHubIntegrationPanel({
   reposError,
   reposLoaded,
   saving,
+  commits,
+  commitsLoading,
+  commitsError,
+  commitsLoaded,
   canEdit,
   onClose,
   onRefreshRepos,
   onLinkRepo,
   onUnlinkRepo,
+  onRefreshCommits,
 }) {
   const [search, setSearch] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -713,6 +737,63 @@ function GitHubIntegrationPanel({
                     </div>
                   )}
                 </div>
+              )}
+
+              {integration && (
+                <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Recent commits</h3>
+                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Latest changes from {integration.defaultBranch || 'the default branch'}.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onRefreshCommits}
+                      disabled={commitsLoading}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    >
+                      {commitsLoading ? 'Refreshing...' : commitsLoaded ? 'Refresh' : 'Load'}
+                    </button>
+                  </div>
+
+                  {commitsError && <PanelMessage tone="error" title="Could not load commits" text={commitsError} />}
+
+                  <div className="mt-3 space-y-2">
+                    {commitsLoading && Array.from({ length: 4 }).map((_, index) => (
+                      <div key={index} className="h-[82px] animate-pulse rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950" />
+                    ))}
+
+                    {!commitsLoading && commitsLoaded && commits.length === 0 && (
+                      <PanelMessage tone="info" title="No commits found" text="GitHub did not return recent commits for this repository." />
+                    )}
+
+                    {!commitsLoading && commits.map((commit) => (
+                      <a
+                        key={commit.sha}
+                        href={commit.htmlUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block rounded-lg border border-zinc-200 bg-zinc-50 p-3 transition hover:border-teal-300 hover:bg-teal-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10"
+                      >
+                        <span className="flex items-start justify-between gap-3">
+                          <span className="min-w-0">
+                            <span className="line-clamp-2 text-sm font-semibold leading-5 text-zinc-950 dark:text-zinc-100">
+                              {commit.message.split('\n')[0] || 'Untitled commit'}
+                            </span>
+                            <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                              <span>{commit.authorUsername ? `@${commit.authorUsername}` : commit.authorName}</span>
+                              <span>·</span>
+                              <span>{formatRelativeDate(commit.committedAt)}</span>
+                            </span>
+                          </span>
+                          <span className="shrink-0 rounded-md bg-white px-2 py-1 font-mono text-[11px] font-semibold text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-800">
+                            {commit.shortSha}
+                          </span>
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </section>
               )}
 
               {!canEdit && !integration && (
@@ -874,6 +955,10 @@ export default function BoardPage() {
   const [githubReposLoading, setGithubReposLoading] = useState(false)
   const [githubReposError, setGithubReposError] = useState('')
   const [githubSaving, setGithubSaving] = useState(false)
+  const [githubCommits, setGithubCommits] = useState([])
+  const [githubCommitsLoaded, setGithubCommitsLoaded] = useState(false)
+  const [githubCommitsLoading, setGithubCommitsLoading] = useState(false)
+  const [githubCommitsError, setGithubCommitsError] = useState('')
   const [cardSearch, setCardSearch] = useState('')
   const [tagFilter, setTagFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -1076,6 +1161,21 @@ export default function BoardPage() {
     }
   }, [token])
 
+  const loadGitHubCommits = useCallback(async () => {
+    try {
+      setGithubCommitsLoading(true)
+      setGithubCommitsError('')
+      const res = await boardApi.getGitHubCommits(boardId, token)
+      setGithubCommits(res.data.commits || [])
+      setGithubIntegration(res.data.integration)
+      setGithubCommitsLoaded(true)
+    } catch (err) {
+      setGithubCommitsError(err.message)
+    } finally {
+      setGithubCommitsLoading(false)
+    }
+  }, [boardId, token])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       loadBoard()
@@ -1129,6 +1229,14 @@ export default function BoardPage() {
   }, [canEditBoard, githubAccount, githubPanelOpen, githubReposLoaded, githubReposLoading, loadGitHubRepos])
 
   useEffect(() => {
+    if (!githubPanelOpen || !githubIntegration || githubCommitsLoaded || githubCommitsLoading) return undefined
+    const timer = setTimeout(() => {
+      loadGitHubCommits()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [githubCommitsLoaded, githubCommitsLoading, githubIntegration, githubPanelOpen, loadGitHubCommits])
+
+  useEffect(() => {
     if (!board || !chatPanelOpen || messagesLoaded) return undefined
     const timer = setTimeout(() => {
       loadMessages()
@@ -1150,6 +1258,9 @@ export default function BoardPage() {
       setGithubRepos([])
       setGithubReposLoaded(false)
       setGithubReposError('')
+      setGithubCommits([])
+      setGithubCommitsLoaded(false)
+      setGithubCommitsError('')
       typingTimersRef.current.forEach((typingTimer) => clearTimeout(typingTimer))
       typingTimersRef.current.clear()
     }, 0)
@@ -1749,6 +1860,9 @@ export default function BoardPage() {
     try {
       const res = await boardApi.linkGitHubRepo(boardId, repository, token)
       setGithubIntegration(res.data.integration)
+      setGithubCommits([])
+      setGithubCommitsLoaded(false)
+      setGithubCommitsError('')
       prependActivity(res.data.activity)
       toast.success('GitHub repo linked', res.data.integration.repoFullName)
     } catch (err) {
@@ -1765,6 +1879,9 @@ export default function BoardPage() {
     try {
       const res = await boardApi.unlinkGitHubRepo(boardId, token)
       setGithubIntegration(null)
+      setGithubCommits([])
+      setGithubCommitsLoaded(false)
+      setGithubCommitsError('')
       prependActivity(res.data.activity)
       toast.success('GitHub repo unlinked')
     } catch (err) {
@@ -1774,6 +1891,11 @@ export default function BoardPage() {
     } finally {
       setGithubSaving(false)
     }
+  }
+
+  async function handleRefreshGitHubCommits() {
+    setGithubCommitsLoaded(false)
+    await loadGitHubCommits()
   }
 
   async function handleSendMessage(body) {
@@ -2381,11 +2503,16 @@ export default function BoardPage() {
           reposError={githubReposError}
           reposLoaded={githubReposLoaded}
           saving={githubSaving}
+          commits={githubCommits}
+          commitsLoading={githubCommitsLoading}
+          commitsError={githubCommitsError}
+          commitsLoaded={githubCommitsLoaded}
           canEdit={canEditBoard}
           onClose={closeGitHubPanel}
           onRefreshRepos={handleRefreshGitHubRepos}
           onLinkRepo={handleLinkGitHubRepo}
           onUnlinkRepo={handleUnlinkGitHubRepo}
+          onRefreshCommits={handleRefreshGitHubCommits}
         />
       )}
 

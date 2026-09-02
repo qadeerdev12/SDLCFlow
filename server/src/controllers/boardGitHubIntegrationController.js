@@ -1,6 +1,7 @@
 import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
 import GitHubAccount from '../models/GitHubAccount.js';
 import { recordActivity } from '../services/activityService.js';
+import { fetchGitHubCommits } from '../services/githubService.js';
 import { getBoardIfRole } from '../utils/boardAccess.js';
 
 function sendIntegrationError(res, err) {
@@ -160,5 +161,53 @@ export async function deleteBoardGitHubIntegration(req, res) {
   } catch (err) {
     console.error('Delete board GitHub integration error:', err.message);
     return sendIntegrationError(res, err);
+  }
+}
+
+// GET /api/v1/boards/:boardId/github/commits
+// Members can read recent commits for the repo linked to this project. The
+// request uses the token from the user who linked the repo, so collaborators do
+// not each need to connect GitHub just to view project development activity.
+export async function getBoardGitHubCommits(req, res) {
+  try {
+    const board = await getBoardIfRole(req.params.boardId, req.user._id, ['owner', 'admin', 'member']);
+    if (!board) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
+    }
+
+    const integration = await BoardGitHubIntegration.findOne({ board: board._id }).populate({
+      path: 'githubAccount',
+      select: '+accessToken username',
+    });
+    if (!integration) {
+      throw makeError('Link a GitHub repository before loading commits.', 409, 'GITHUB_REPO_NOT_LINKED');
+    }
+    if (!integration.githubAccount?.accessToken) {
+      throw makeError('Reconnect GitHub before loading commits.', 409, 'GITHUB_RECONNECT_REQUIRED');
+    }
+
+    const commits = await fetchGitHubCommits(
+      integration.githubAccount.accessToken,
+      integration.repoOwner,
+      integration.repoName,
+      { limit: Number(req.query.limit) || 10, sha: req.query.sha || integration.defaultBranch }
+    );
+
+    integration.lastSyncedAt = new Date();
+    await integration.save();
+
+    return res.status(200).json({
+      data: {
+        integration: serializeIntegration(integration),
+        commits,
+        lastSyncedAt: integration.lastSyncedAt,
+      },
+    });
+  } catch (err) {
+    console.error('Get board GitHub commits error:', err.message);
+    if (err.code || err.statusCode) return sendIntegrationError(res, err);
+    return res.status(502).json({
+      error: { code: 'GITHUB_REQUEST_FAILED', message: 'Could not load commits from GitHub.' },
+    });
   }
 }

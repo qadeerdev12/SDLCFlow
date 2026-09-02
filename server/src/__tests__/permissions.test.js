@@ -328,6 +328,14 @@ describe.sequential('REST board permissions', () => {
     expect(unlinked.body.data.unlinked).toBe(true);
     expect(unlinked.body.data.integration).toBeNull();
     expect(unlinked.body.data.activity.action).toBe('github.repo_unlinked');
+
+    await request(app)
+      .get(`/api/v1/boards/${board._id}/github/commits`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .expect(409)
+      .expect((res) => {
+        expect(res.body.error.code).toBe('GITHUB_REPO_NOT_LINKED');
+      });
   });
 
   it('serves the workflow template catalog and keeps the old board-template alias', async () => {

@@ -105,3 +105,30 @@ export async function fetchGitHubRepositories(accessToken) {
     updatedAt: repo.updated_at,
   }));
 }
+
+export async function fetchGitHubCommits(accessToken, owner, repo, { limit = 10, sha } = {}) {
+  const params = new URLSearchParams({
+    per_page: String(Math.min(Math.max(limit, 1), 30)),
+  });
+  if (sha) params.set('sha', sha);
+
+  const response = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/commits?${params.toString()}`, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${accessToken}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+
+  const commits = await parseGitHubResponse(response);
+  return commits.map((item) => ({
+    sha: item.sha,
+    shortSha: item.sha?.slice(0, 7),
+    message: item.commit?.message || '',
+    authorName: item.commit?.author?.name || item.author?.login || 'Unknown author',
+    authorUsername: item.author?.login || null,
+    authorAvatarUrl: item.author?.avatar_url || null,
+    committedAt: item.commit?.author?.date || item.commit?.committer?.date,
+    htmlUrl: item.html_url,
+  }));
+}
