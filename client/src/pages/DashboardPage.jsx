@@ -338,7 +338,7 @@ function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
           Reconnect GitHub to refresh repository permissions and load dashboard stats.
         </div>
       ) : dashboard?.connected ? (
-        <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:h-[154px] xl:grid-cols-[220px_minmax(0,1fr)_250px_250px] xl:items-stretch">
+        <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:h-[184px] xl:grid-cols-[220px_minmax(0,1fr)_250px_250px] xl:items-stretch">
           <GitHubMetricGrid stats={stats} />
           <CommitGraphOptions stats={commitGraph} />
           <LinkedProjectList projects={linkedProjects} />
@@ -384,7 +384,7 @@ function Metric({ label, value }) {
 
 function GitHubDashboardSkeleton() {
   return (
-    <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:h-[154px] xl:grid-cols-[220px_minmax(0,1fr)_250px_250px]">
+    <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:h-[184px] xl:grid-cols-[220px_minmax(0,1fr)_250px_250px]">
       {Array.from({ length: 4 }).map((_, index) => (
         <div key={index} className="h-36 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800 xl:h-full" />
       ))}
@@ -424,7 +424,7 @@ function CommitStatCards({ points }) {
   const maxValue = Math.max(...points.map((point) => point.value), 1)
 
   return (
-    <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-950 xl:h-[102px]">
+    <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-950">
       <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Totals</h4>
       <div className="mt-1.5 grid gap-1">
         {points.map((point) => (
@@ -451,14 +451,14 @@ function CommitHeatmap({ days }) {
   const maxValue = Math.max(...values.map((day) => day.count || 0), 1)
 
   return (
-    <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-950 xl:h-[102px]">
+    <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-950">
       <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Calendar</h4>
-      <div className="mt-1.5 grid grid-cols-7 gap-1">
+      <div className="mt-2 grid grid-cols-7 gap-1">
         {values.map((day) => (
           <span
             key={day.date}
             title={`${day.date}: ${day.count || 0} commits`}
-            className={`aspect-square rounded-[3px] ${heatmapClass(day.count || 0, maxValue)}`}
+            className={`h-2.5 w-2.5 rounded-[3px] ${heatmapClass(day.count || 0, maxValue)}`}
           />
         ))}
       </div>
