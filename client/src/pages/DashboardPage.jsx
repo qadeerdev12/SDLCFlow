@@ -338,7 +338,7 @@ function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
           Reconnect GitHub to refresh repository permissions and load dashboard stats.
         </div>
       ) : dashboard?.connected ? (
-        <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-[230px_minmax(0,1fr)_260px_260px]">
+        <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:h-[154px] xl:grid-cols-[220px_minmax(0,1fr)_250px_250px] xl:items-stretch">
           <GitHubMetricGrid stats={stats} />
           <CommitGraphOptions stats={commitGraph} />
           <LinkedProjectList projects={linkedProjects} />
@@ -355,7 +355,7 @@ function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
 
 function GitHubMetricGrid({ stats }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2 xl:h-full">
       <MiniMetric label="Repos" value={stats.repositories ?? 0} />
       <MiniMetric label="Private" value={stats.privateRepositories ?? 0} />
       <MiniMetric label="Projects" value={stats.linkedProjects ?? 0} />
@@ -384,9 +384,9 @@ function Metric({ label, value }) {
 
 function GitHubDashboardSkeleton() {
   return (
-    <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-[230px_minmax(0,1fr)_260px_260px]">
+    <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:h-[154px] xl:grid-cols-[220px_minmax(0,1fr)_250px_250px]">
       {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="h-36 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+        <div key={index} className="h-36 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800 xl:h-full" />
       ))}
     </div>
   )
@@ -402,7 +402,7 @@ function CommitGraphOptions({ stats }) {
   ]
 
   return (
-    <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+    <div className="overflow-hidden rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-800 xl:h-full">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Commit activity</h3>
@@ -412,7 +412,7 @@ function CommitGraphOptions({ stats }) {
         </span>
       </div>
 
-      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+      <div className="mt-2 grid gap-2 xl:grid-cols-2">
         <CommitStatCards points={points} />
         <CommitHeatmap days={recentDays} />
       </div>
@@ -424,11 +424,11 @@ function CommitStatCards({ points }) {
   const maxValue = Math.max(...points.map((point) => point.value), 1)
 
   return (
-    <div className="rounded-lg bg-zinc-50 p-2.5 dark:bg-zinc-950">
+    <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-950 xl:h-[102px]">
       <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Totals</h4>
-      <div className="mt-2 grid gap-1.5">
+      <div className="mt-1.5 grid gap-1">
         {points.map((point) => (
-          <div key={point.label} className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
+          <div key={point.label} className="rounded-lg border border-zinc-200 bg-white px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900">
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{point.label}</span>
               <span className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">{point.value}</span>
@@ -451,9 +451,9 @@ function CommitHeatmap({ days }) {
   const maxValue = Math.max(...values.map((day) => day.count || 0), 1)
 
   return (
-    <div className="rounded-lg bg-zinc-50 p-2.5 dark:bg-zinc-950">
+    <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-950 xl:h-[102px]">
       <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Calendar</h4>
-      <div className="mt-2 grid grid-cols-7 gap-1">
+      <div className="mt-1.5 grid grid-cols-7 gap-1">
         {values.map((day) => (
           <span
             key={day.date}
@@ -462,7 +462,7 @@ function CommitHeatmap({ days }) {
           />
         ))}
       </div>
-      <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Last 35 days</p>
+      <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">Last 35 days</p>
     </div>
   )
 }
@@ -481,10 +481,10 @@ function LinkedProjectList({ projects }) {
   const hiddenCount = Math.max(projects.length - visibleProjects.length, 0)
 
   return (
-    <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+    <div className="overflow-hidden rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-800 xl:h-full">
       <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Linked project repos</h3>
       {projects.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Link a repository inside a project to see it here.</p>
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Link a repo inside a project to see it here.</p>
       ) : (
         <div className="mt-2 space-y-1.5">
           {visibleProjects.map((project) => (
@@ -512,19 +512,21 @@ function LinkedProjectList({ projects }) {
 }
 
 function LanguagePanel({ languages, total }) {
+  const visibleLanguages = languages.slice(0, 3)
+  const hiddenCount = Math.max(languages.length - visibleLanguages.length, 0)
   const topCount = Math.max(...languages.map((language) => language.count), 1)
 
   return (
-    <aside className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+    <aside className="overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-800 dark:bg-zinc-950 xl:h-full">
       <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Repository languages</h3>
       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-        Primary language count across {pluralize(total, 'repo')} returned by GitHub.
+        Primary language across {pluralize(total, 'repo')}.
       </p>
-      {languages.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">No language data yet.</p>
+      {visibleLanguages.length === 0 ? (
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">No language data yet.</p>
       ) : (
-        <div className="mt-3 space-y-2">
-          {languages.map((language) => (
+        <div className="mt-2 space-y-1.5">
+          {visibleLanguages.map((language) => (
             <div key={language.name}>
               <div className="flex items-center justify-between gap-3 text-xs">
                 <span className="font-semibold text-zinc-700 dark:text-zinc-200">{language.name}</span>
@@ -538,6 +540,7 @@ function LanguagePanel({ languages, total }) {
               </div>
             </div>
           ))}
+          {hiddenCount > 0 && <p className="text-xs text-zinc-500 dark:text-zinc-400">+ {pluralize(hiddenCount, 'more language')}</p>}
         </div>
       )}
     </aside>
