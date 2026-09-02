@@ -497,21 +497,22 @@ describe.sequential('REST board permissions', () => {
       .post(`/api/v1/boards/${board._id}/workflows`)
       .set('Authorization', `Bearer ${admin.token}`)
       .send({
-        name: 'Bug triage',
-        templateKey: 'bug-triage',
-        icon: 'bug',
-        color: 'rose',
+        name: 'API Roadmap',
+        icon: 'workflow',
+        color: 'slate',
         position: 2000,
       })
       .expect(201);
 
     expect(created.body.data.workflow).toMatchObject({
-      name: 'Bug triage',
-      templateKey: 'bug-triage',
-      icon: 'bug',
-      color: 'rose',
+      name: 'API Roadmap',
+      templateKey: 'custom',
+      icon: 'workflow',
+      color: 'slate',
       position: 2000,
     });
+    expect(created.body.data.lists).toEqual([]);
+    expect(created.body.data.cards).toEqual([]);
     expect(created.body.data.activity.action).toBe('workflow.created');
 
     const workflows = await request(app)
@@ -520,7 +521,7 @@ describe.sequential('REST board permissions', () => {
       .expect(200);
 
     expect(workflows.body.data.workflows).toHaveLength(2);
-    expect(workflows.body.data.workflows.map((workflow) => workflow.name)).toEqual(['General', 'Bug triage']);
+    expect(workflows.body.data.workflows.map((workflow) => workflow.name)).toEqual(['General', 'API Roadmap']);
     await expect(Workflow.countDocuments({ board: board._id })).resolves.toBe(2);
     await expect(Activity.countDocuments({ board: board._id, action: 'workflow.created' })).resolves.toBe(1);
   });

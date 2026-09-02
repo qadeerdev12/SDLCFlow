@@ -125,6 +125,91 @@ function BoardEmptyState({ boardName, workflowName }) {
   )
 }
 
+function ProjectWelcomeState({
+  boardName,
+  templates,
+  templatesLoading,
+  pendingTemplateId,
+  canAdd,
+  onAddWorkflow,
+  onQuickStart,
+}) {
+  const quickStarts = ['software-sprint', 'bug-triage', 'release-plan']
+    .map((templateId) => templates.find((template) => template.id === templateId))
+    .filter(Boolean)
+
+  return (
+    <div className="grid min-h-[430px] w-full place-items-center rounded-lg border border-dashed border-teal-200 bg-white px-4 py-10 text-center shadow-sm dark:border-teal-500/20 dark:bg-zinc-900">
+      <div className="w-full max-w-3xl">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-lg bg-teal-600 text-white shadow-lg shadow-teal-600/20 dark:bg-teal-400 dark:text-zinc-950">
+          <BoardIcon value="workflow" className="h-7 w-7" />
+        </div>
+        <p className="mt-5 text-lg font-semibold text-zinc-950 dark:text-zinc-100">
+          {boardName} is ready for its first workflow.
+        </p>
+        <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+          Add a project area for the kind of work you want to manage first. You can keep General for custom lists, or start with a ready-made software workflow.
+        </p>
+
+        <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={onAddWorkflow}
+            disabled={!canAdd}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
+            Add workflow
+          </button>
+          {!canAdd && (
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Ask an owner or admin to add workflows.</span>
+          )}
+        </div>
+
+        {canAdd && (
+          <div className="mt-6 grid gap-2 sm:grid-cols-3">
+            {templatesLoading && quickStarts.length === 0 ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-[92px] animate-pulse rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950" />
+              ))
+            ) : (
+              quickStarts.map((template) => {
+                const pending = pendingTemplateId === template.id
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => onQuickStart(template)}
+                    disabled={Boolean(pendingTemplateId)}
+                    className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-teal-300 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-teal-500/50 dark:hover:bg-teal-500/10"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+                        <BoardIcon value={template.icon || template.emoji || 'workflow'} className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+                          {pending ? 'Adding...' : template.name}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
+                          {template.lists.length} lists · {template.cards.length} cards
+                        </span>
+                      </span>
+                    </span>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function WorkflowSwitcher({ workflows, activeWorkflowId, onSelect, onAdd, canAdd, listsByWorkflow, cardsByWorkflow }) {
   if (workflows.length <= 1 && !canAdd) return null
 
@@ -188,11 +273,14 @@ function AddWorkflowModal({
   onClose,
   onCreate,
 }) {
+  const CUSTOM_TEMPLATE_ID = 'custom'
   const [templateId, setTemplateId] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const selectedTemplate = templates.find((template) => template.id === templateId)
+  const customSelected = templateId === CUSTOM_TEMPLATE_ID
+  const canSubmit = customSelected ? Boolean(name.trim()) : Boolean(selectedTemplate)
 
   useEffect(() => {
     function onKeyDown(e) {
@@ -207,17 +295,30 @@ function AddWorkflowModal({
     if (!name.trim()) setName(template.name)
   }
 
+  function chooseCustomWorkflow() {
+    setTemplateId(CUSTOM_TEMPLATE_ID)
+    if (!name.trim()) setName('Custom Workflow')
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!selectedTemplate || submitting) return
+    if (!canSubmit || submitting) return
 
     setSubmitting(true)
     setError('')
     try {
-      await onCreate({
-        workflowTemplateId: selectedTemplate.id,
-        name: name.trim() || selectedTemplate.name,
-      })
+      const workflowName = name.trim()
+      await onCreate(customSelected
+        ? {
+            name: workflowName,
+            templateKey: 'custom',
+            icon: 'workflow',
+            color: 'slate',
+          }
+        : {
+            workflowTemplateId: selectedTemplate.id,
+            name: workflowName || selectedTemplate.name,
+          })
       onClose()
     } catch (err) {
       setError(err.message)
@@ -234,8 +335,8 @@ function AddWorkflowModal({
         <form onSubmit={handleSubmit}>
           <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
             <div>
-              <h2 className="font-semibold text-zinc-950 dark:text-zinc-100">Add workflow</h2>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Create another project area from a software workflow template.</p>
+              <h2 className="font-semibold text-zinc-950 dark:text-zinc-100">Add project workflow</h2>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Choose a workflow template or start with an empty custom project area.</p>
             </div>
             <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -250,14 +351,43 @@ function AddWorkflowModal({
               <div className="mb-3 flex items-end justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Templates</p>
-                  <h3 className="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-100">Pick the workflow type</h3>
+                  <h3 className="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-100">Choose a workflow type</h3>
                 </div>
                 <span className="rounded-full border border-zinc-200 px-2 py-1 text-[11px] font-semibold text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  {templatesLoading ? 'Loading' : `${templates.length} ready`}
+                  {templatesLoading ? 'Loading' : `${templates.length + 1} ready`}
                 </span>
               </div>
 
               <div className="grid max-h-[52vh] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={chooseCustomWorkflow}
+                  aria-pressed={customSelected}
+                  className={`rounded-lg border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                    customSelected
+                      ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/15 dark:border-teal-400 dark:bg-teal-500/10'
+                      : 'border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+                        <BoardIcon value="workflow" className="h-[18px] w-[18px]" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-zinc-950 dark:text-zinc-100">Custom Workflow</span>
+                        <span className="mt-0.5 block text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                          Empty workflow · no starter cards
+                        </span>
+                      </span>
+                    </div>
+                    <span className={`mt-1 h-3 w-3 shrink-0 rounded-full border ${
+                      customSelected ? 'border-teal-600 bg-teal-600 dark:border-teal-300 dark:bg-teal-300' : 'border-zinc-300 dark:border-zinc-700'
+                    }`} />
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-zinc-600 dark:text-zinc-400">Create a blank project area and define your own lists, cards, labels, and rhythm.</p>
+                </button>
+
                 {templatesLoading && Array.from({ length: 4 }).map((_, index) => (
                   <div key={index} className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
                     <div className="flex items-center gap-2">
@@ -317,11 +447,15 @@ function AddWorkflowModal({
                     <BoardIcon value={selectedTemplate?.icon || selectedTemplate?.emoji || 'workflow'} className="h-5 w-5" />
                   </span>
                   <span className="min-w-0">
-                    <span className={`block truncate font-semibold ${selectedTemplate ? 'text-zinc-950 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-600'}`}>
-                      {name.trim() || selectedTemplate?.name || 'Choose a workflow'}
+                    <span className={`block truncate font-semibold ${selectedTemplate || customSelected ? 'text-zinc-950 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-600'}`}>
+                      {name.trim() || selectedTemplate?.name || (customSelected ? 'Custom Workflow' : 'Choose a workflow')}
                     </span>
                     <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">
-                      {selectedTemplate ? `${selectedTemplate.lists.length} lists and ${selectedTemplate.cards.length} starter cards` : 'Template details will appear here.'}
+                      {customSelected
+                        ? 'Empty workflow ready for your own structure.'
+                        : selectedTemplate
+                          ? `${selectedTemplate.lists.length} lists and ${selectedTemplate.cards.length} starter cards`
+                          : 'Template details will appear here.'}
                     </span>
                   </span>
                 </div>
@@ -339,6 +473,15 @@ function AddWorkflowModal({
                   className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                 />
               </div>
+
+              {customSelected && (
+                <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Starts empty</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                    After creating it, add lists such as Discovery, Next, In Progress, Review, or anything your project needs.
+                  </p>
+                </div>
+              )}
 
               {selectedTemplate && (
                 <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
@@ -361,7 +504,7 @@ function AddWorkflowModal({
             <button type="button" onClick={onClose} className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
               Cancel
             </button>
-            <button type="submit" disabled={!selectedTemplate || submitting} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-600/20 transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="submit" disabled={!canSubmit || submitting} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-600/20 transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50">
               {submitting ? 'Adding...' : 'Add workflow'}
             </button>
           </div>
@@ -383,6 +526,7 @@ export default function BoardPage() {
   const [workflows, setWorkflows] = useState([])
   const [activeWorkflowId, setActiveWorkflowId] = useState('')
   const [addingWorkflow, setAddingWorkflow] = useState(false)
+  const [quickWorkflowId, setQuickWorkflowId] = useState('')
   const [workflowTemplates, setWorkflowTemplates] = useState([])
   const [workflowTemplatesLoading, setWorkflowTemplatesLoading] = useState(true)
   const [workflowTemplatesError, setWorkflowTemplatesError] = useState('')
@@ -450,6 +594,16 @@ export default function BoardPage() {
     () => Object.values(activeCardsByList).reduce((sum, cards) => sum + cards.length, 0),
     [activeCardsByList]
   )
+  const totalBoardCardCount = useMemo(
+    () => Object.values(cardsByList).reduce((sum, cards) => sum + cards.length, 0),
+    [cardsByList]
+  )
+  // A brand-new project is a container with only the default workflow. Once the
+  // user adds any workflow, list, or card, the board returns to normal empty/list states.
+  const showProjectWelcome = workflows.length === 1
+    && workflows[0]?.templateKey === 'default'
+    && lists.length === 0
+    && totalBoardCardCount === 0
   const filtersActive = Boolean(cardSearch.trim()) || tagFilter !== 'all' || statusFilter !== 'all'
   const activityPanelOpen = searchParams.get('panel') === 'activity'
   const chatPanelOpen = searchParams.get('panel') === 'chat'
@@ -1188,6 +1342,22 @@ export default function BoardPage() {
     toast.success('Workflow added', workflow.name)
   }
 
+  async function handleQuickStartWorkflow(template) {
+    if (!template || quickWorkflowId) return
+
+    setQuickWorkflowId(template.id)
+    try {
+      await handleAddWorkflow({
+        workflowTemplateId: template.id,
+        name: template.name,
+      })
+    } catch (err) {
+      toast.error('Could not add workflow', err.message)
+    } finally {
+      setQuickWorkflowId('')
+    }
+  }
+
   async function handleSendMessage(body) {
     const pendingMessage = buildPendingMessage(body)
     appendMessage(pendingMessage)
@@ -1578,70 +1748,72 @@ export default function BoardPage() {
         cardsByWorkflow={cardsByWorkflow}
       />
 
-      <section className="mx-4 mt-4 flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center">
-        <label className="relative min-w-0 flex-1">
-          <span className="sr-only">Search cards</span>
-          <svg className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-          <input
-            value={cardSearch}
-            onChange={(e) => setCardSearch(e.target.value)}
-            placeholder="Search title or description"
-            className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 pl-9 pr-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-950"
-          />
-        </label>
-
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-          <label>
-            <span className="sr-only">Filter by tag</span>
-            <select
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-700 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:focus:bg-zinc-950 sm:w-36"
-            >
-              <option value="all">All tags</option>
-              {CARD_TAGS.map((tag) => (
-                <option key={tag} value={tag}>{tag}</option>
-              ))}
-            </select>
+      {!showProjectWelcome && (
+        <section className="mx-4 mt-4 flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center">
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">Search cards</span>
+            <svg className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              value={cardSearch}
+              onChange={(e) => setCardSearch(e.target.value)}
+              placeholder="Search title or description"
+              className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 pl-9 pr-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-950"
+            />
           </label>
 
-          <label>
-            <span className="sr-only">Filter by status</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-700 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:focus:bg-zinc-950 sm:w-40"
-            >
-              <option value="all">All statuses</option>
-              {CARD_STATUSES.map((status) => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-          </label>
-        </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+            <label>
+              <span className="sr-only">Filter by tag</span>
+              <select
+                value={tagFilter}
+                onChange={(e) => setTagFilter(e.target.value)}
+                className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-700 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:focus:bg-zinc-950 sm:w-36"
+              >
+                <option value="all">All tags</option>
+                {CARD_TAGS.map((tag) => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+            </label>
 
-        <div className="flex items-center justify-between gap-3 md:justify-end">
-          <span className="whitespace-nowrap text-xs font-medium text-zinc-500 dark:text-zinc-400">
-            {filtersActive ? `${filteredCardCount} of ${totalCardCount} shown` : `${totalCardCount} cards in ${activeWorkflow?.name || 'this workflow'}`}
-          </span>
-          {filtersActive && (
-            <button
-              type="button"
-              onClick={() => {
-                setCardSearch('')
-                setTagFilter('all')
-                setStatusFilter('all')
-              }}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      </section>
+            <label>
+              <span className="sr-only">Filter by status</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-700 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:focus:bg-zinc-950 sm:w-40"
+              >
+                <option value="all">All statuses</option>
+                {CARD_STATUSES.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 md:justify-end">
+            <span className="whitespace-nowrap text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              {filtersActive ? `${filteredCardCount} of ${totalCardCount} shown` : `${totalCardCount} cards in ${activeWorkflow?.name || 'this workflow'}`}
+            </span>
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCardSearch('')
+                  setTagFilter('all')
+                  setStatusFilter('all')
+                }}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {connectionError && !connected && (
         <div className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
@@ -1674,25 +1846,37 @@ export default function BoardPage() {
         onDragEnd={handleDragEnd}
       >
         <div className="flex min-h-[calc(100dvh-238px)] gap-4 overflow-x-auto px-4 py-4 sm:min-h-[calc(100dvh-204px)] lg:min-h-[calc(100dvh-164px)]">
-          <SortableContext items={activeLists.map((l) => l._id)} strategy={horizontalListSortingStrategy}>
-            {activeLists.map((list) => (
-              <BoardColumn
-                key={list._id}
-                list={list}
-                cards={visibleCardsByList[list._id] || []}
-                totalCards={(cardsByList[list._id] || []).length}
-                filtersActive={filtersActive}
-                draft={cardDrafts[list._id]}
-                onDraftChange={setDraftForList}
-                onAddCard={handleAddCard}
-                onCardOpen={setSelectedCard}
-                onListRename={handleRenameList}
-                onListDelete={handleDeleteList}
-              />
-            ))}
-          </SortableContext>
+          {showProjectWelcome ? (
+            <ProjectWelcomeState
+              boardName={board.name}
+              templates={workflowTemplates}
+              templatesLoading={workflowTemplatesLoading}
+              pendingTemplateId={quickWorkflowId}
+              canAdd={canEditBoard}
+              onAddWorkflow={() => setAddingWorkflow(true)}
+              onQuickStart={handleQuickStartWorkflow}
+            />
+          ) : (
+            <SortableContext items={activeLists.map((l) => l._id)} strategy={horizontalListSortingStrategy}>
+              {activeLists.map((list) => (
+                <BoardColumn
+                  key={list._id}
+                  list={list}
+                  cards={visibleCardsByList[list._id] || []}
+                  totalCards={(cardsByList[list._id] || []).length}
+                  filtersActive={filtersActive}
+                  draft={cardDrafts[list._id]}
+                  onDraftChange={setDraftForList}
+                  onAddCard={handleAddCard}
+                  onCardOpen={setSelectedCard}
+                  onListRename={handleRenameList}
+                  onListDelete={handleDeleteList}
+                />
+              ))}
+            </SortableContext>
+          )}
 
-          {activeLists.length === 0 && (
+          {!showProjectWelcome && activeLists.length === 0 && (
             <BoardEmptyState boardName={board.name} workflowName={activeWorkflow?.name} />
           )}
         </div>
