@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
-import { boardApi } from '../lib/api'
+import { boardApi, integrationApi } from '../lib/api'
 import AppHeader from '../components/AppHeader'
 import BoardCard from '../components/BoardCard'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -26,6 +26,9 @@ export default function DashboardPage() {
   const [boards, setBoards] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [githubDashboard, setGithubDashboard] = useState(null)
+  const [githubLoading, setGithubLoading] = useState(true)
+  const [githubError, setGithubError] = useState('')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
@@ -35,13 +38,30 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadDashboard() {
+      setLoading(true)
+      setGithubLoading(true)
+      setError('')
+      setGithubError('')
       try {
-        const boardsRes = await boardApi.list(token)
-        setBoards(boardsRes.data.boards)
-      } catch (err) {
-        setError(err.message)
+        const [boardsResult, githubResult] = await Promise.allSettled([
+          boardApi.list(token),
+          integrationApi.getGitHubDashboard(token),
+        ])
+
+        if (boardsResult.status === 'fulfilled') {
+          setBoards(boardsResult.value.data.boards)
+        } else {
+          setError(boardsResult.reason.message)
+        }
+
+        if (githubResult.status === 'fulfilled') {
+          setGithubDashboard(githubResult.value.data)
+        } else {
+          setGithubError(githubResult.reason.message)
+        }
       } finally {
         setLoading(false)
+        setGithubLoading(false)
       }
 
     }
@@ -154,6 +174,13 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        <GitHubDashboardPanel
+          dashboard={githubDashboard}
+          loading={githubLoading}
+          error={githubError}
+          onManage={() => navigate('/profile')}
+        />
+
         <section className="mb-5 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative min-w-0 flex-1">
@@ -265,6 +292,80 @@ export default function DashboardPage() {
   )
 }
 
+function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
+  const stats = dashboard?.stats || {}
+  const languages = dashboard?.languages || []
+  const recentRepositories = dashboard?.recentRepositories || []
+  const linkedProjects = dashboard?.linkedProjects || []
+
+  return (
+    <section className="mb-5 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+              <GitHubIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">GitHub</p>
+              <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-100">Development dashboard</h2>
+            </div>
+          </div>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+            {dashboard?.connected
+              ? `Connected as @${dashboard.account?.username || 'GitHub'}. Track repositories, linked projects, and recent development activity from one place.`
+              : 'Connect GitHub to bring repository context into your SDLCFlow projects.'}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onManage}
+          className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-zinc-200 px-3 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:w-auto"
+        >
+          {dashboard?.connected ? 'Manage GitHub' : 'Connect GitHub'}
+        </button>
+      </div>
+
+      {loading ? (
+        <GitHubDashboardSkeleton />
+      ) : error ? (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {error}
+        </div>
+      ) : dashboard?.needsReconnect ? (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          Reconnect GitHub to refresh repository permissions and load dashboard stats.
+        </div>
+      ) : dashboard?.connected ? (
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="min-w-0">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Metric label="Repositories" value={stats.repositories ?? 0} />
+              <Metric label="Private repos" value={stats.privateRepositories ?? 0} />
+              <Metric label="Linked projects" value={stats.linkedProjects ?? 0} />
+              <Metric label="Linked repos" value={stats.linkedRepositories ?? 0} />
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <RepoList title="Recently updated" repositories={recentRepositories} emptyText="No repositories returned yet." />
+              <LinkedProjectList projects={linkedProjects} />
+            </div>
+          </div>
+
+          <LanguagePanel languages={languages} total={stats.repositories || 0} />
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <Metric label="Repositories" value="-" />
+          <Metric label="Linked projects" value="-" />
+          <Metric label="Recent activity" value="-" />
+        </div>
+      )}
+    </section>
+  )
+}
+
 function Metric({ label, value }) {
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
@@ -272,6 +373,128 @@ function Metric({ label, value }) {
       <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
     </div>
   )
+}
+
+function GitHubDashboardSkeleton() {
+  return (
+    <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-[74px] animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+          ))}
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="h-44 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+          <div className="h-44 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+        </div>
+      </div>
+      <div className="h-full min-h-44 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+    </div>
+  )
+}
+
+function RepoList({ title, repositories, emptyText }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+      <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">{title}</h3>
+      {repositories.length === 0 ? (
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">{emptyText}</p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {repositories.map((repo) => (
+            <a
+              key={repo.id || repo.fullName}
+              href={repo.htmlUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block rounded-lg px-2 py-2 transition hover:bg-zinc-50 dark:hover:bg-zinc-800"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{repo.fullName}</p>
+                <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {repo.private ? 'Private' : 'Public'}
+                </span>
+              </div>
+              <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                {repo.language || 'No primary language'}{repo.updatedAt ? ` - Updated ${formatShortDate(repo.updatedAt)}` : ''}
+              </p>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LinkedProjectList({ projects }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+      <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Linked project repos</h3>
+      {projects.length === 0 ? (
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Link a repository inside a project to see it here.</p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {projects.map((project) => (
+            <a
+              key={project.id}
+              href={project.repoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block rounded-lg px-2 py-2 transition hover:bg-zinc-50 dark:hover:bg-zinc-800"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {project.board?.name || 'Project'}
+                </p>
+                <span className="shrink-0 text-xs text-zinc-400">{project.language || 'Repo'}</span>
+              </div>
+              <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">{project.repoFullName}</p>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LanguagePanel({ languages, total }) {
+  const topCount = Math.max(...languages.map((language) => language.count), 1)
+
+  return (
+    <aside className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Top languages</h3>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        Based on the first {total} repos returned by GitHub.
+      </p>
+      {languages.length === 0 ? (
+        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">No language data yet.</p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {languages.map((language) => (
+            <div key={language.name}>
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <span className="font-semibold text-zinc-700 dark:text-zinc-200">{language.name}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">{language.count}</span>
+              </div>
+              <div className="mt-1 h-2 rounded-full bg-zinc-200 dark:bg-zinc-800">
+                <div
+                  className="h-full rounded-full bg-teal-500"
+                  style={{ width: `${Math.max((language.count / topCount) * 100, 8)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </aside>
+  )
+}
+
+function formatShortDate(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'recently'
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
 }
 
 function BoardGridSkeleton() {
@@ -349,6 +572,14 @@ function LayoutIcon({ className = 'h-6 w-6' }) {
       <rect x="14" y="3" width="7" height="5" rx="1" />
       <rect x="14" y="12" width="7" height="9" rx="1" />
       <rect x="3" y="16" width="7" height="5" rx="1" />
+    </svg>
+  )
+}
+
+function GitHubIcon({ className = 'h-5 w-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2C6.48 2 2 6.58 2 12.24c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49v-1.9c-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.93.86.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05A9.31 9.31 0 0 1 12 6.9c.85 0 1.7.12 2.5.34 1.9-1.33 2.74-1.05 2.74-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.94-2.34 4.8-4.57 5.06.36.32.68.95.68 1.91v2.81c0 .27.18.59.69.49A10.13 10.13 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z" />
     </svg>
   )
 }

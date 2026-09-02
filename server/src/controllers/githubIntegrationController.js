@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import Board from '../models/Board.js';
 import GitHubAccount from '../models/GitHubAccount.js';
 import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
 import {
@@ -231,5 +232,105 @@ export async function getGitHubRepositories(req, res) {
   } catch (error) {
     console.error('Get GitHub repositories error:', error);
     return sendGitHubError(res, error, 'Could not load repositories from GitHub.');
+  }
+}
+
+// GET /api/v1/integrations/github/dashboard
+// Summarizes the connected user's GitHub footprint for the app dashboard.
+export async function getGitHubDashboard(req, res) {
+  try {
+    const account = await GitHubAccount.findOne({ user: req.user._id }).select('+accessToken');
+    if (!account) {
+      return res.status(200).json({
+        data: {
+          connected: false,
+          account: null,
+          stats: {
+            repositories: 0,
+            publicRepositories: 0,
+            privateRepositories: 0,
+            linkedProjects: 0,
+            linkedRepositories: 0,
+          },
+          languages: [],
+          recentRepositories: [],
+          linkedProjects: [],
+        },
+      });
+    }
+
+    if (!account.scopes.includes('repo')) {
+      return res.status(200).json({
+        data: {
+          connected: true,
+          needsReconnect: true,
+          account: safeAccountPayload(account),
+          stats: {
+            repositories: 0,
+            publicRepositories: 0,
+            privateRepositories: 0,
+            linkedProjects: 0,
+            linkedRepositories: 0,
+          },
+          languages: [],
+          recentRepositories: [],
+          linkedProjects: [],
+        },
+      });
+    }
+
+    const userBoards = await Board.find({ 'members.user': req.user._id }).select('_id');
+    const boardIds = userBoards.map((board) => board._id);
+    const [repositories, linkedIntegrations] = await Promise.all([
+      fetchGitHubRepositories(account.getAccessToken()),
+      BoardGitHubIntegration.find({ githubAccount: account._id, board: { $in: boardIds } })
+        .sort({ updatedAt: -1 })
+        .populate('board', 'name emoji color'),
+    ]);
+
+    account.lastSyncedAt = new Date();
+    await account.save();
+
+    const languageCounts = repositories.reduce((counts, repo) => {
+      if (!repo.language) return counts;
+      counts.set(repo.language, (counts.get(repo.language) || 0) + 1);
+      return counts;
+    }, new Map());
+    const languages = [...languageCounts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, 5);
+
+    const linkedProjects = linkedIntegrations.slice(0, 6).map((integration) => ({
+      id: integration._id,
+      board: integration.board,
+      repoFullName: integration.repoFullName,
+      repoUrl: integration.repoUrl,
+      language: integration.language,
+      private: integration.private,
+      lastSyncedAt: integration.lastSyncedAt,
+    }));
+
+    return res.status(200).json({
+      data: {
+        connected: true,
+        needsReconnect: false,
+        account: safeAccountPayload(account),
+        stats: {
+          repositories: repositories.length,
+          publicRepositories: repositories.filter((repo) => !repo.private).length,
+          privateRepositories: repositories.filter((repo) => repo.private).length,
+          linkedProjects: linkedIntegrations.length,
+          linkedRepositories: new Set(linkedIntegrations.map((repo) => repo.repoFullName)).size,
+        },
+        languages,
+        recentRepositories: repositories.slice(0, 5),
+        linkedProjects,
+        lastSyncedAt: account.lastSyncedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Get GitHub dashboard error:', error);
+    return sendGitHubError(res, error, 'Could not load GitHub dashboard.');
   }
 }

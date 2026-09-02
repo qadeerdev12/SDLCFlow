@@ -344,6 +344,108 @@ describe.sequential('REST board permissions', () => {
     }
   });
 
+  it('summarizes GitHub dashboard stats for the connected user', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const outsider = await register(app, 'Outsider', 'outsider@example.com');
+    const visibleBoard = await createBoardWithOwner(app, owner.token, 'Visible project');
+    const hiddenBoard = await createBoardWithOwner(app, outsider.token, 'Hidden project');
+    const account = await GitHubAccount.create({
+      user: owner.user.id,
+      githubId: '12345',
+      username: 'octocat',
+      accessToken: 'repo-token',
+      scopes: ['read:user', 'user:email', 'repo'],
+    });
+    await BoardGitHubIntegration.create({
+      board: visibleBoard._id,
+      connectedBy: owner.user.id,
+      githubAccount: account._id,
+      repoId: '1001',
+      repoOwner: 'octocat',
+      repoName: 'sdlcflow',
+      repoFullName: 'octocat/sdlcflow',
+      repoUrl: 'https://github.com/octocat/sdlcflow',
+      language: 'JavaScript',
+    });
+    await BoardGitHubIntegration.create({
+      board: hiddenBoard._id,
+      connectedBy: owner.user.id,
+      githubAccount: account._id,
+      repoId: '1002',
+      repoOwner: 'octocat',
+      repoName: 'hidden',
+      repoFullName: 'octocat/hidden',
+      repoUrl: 'https://github.com/octocat/hidden',
+      language: 'TypeScript',
+    });
+
+    const previousFetch = global.fetch;
+    global.fetch = async () => ({
+      ok: true,
+      json: async () => [
+        {
+          id: 1,
+          name: 'sdlcflow',
+          full_name: 'octocat/sdlcflow',
+          owner: { login: 'octocat' },
+          private: true,
+          html_url: 'https://github.com/octocat/sdlcflow',
+          description: 'Project management for builders',
+          default_branch: 'main',
+          language: 'JavaScript',
+          updated_at: '2026-09-02T00:00:00.000Z',
+        },
+        {
+          id: 2,
+          name: 'api',
+          full_name: 'octocat/api',
+          owner: { login: 'octocat' },
+          private: false,
+          html_url: 'https://github.com/octocat/api',
+          default_branch: 'main',
+          language: 'JavaScript',
+          updated_at: '2026-09-01T00:00:00.000Z',
+        },
+        {
+          id: 3,
+          name: 'docs',
+          full_name: 'octocat/docs',
+          owner: { login: 'octocat' },
+          private: false,
+          html_url: 'https://github.com/octocat/docs',
+          default_branch: 'main',
+          language: 'Markdown',
+          updated_at: '2026-08-31T00:00:00.000Z',
+        },
+      ],
+    });
+
+    try {
+      await request(app)
+        .get('/api/v1/integrations/github/dashboard')
+        .set('Authorization', `Bearer ${owner.token}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.data.connected).toBe(true);
+          expect(res.body.data.account.username).toBe('octocat');
+          expect(res.body.data.stats).toMatchObject({
+            repositories: 3,
+            publicRepositories: 2,
+            privateRepositories: 1,
+            linkedProjects: 1,
+            linkedRepositories: 1,
+          });
+          expect(res.body.data.languages[0]).toEqual({ name: 'JavaScript', count: 2 });
+          expect(res.body.data.recentRepositories[0].fullName).toBe('octocat/sdlcflow');
+          expect(res.body.data.linkedProjects).toHaveLength(1);
+          expect(res.body.data.linkedProjects[0].board.name).toBe('Visible project');
+        });
+    } finally {
+      global.fetch = previousFetch;
+    }
+  });
+
   it('enforces roles for project GitHub repository links', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

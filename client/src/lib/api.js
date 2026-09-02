@@ -87,6 +87,9 @@ export const integrationApi = {
   getGitHubAccount: (token) =>
     request('/integrations/github/account', { token }),
 
+  getGitHubDashboard: (token) =>
+    request('/integrations/github/dashboard', { token }),
+
   listGitHubRepos: (token) =>
     request('/integrations/github/repos', { token }),
 

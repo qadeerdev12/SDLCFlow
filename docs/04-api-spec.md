@@ -79,6 +79,7 @@ current client and older integrations.
 | GET | `/integrations/github/callback` | GitHub redirect | – | Redirects to client profile page |
 | GET | `/integrations/github/account` | ✅ | – | `200 { account }` |
 | DELETE | `/integrations/github/account` | ✅ | – | `200 { disconnected, revoked, unlinkedProjects }` |
+| GET | `/integrations/github/dashboard` | ✅ | – | `200 { connected, account, stats, languages, recentRepositories, linkedProjects }` |
 | GET | `/integrations/github/repos` | ✅ | – | `200 { repositories, lastSyncedAt }` |
 
 `GET /integrations/github/start` returns the authorization URL instead of
@@ -97,6 +98,9 @@ Disconnecting makes a best-effort token revoke call to GitHub, removes
 SDLCFlow's stored GitHub connection, and unlinks projects that depended on that
 account. GitHub rate limits return `429 GITHUB_RATE_LIMITED` with retry metadata
 when GitHub provides it.
+The GitHub dashboard endpoint combines the user's connected GitHub account,
+visible repositories, language counts, and project-level repository links for
+projects where the user is still a member.
 
 `repositories` are normalized to safe picker fields: `id`, `name`, `fullName`,
 `owner`, `private`, `htmlUrl`, `description`, `defaultBranch`, `language`, and
