@@ -78,6 +78,7 @@ current client and older integrations.
 | GET | `/integrations/github/start` | ✅ | – | `200 { authorizationUrl, scopes }` |
 | GET | `/integrations/github/callback` | GitHub redirect | – | Redirects to client profile page |
 | GET | `/integrations/github/account` | ✅ | – | `200 { account }` |
+| DELETE | `/integrations/github/account` | ✅ | – | `200 { disconnected: true }` |
 
 `GET /integrations/github/start` returns the authorization URL instead of
 redirecting immediately because protected REST routes need the SDLCFlow JWT in
@@ -89,6 +90,9 @@ The OAuth callback validates a signed `state`, exchanges GitHub's temporary
 against the SDLCFlow user. The current MVP requests `read:user user:email`.
 Repository access will be added in a later slice when the project-level repo
 picker is introduced.
+Disconnecting removes SDLCFlow's stored GitHub connection. Users can also revoke
+the OAuth app from GitHub settings if they want GitHub to invalidate issued
+tokens immediately.
 
 ### 2.4 Boards
 

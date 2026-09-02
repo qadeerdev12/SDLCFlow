@@ -174,6 +174,14 @@ describe.sequential('REST board permissions', () => {
         .set('Authorization', `Bearer ${owner.token}`)
         .expect(200);
       expect(account.body.data.account).toBeNull();
+
+      await request(app)
+        .delete('/api/v1/integrations/github/account')
+        .set('Authorization', `Bearer ${owner.token}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.data.disconnected).toBe(true);
+        });
     } finally {
       Object.entries(previousConfig).forEach(([key, value]) => {
         if (value === undefined) delete process.env[key];

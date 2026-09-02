@@ -145,3 +145,16 @@ export async function getGitHubAccount(req, res) {
     },
   });
 }
+
+// DELETE /api/v1/integrations/github/account
+// Removes SDLCFlow's stored connection. Users should also revoke the OAuth app
+// in GitHub settings if they want GitHub to invalidate already issued tokens.
+export async function disconnectGitHubAccount(req, res) {
+  await GitHubAccount.deleteOne({ user: req.user._id });
+
+  return res.status(200).json({
+    data: {
+      disconnected: true,
+    },
+  });
+}

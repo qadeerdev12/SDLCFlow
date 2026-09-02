@@ -77,7 +77,18 @@ export const authApi = {
             method: 'DELETE',
             body: { password },
             token
-        }),
+    }),
+}
+
+export const integrationApi = {
+  startGitHubOAuth: (token) =>
+    request('/integrations/github/start', { token }),
+
+  getGitHubAccount: (token) =>
+    request('/integrations/github/account', { token }),
+
+  disconnectGitHubAccount: (token) =>
+    request('/integrations/github/account', { method: 'DELETE', token }),
 }
 
 export const boardApi = {

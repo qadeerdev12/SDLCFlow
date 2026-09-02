@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppHeader from '../components/AppHeader'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
-import { authApi } from '../lib/api'
+import { authApi, integrationApi } from '../lib/api'
 
 function formatDate(value) {
   const date = new Date(value)
@@ -30,8 +30,13 @@ export default function ProfilePage() {
   const { user, token, logout, updateUser } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [profile, setProfile] = useState(null)
+  const [githubAccount, setGithubAccount] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [githubLoading, setGithubLoading] = useState(true)
+  const [githubBusy, setGithubBusy] = useState(false)
+  const [githubError, setGithubError] = useState('')
   const [error, setError] = useState('')
   const [name, setName] = useState(user?.name || '')
   const [email, setEmail] = useState(user?.email || '')
@@ -53,26 +58,52 @@ export default function ProfilePage() {
   useEffect(() => {
     let cancelled = false
 
-    async function loadProfile() {
+    async function loadAccount() {
       try {
         setLoading(true)
+        setGithubLoading(true)
         setError('')
-        const res = await authApi.getProfile(token)
+        setGithubError('')
+        const [profileRes, githubRes] = await Promise.all([
+          authApi.getProfile(token),
+          integrationApi.getGitHubAccount(token),
+        ])
         if (!cancelled) {
-          setProfile(res.data)
-          setName(res.data.user.name || '')
-          setEmail(res.data.user.email || '')
+          setProfile(profileRes.data)
+          setGithubAccount(githubRes.data.account)
+          setName(profileRes.data.user.name || '')
+          setEmail(profileRes.data.user.email || '')
         }
       } catch (err) {
         if (!cancelled) setError(err.message)
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setGithubLoading(false)
+        }
       }
     }
 
-    loadProfile()
+    loadAccount()
     return () => { cancelled = true }
   }, [token])
+
+  useEffect(() => {
+    const githubStatus = searchParams.get('github')
+    if (!githubStatus) return
+
+    if (githubStatus === 'connected') {
+      toast.success('GitHub connected', 'Your GitHub account is now linked to SDLCFlow.')
+    } else if (githubStatus === 'missing_code') {
+      toast.error('GitHub connection cancelled', 'GitHub did not return an authorization code.')
+    } else {
+      toast.error('GitHub connection failed', 'Please try connecting GitHub again.')
+    }
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('github')
+    setSearchParams(nextParams, { replace: true })
+  }, [searchParams, setSearchParams, toast])
 
   const account = profile?.user || user || {}
   const stats = profile?.stats || {}
@@ -158,6 +189,34 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleConnectGitHub() {
+    setGithubBusy(true)
+    setGithubError('')
+    try {
+      const res = await integrationApi.startGitHubOAuth(token)
+      window.location.href = res.data.authorizationUrl
+    } catch (err) {
+      setGithubError(err.message)
+      toast.error('Could not start GitHub connection', err.message)
+      setGithubBusy(false)
+    }
+  }
+
+  async function handleDisconnectGitHub() {
+    setGithubBusy(true)
+    setGithubError('')
+    try {
+      await integrationApi.disconnectGitHubAccount(token)
+      setGithubAccount(null)
+      toast.success('GitHub disconnected', 'Your GitHub account was removed from SDLCFlow.')
+    } catch (err) {
+      setGithubError(err.message)
+      toast.error('Could not disconnect GitHub', err.message)
+    } finally {
+      setGithubBusy(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
       <AppHeader />
@@ -215,6 +274,15 @@ export default function ProfilePage() {
         </section>
 
         <section className="mt-4 grid gap-4 lg:grid-cols-2">
+          <GitHubConnectionCard
+            account={githubAccount}
+            loading={githubLoading}
+            busy={githubBusy}
+            error={githubError}
+            onConnect={handleConnectGitHub}
+            onDisconnect={handleDisconnectGitHub}
+          />
+
           <form onSubmit={handleSaveProfile} className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Details</p>
@@ -397,6 +465,103 @@ export default function ProfilePage() {
         />
       )}
     </div>
+  )
+}
+
+function GitHubConnectionCard({ account, loading, busy, error, onConnect, onDisconnect }) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Integrations</p>
+          <h2 className="mt-2 text-lg font-semibold">GitHub connection</h2>
+          <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+            Connect your GitHub account so SDLCFlow can bring development context into your projects.
+          </p>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${account ? 'bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+          {account ? 'Connected' : 'Not connected'}
+        </span>
+      </div>
+
+      <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        {loading ? (
+          <div className="animate-pulse">
+            <div className="h-10 w-10 rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+            <div className="mt-3 h-4 w-36 rounded bg-zinc-200 dark:bg-zinc-800" />
+            <div className="mt-2 h-3 w-52 rounded bg-zinc-200 dark:bg-zinc-800" />
+          </div>
+        ) : account ? (
+          <div className="flex items-center gap-3">
+            {account.avatarUrl ? (
+              <img
+                src={account.avatarUrl}
+                alt=""
+                className="h-12 w-12 rounded-lg border border-zinc-200 object-cover dark:border-zinc-800"
+              />
+            ) : (
+              <span className="grid h-12 w-12 place-items-center rounded-lg bg-zinc-950 text-sm font-bold text-white dark:bg-white dark:text-zinc-950">
+                {initials(account.displayName || account.username)}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+                {account.displayName || account.username}
+              </p>
+              <a
+                href={account.profileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-0.5 block truncate text-sm text-teal-700 hover:text-teal-600 dark:text-teal-300 dark:hover:text-teal-200"
+              >
+                @{account.username}
+              </a>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Connected {formatDate(account.connectedAt)}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">No GitHub account connected yet.</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+              This first connection only reads your GitHub profile and email. Repository access comes next when we add project repo linking.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">
+          {error}
+        </p>
+      )}
+
+      <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+          Current scopes: <span className="font-semibold">read:user</span>, <span className="font-semibold">user:email</span>
+        </p>
+        {account ? (
+          <button
+            type="button"
+            onClick={onDisconnect}
+            disabled={busy}
+            className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-zinc-300 px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:w-auto"
+          >
+            {busy ? 'Disconnecting...' : 'Disconnect'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onConnect}
+            disabled={busy || loading}
+            className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto"
+          >
+            {busy ? 'Opening GitHub...' : 'Connect GitHub'}
+          </button>
+        )}
+      </div>
+    </section>
   )
 }
 
