@@ -101,6 +101,21 @@ tokens immediately.
 `owner`, `private`, `htmlUrl`, `description`, `defaultBranch`, `language`, and
 `updatedAt`.
 
+#### Project GitHub repository
+
+| Method | Path | Min role | Body | Returns |
+|---|---|---|---|---|
+| GET | `/boards/:boardId/integrations/github` | member | – | `200 { integration }` |
+| PUT | `/boards/:boardId/integrations/github` | admin | `{ id/repoId, fullName/repoFullName, htmlUrl/repoUrl, owner/repoOwner?, name/repoName?, defaultBranch?, private?, language? }` | `200 { integration, activity }` |
+| DELETE | `/boards/:boardId/integrations/github` | admin | – | `200 { unlinked, integration: null, activity }` |
+
+Project GitHub integrations link one repository to one board/project. Members
+can view the linked repo; owners/admins can link, change, or unlink it. The
+linking user must have a connected GitHub account. `PUT` accepts the normalized
+repository object returned by `GET /integrations/github/repos`, using either
+`fullName/htmlUrl/id` or the server names `repoFullName/repoUrl/repoId`.
+Linking and unlinking repositories creates project activity records.
+
 ### 2.4 Boards
 
 | Method | Path | Min role | Body | Returns |

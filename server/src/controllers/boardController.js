@@ -5,6 +5,7 @@ import Card from '../models/Card.js';
 import Comment from '../models/Comment.js';
 import Message from '../models/Message.js';
 import Workflow from '../models/Workflow.js';
+import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
 import { backfillBoardWorkItemsToDefaultWorkflow, ensureDefaultWorkflow } from '../services/workflowService.js';
@@ -171,6 +172,7 @@ export async function deleteBoard(req, res) {
     await Card.deleteMany({ board: board._id });
     await Comment.deleteMany({ board: board._id });
     await Message.deleteMany({ board: board._id });
+    await BoardGitHubIntegration.deleteMany({ board: board._id });
     await Workflow.deleteMany({ board: board._id });
     await List.deleteMany({ board: board._id });
     await Board.deleteOne({ _id: board._id });

@@ -17,6 +17,7 @@ import Comment from '../models/Comment.js';
 import Message from '../models/Message.js';
 import Workflow from '../models/Workflow.js';
 import GitHubAccount from '../models/GitHubAccount.js';
+import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
 
 let mongo;
 
@@ -38,6 +39,7 @@ afterEach(async () => {
     Message.deleteMany({}),
     Workflow.deleteMany({}),
     GitHubAccount.deleteMany({}),
+    BoardGitHubIntegration.deleteMany({}),
   ]);
 });
 
@@ -216,6 +218,116 @@ describe.sequential('REST board permissions', () => {
       .expect((res) => {
         expect(res.body.error.code).toBe('GITHUB_REPO_SCOPE_REQUIRED');
       });
+  });
+
+  it('enforces roles for project GitHub repository links', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const member = await register(app, 'Member', 'member@example.com');
+    const admin = await register(app, 'Admin', 'admin@example.com');
+    const outsider = await register(app, 'Outsider', 'outsider@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    await addMember(app, owner.token, board._id, member.user.email, 'member');
+    await addMember(app, owner.token, board._id, admin.user.email, 'admin');
+
+    await GitHubAccount.create({
+      user: owner.user.id,
+      githubId: '12345',
+      username: 'octocat',
+      accessToken: 'owner-token',
+      scopes: ['read:user', 'user:email', 'repo'],
+    });
+    await GitHubAccount.create({
+      user: admin.user.id,
+      githubId: '67890',
+      username: 'hubot',
+      accessToken: 'admin-token',
+      scopes: ['read:user', 'user:email', 'repo'],
+    });
+
+    await request(app)
+      .get(`/api/v1/boards/${board._id}/integrations/github`)
+      .set('Authorization', `Bearer ${outsider.token}`)
+      .expect(404);
+
+    const empty = await request(app)
+      .get(`/api/v1/boards/${board._id}/integrations/github`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .expect(200);
+    expect(empty.body.data.integration).toBeNull();
+
+    await request(app)
+      .put(`/api/v1/boards/${board._id}/integrations/github`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .send({
+        id: 'repo-1',
+        fullName: 'octocat/sdlcflow',
+        owner: 'octocat',
+        name: 'sdlcflow',
+        htmlUrl: 'https://github.com/octocat/sdlcflow',
+        defaultBranch: 'main',
+        private: true,
+      })
+      .expect(403);
+
+    const linked = await request(app)
+      .put(`/api/v1/boards/${board._id}/integrations/github`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        id: 'repo-1',
+        fullName: 'octocat/sdlcflow',
+        owner: 'octocat',
+        name: 'sdlcflow',
+        htmlUrl: 'https://github.com/octocat/sdlcflow',
+        defaultBranch: 'main',
+        private: true,
+        language: 'JavaScript',
+      })
+      .expect(200);
+
+    expect(linked.body.data.integration).toMatchObject({
+      repoId: 'repo-1',
+      repoOwner: 'octocat',
+      repoName: 'sdlcflow',
+      repoFullName: 'octocat/sdlcflow',
+      repoUrl: 'https://github.com/octocat/sdlcflow',
+      defaultBranch: 'main',
+      private: true,
+      language: 'JavaScript',
+    });
+    expect(linked.body.data.activity.action).toBe('github.repo_linked');
+
+    const visibleToMember = await request(app)
+      .get(`/api/v1/boards/${board._id}/integrations/github`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .expect(200);
+    expect(visibleToMember.body.data.integration.repoFullName).toBe('octocat/sdlcflow');
+
+    const changedByAdmin = await request(app)
+      .put(`/api/v1/boards/${board._id}/integrations/github`)
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({
+        repoId: 'repo-2',
+        repoOwner: 'hubot',
+        repoName: 'api',
+        repoFullName: 'hubot/api',
+        repoUrl: 'https://github.com/hubot/api',
+      })
+      .expect(200);
+    expect(changedByAdmin.body.data.integration.repoFullName).toBe('hubot/api');
+
+    await request(app)
+      .delete(`/api/v1/boards/${board._id}/integrations/github`)
+      .set('Authorization', `Bearer ${member.token}`)
+      .expect(403);
+
+    const unlinked = await request(app)
+      .delete(`/api/v1/boards/${board._id}/integrations/github`)
+      .set('Authorization', `Bearer ${admin.token}`)
+      .expect(200);
+    expect(unlinked.body.data.unlinked).toBe(true);
+    expect(unlinked.body.data.integration).toBeNull();
+    expect(unlinked.body.data.activity.action).toBe('github.repo_unlinked');
   });
 
   it('serves the workflow template catalog and keeps the old board-template alias', async () => {

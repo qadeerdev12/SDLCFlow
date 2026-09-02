@@ -14,6 +14,11 @@ import {
   deleteBoardChatMessage,
   getBoardMessages,
 } from '../controllers/messageController.js';
+import {
+  deleteBoardGitHubIntegration,
+  getBoardGitHubIntegration,
+  upsertBoardGitHubIntegration,
+} from '../controllers/boardGitHubIntegrationController.js';
 
 
 
@@ -36,6 +41,11 @@ router.delete('/:boardId/members/:userId', removeMember);
 
 // Activity
 router.get('/:boardId/activities', getActivities);
+
+// GitHub project integration
+router.get('/:boardId/integrations/github', getBoardGitHubIntegration);
+router.put('/:boardId/integrations/github', upsertBoardGitHubIntegration);
+router.delete('/:boardId/integrations/github', deleteBoardGitHubIntegration);
 
 // Workflows
 router.get('/:boardId/workflows', getWorkflows);

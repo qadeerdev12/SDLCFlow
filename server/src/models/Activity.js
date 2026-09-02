@@ -30,6 +30,8 @@ const activitySchema = new mongoose.Schema(
         'message.deleted',
         'chat.cleared',
         'workflow.created',
+        'github.repo_linked',
+        'github.repo_unlinked',
         'member.added',
         'member.role_updated',
         'member.removed',
@@ -37,7 +39,7 @@ const activitySchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ['board', 'list', 'card', 'member', 'message', 'workflow'],
+      enum: ['board', 'list', 'card', 'member', 'message', 'workflow', 'integration'],
       required: true,
     },
     targetId: {

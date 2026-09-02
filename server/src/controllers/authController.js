@@ -9,6 +9,7 @@ import Activity from "../models/Activity.js";
 import Message from "../models/Message.js";
 import Workflow from "../models/Workflow.js";
 import GitHubAccount from "../models/GitHubAccount.js";
+import BoardGitHubIntegration from "../models/BoardGitHubIntegration.js";
 
 //Helper: create a signed JWT carrying the user's id.
 // The token is signed with our secret so it can't be forged.
@@ -300,6 +301,7 @@ export async function deleteAccount(req, res) {
         await Promise.all([
             Comment.deleteMany({ board: { $in: ownedBoardIds } }),
             Message.deleteMany({ board: { $in: ownedBoardIds } }),
+            BoardGitHubIntegration.deleteMany({ board: { $in: ownedBoardIds } }),
             Card.deleteMany({ board: { $in: ownedBoardIds } }),
             List.deleteMany({ board: { $in: ownedBoardIds } }),
             Workflow.deleteMany({ board: { $in: ownedBoardIds } }),
@@ -321,6 +323,7 @@ export async function deleteAccount(req, res) {
             Message.deleteMany({ sender: user._id }),
             Activity.deleteMany({ actor: user._id }),
             GitHubAccount.deleteMany({ user: user._id }),
+            BoardGitHubIntegration.deleteMany({ connectedBy: user._id }),
             User.deleteOne({ _id: user._id }),
         ]);
 

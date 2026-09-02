@@ -119,6 +119,15 @@ export const boardApi = {
   getActivities: (boardId, token) =>
     request(`/boards/${boardId}/activities`, { token }),
 
+  getGitHubIntegration: (boardId, token) =>
+    request(`/boards/${boardId}/integrations/github`, { token }),
+
+  linkGitHubRepo: (boardId, repository, token) =>
+    request(`/boards/${boardId}/integrations/github`, { method: 'PUT', body: repository, token }),
+
+  unlinkGitHubRepo: (boardId, token) =>
+    request(`/boards/${boardId}/integrations/github`, { method: 'DELETE', token }),
+
   getMessages: (boardId, token) =>
     request(`/boards/${boardId}/messages`, { token }),
 
