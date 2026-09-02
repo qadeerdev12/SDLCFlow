@@ -1,7 +1,7 @@
 import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
 import GitHubAccount from '../models/GitHubAccount.js';
 import { recordActivity } from '../services/activityService.js';
-import { fetchGitHubCommits } from '../services/githubService.js';
+import { fetchGitHubCommits, fetchGitHubRepositoryStats } from '../services/githubService.js';
 import { getBoardIfRole } from '../utils/boardAccess.js';
 
 function sendIntegrationError(res, err) {
@@ -42,6 +42,20 @@ function serializeIntegration(integration) {
     createdAt: integration.createdAt,
     updatedAt: integration.updatedAt,
   };
+}
+
+async function getLinkedIntegrationWithToken(boardId) {
+  const integration = await BoardGitHubIntegration.findOne({ board: boardId }).populate({
+    path: 'githubAccount',
+    select: '+accessToken username',
+  });
+  if (!integration) {
+    throw makeError('Link a GitHub repository before loading GitHub data.', 409, 'GITHUB_REPO_NOT_LINKED');
+  }
+  if (!integration.githubAccount?.accessToken) {
+    throw makeError('Reconnect GitHub before loading GitHub data.', 409, 'GITHUB_RECONNECT_REQUIRED');
+  }
+  return integration;
 }
 
 function normalizeRepositoryPayload(body) {
@@ -175,16 +189,7 @@ export async function getBoardGitHubCommits(req, res) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
     }
 
-    const integration = await BoardGitHubIntegration.findOne({ board: board._id }).populate({
-      path: 'githubAccount',
-      select: '+accessToken username',
-    });
-    if (!integration) {
-      throw makeError('Link a GitHub repository before loading commits.', 409, 'GITHUB_REPO_NOT_LINKED');
-    }
-    if (!integration.githubAccount?.accessToken) {
-      throw makeError('Reconnect GitHub before loading commits.', 409, 'GITHUB_RECONNECT_REQUIRED');
-    }
+    const integration = await getLinkedIntegrationWithToken(board._id);
 
     const commits = await fetchGitHubCommits(
       integration.githubAccount.accessToken,
@@ -208,6 +213,41 @@ export async function getBoardGitHubCommits(req, res) {
     if (err.code || err.statusCode) return sendIntegrationError(res, err);
     return res.status(502).json({
       error: { code: 'GITHUB_REQUEST_FAILED', message: 'Could not load commits from GitHub.' },
+    });
+  }
+}
+
+// GET /api/v1/boards/:boardId/github/stats
+// Lightweight project-level GitHub health: open pull requests and open issues.
+export async function getBoardGitHubStats(req, res) {
+  try {
+    const board = await getBoardIfRole(req.params.boardId, req.user._id, ['owner', 'admin', 'member']);
+    if (!board) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Board not found.' } });
+    }
+
+    const integration = await getLinkedIntegrationWithToken(board._id);
+    const stats = await fetchGitHubRepositoryStats(
+      integration.githubAccount.accessToken,
+      integration.repoOwner,
+      integration.repoName
+    );
+
+    integration.lastSyncedAt = new Date();
+    await integration.save();
+
+    return res.status(200).json({
+      data: {
+        integration: serializeIntegration(integration),
+        stats,
+        lastSyncedAt: integration.lastSyncedAt,
+      },
+    });
+  } catch (err) {
+    console.error('Get board GitHub stats error:', err.message);
+    if (err.code || err.statusCode) return sendIntegrationError(res, err);
+    return res.status(502).json({
+      error: { code: 'GITHUB_REQUEST_FAILED', message: 'Could not load repository stats from GitHub.' },
     });
   }
 }

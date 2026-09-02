@@ -132,3 +132,29 @@ export async function fetchGitHubCommits(accessToken, owner, repo, { limit = 10,
     htmlUrl: item.html_url,
   }));
 }
+
+export async function fetchGitHubRepositoryStats(accessToken, owner, repo) {
+  async function searchCount(query) {
+    const params = new URLSearchParams({ q: query, per_page: '1' });
+    const response = await fetch(`${GITHUB_API_BASE}/search/issues?${params.toString()}`, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${accessToken}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+
+    const payload = await parseGitHubResponse(response);
+    return payload.total_count || 0;
+  }
+
+  const [openPullRequests, openIssues] = await Promise.all([
+    searchCount(`repo:${owner}/${repo} is:pr is:open`),
+    searchCount(`repo:${owner}/${repo} is:issue is:open`),
+  ]);
+
+  return {
+    openPullRequests,
+    openIssues,
+  };
+}

@@ -18,6 +18,7 @@ import {
   deleteBoardGitHubIntegration,
   getBoardGitHubCommits,
   getBoardGitHubIntegration,
+  getBoardGitHubStats,
   upsertBoardGitHubIntegration,
 } from '../controllers/boardGitHubIntegrationController.js';
 
@@ -48,6 +49,7 @@ router.get('/:boardId/integrations/github', getBoardGitHubIntegration);
 router.put('/:boardId/integrations/github', upsertBoardGitHubIntegration);
 router.delete('/:boardId/integrations/github', deleteBoardGitHubIntegration);
 router.get('/:boardId/github/commits', getBoardGitHubCommits);
+router.get('/:boardId/github/stats', getBoardGitHubStats);
 
 // Workflows
 router.get('/:boardId/workflows', getWorkflows);

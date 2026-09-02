@@ -597,12 +597,17 @@ function GitHubIntegrationPanel({
   commitsLoading,
   commitsError,
   commitsLoaded,
+  stats,
+  statsLoading,
+  statsError,
+  statsLoaded,
   canEdit,
   onClose,
   onRefreshRepos,
   onLinkRepo,
   onUnlinkRepo,
   onRefreshCommits,
+  onRefreshStats,
 }) {
   const [search, setSearch] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -737,6 +742,40 @@ function GitHubIntegrationPanel({
                     </div>
                   )}
                 </div>
+              )}
+
+              {integration && (
+                <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Repository pulse</h3>
+                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Open pull requests and issues for this project repo.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onRefreshStats}
+                      disabled={statsLoading}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    >
+                      {statsLoading ? 'Refreshing...' : statsLoaded ? 'Refresh' : 'Load'}
+                    </button>
+                  </div>
+
+                  {statsError && <PanelMessage tone="error" title="Could not load repository pulse" text={statsError} />}
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <GitHubStatCard
+                      label="Open PRs"
+                      value={statsLoading ? '-' : stats?.openPullRequests ?? '-'}
+                      description="Waiting for review or merge"
+                    />
+                    <GitHubStatCard
+                      label="Open issues"
+                      value={statsLoading ? '-' : stats?.openIssues ?? '-'}
+                      description="Tracked in GitHub"
+                    />
+                  </div>
+                </section>
               )}
 
               {integration && (
@@ -897,6 +936,16 @@ function PanelMessage({ tone = 'info', title, text }) {
   )
 }
 
+function GitHubStatCard({ label, value, description }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <p className="text-2xl font-semibold text-zinc-950 dark:text-zinc-100">{value}</p>
+      <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-teal-700 dark:text-teal-300">{label}</p>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{description}</p>
+    </div>
+  )
+}
+
 function GitHubMark({ className = 'h-4 w-4' }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -959,6 +1008,10 @@ export default function BoardPage() {
   const [githubCommitsLoaded, setGithubCommitsLoaded] = useState(false)
   const [githubCommitsLoading, setGithubCommitsLoading] = useState(false)
   const [githubCommitsError, setGithubCommitsError] = useState('')
+  const [githubStats, setGithubStats] = useState(null)
+  const [githubStatsLoaded, setGithubStatsLoaded] = useState(false)
+  const [githubStatsLoading, setGithubStatsLoading] = useState(false)
+  const [githubStatsError, setGithubStatsError] = useState('')
   const [cardSearch, setCardSearch] = useState('')
   const [tagFilter, setTagFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -1176,6 +1229,21 @@ export default function BoardPage() {
     }
   }, [boardId, token])
 
+  const loadGitHubStats = useCallback(async () => {
+    try {
+      setGithubStatsLoading(true)
+      setGithubStatsError('')
+      const res = await boardApi.getGitHubStats(boardId, token)
+      setGithubStats(res.data.stats || null)
+      setGithubIntegration(res.data.integration)
+      setGithubStatsLoaded(true)
+    } catch (err) {
+      setGithubStatsError(err.message)
+    } finally {
+      setGithubStatsLoading(false)
+    }
+  }, [boardId, token])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       loadBoard()
@@ -1237,6 +1305,14 @@ export default function BoardPage() {
   }, [githubCommitsLoaded, githubCommitsLoading, githubIntegration, githubPanelOpen, loadGitHubCommits])
 
   useEffect(() => {
+    if (!githubPanelOpen || !githubIntegration || githubStatsLoaded || githubStatsLoading) return undefined
+    const timer = setTimeout(() => {
+      loadGitHubStats()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [githubIntegration, githubPanelOpen, githubStatsLoaded, githubStatsLoading, loadGitHubStats])
+
+  useEffect(() => {
     if (!board || !chatPanelOpen || messagesLoaded) return undefined
     const timer = setTimeout(() => {
       loadMessages()
@@ -1261,6 +1337,9 @@ export default function BoardPage() {
       setGithubCommits([])
       setGithubCommitsLoaded(false)
       setGithubCommitsError('')
+      setGithubStats(null)
+      setGithubStatsLoaded(false)
+      setGithubStatsError('')
       typingTimersRef.current.forEach((typingTimer) => clearTimeout(typingTimer))
       typingTimersRef.current.clear()
     }, 0)
@@ -1863,6 +1942,9 @@ export default function BoardPage() {
       setGithubCommits([])
       setGithubCommitsLoaded(false)
       setGithubCommitsError('')
+      setGithubStats(null)
+      setGithubStatsLoaded(false)
+      setGithubStatsError('')
       prependActivity(res.data.activity)
       toast.success('GitHub repo linked', res.data.integration.repoFullName)
     } catch (err) {
@@ -1882,6 +1964,9 @@ export default function BoardPage() {
       setGithubCommits([])
       setGithubCommitsLoaded(false)
       setGithubCommitsError('')
+      setGithubStats(null)
+      setGithubStatsLoaded(false)
+      setGithubStatsError('')
       prependActivity(res.data.activity)
       toast.success('GitHub repo unlinked')
     } catch (err) {
@@ -1896,6 +1981,11 @@ export default function BoardPage() {
   async function handleRefreshGitHubCommits() {
     setGithubCommitsLoaded(false)
     await loadGitHubCommits()
+  }
+
+  async function handleRefreshGitHubStats() {
+    setGithubStatsLoaded(false)
+    await loadGitHubStats()
   }
 
   async function handleSendMessage(body) {
@@ -2507,12 +2597,17 @@ export default function BoardPage() {
           commitsLoading={githubCommitsLoading}
           commitsError={githubCommitsError}
           commitsLoaded={githubCommitsLoaded}
+          stats={githubStats}
+          statsLoading={githubStatsLoading}
+          statsError={githubStatsError}
+          statsLoaded={githubStatsLoaded}
           canEdit={canEditBoard}
           onClose={closeGitHubPanel}
           onRefreshRepos={handleRefreshGitHubRepos}
           onLinkRepo={handleLinkGitHubRepo}
           onUnlinkRepo={handleUnlinkGitHubRepo}
           onRefreshCommits={handleRefreshGitHubCommits}
+          onRefreshStats={handleRefreshGitHubStats}
         />
       )}
 

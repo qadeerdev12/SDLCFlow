@@ -131,6 +131,9 @@ export const boardApi = {
   getGitHubCommits: (boardId, token) =>
     request(`/boards/${boardId}/github/commits`, { token }),
 
+  getGitHubStats: (boardId, token) =>
+    request(`/boards/${boardId}/github/stats`, { token }),
+
   getMessages: (boardId, token) =>
     request(`/boards/${boardId}/messages`, { token }),
 

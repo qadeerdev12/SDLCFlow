@@ -109,6 +109,7 @@ tokens immediately.
 | PUT | `/boards/:boardId/integrations/github` | admin | `{ id/repoId, fullName/repoFullName, htmlUrl/repoUrl, owner/repoOwner?, name/repoName?, defaultBranch?, private?, language? }` | `200 { integration, activity }` |
 | DELETE | `/boards/:boardId/integrations/github` | admin | – | `200 { unlinked, integration: null, activity }` |
 | GET | `/boards/:boardId/github/commits` | member | – | `200 { integration, commits, lastSyncedAt }` |
+| GET | `/boards/:boardId/github/stats` | member | – | `200 { integration, stats, lastSyncedAt }` |
 
 Project GitHub integrations link one repository to one board/project. Members
 can view the linked repo; owners/admins can link, change, or unlink it. The
@@ -119,6 +120,8 @@ Linking and unlinking repositories creates project activity records.
 Members can load recent commits for the linked repository. Commit reads use the
 GitHub token associated with the linked repository, so collaborators do not need
 their own GitHub connection just to view project commit activity.
+Repository stats currently include `openPullRequests` and `openIssues`, also
+using the linked repository token.
 
 ### 2.4 Boards
 
