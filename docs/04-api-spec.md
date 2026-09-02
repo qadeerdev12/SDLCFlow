@@ -100,8 +100,9 @@ account. GitHub rate limits return `429 GITHUB_RATE_LIMITED` with retry metadata
 when GitHub provides it.
 The GitHub dashboard endpoint combines the user's connected GitHub account,
 visible repositories, language counts, commit contribution totals for today,
-the current week, and the current year, plus project-level repository links for
-projects where the user is still a member.
+the current week, and the current year, daily contribution buckets for graph
+options, plus project-level repository links for projects where the user is
+still a member.
 
 `repositories` are normalized to safe picker fields: `id`, `name`, `fullName`,
 `owner`, `private`, `htmlUrl`, `description`, `defaultBranch`, `language`, and

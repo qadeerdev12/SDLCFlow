@@ -254,7 +254,7 @@ export async function getGitHubDashboard(req, res) {
             linkedRepositories: 0,
           },
           languages: [],
-          commitGraph: { today: 0, week: 0, year: 0 },
+          commitGraph: { today: 0, week: 0, year: 0, dailyContributions: [] },
           linkedProjects: [],
         },
       });
@@ -274,7 +274,7 @@ export async function getGitHubDashboard(req, res) {
             linkedRepositories: 0,
           },
           languages: [],
-          commitGraph: { today: 0, week: 0, year: 0 },
+          commitGraph: { today: 0, week: 0, year: 0, dailyContributions: [] },
           linkedProjects: [],
         },
       });

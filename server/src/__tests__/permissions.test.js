@@ -390,7 +390,20 @@ describe.sequential('REST board permissions', () => {
               viewer: {
                 today: { totalCommitContributions: 2 },
                 week: { totalCommitContributions: 9 },
-                year: { totalCommitContributions: 144 },
+                year: {
+                  totalCommitContributions: 144,
+                  contributionCalendar: {
+                    weeks: [
+                      {
+                        contributionDays: [
+                          { date: '2026-08-31', contributionCount: 1 },
+                          { date: '2026-09-01', contributionCount: 4 },
+                          { date: '2026-09-02', contributionCount: 2 },
+                        ],
+                      },
+                    ],
+                  },
+                },
               },
             },
           }),
@@ -455,6 +468,11 @@ describe.sequential('REST board permissions', () => {
           });
           expect(res.body.data.languages[0]).toEqual({ name: 'JavaScript', count: 2 });
           expect(res.body.data.commitGraph).toMatchObject({ today: 2, week: 9, year: 144 });
+          expect(res.body.data.commitGraph.dailyContributions).toEqual([
+            { date: '2026-08-31', count: 1 },
+            { date: '2026-09-01', count: 4 },
+            { date: '2026-09-02', count: 2 },
+          ]);
           expect(res.body.data.linkedProjects).toHaveLength(1);
           expect(res.body.data.linkedProjects[0].board.name).toBe('Visible project');
         });

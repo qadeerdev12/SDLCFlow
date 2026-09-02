@@ -200,6 +200,14 @@ export async function fetchGitHubCommitContributionStats(accessToken, now = new 
             }
             year: contributionsCollection(from: $yearFrom, to: $to) {
               totalCommitContributions
+              contributionCalendar {
+                weeks {
+                  contributionDays {
+                    date
+                    contributionCount
+                  }
+                }
+              }
             }
           }
         }
@@ -212,11 +220,18 @@ export async function fetchGitHubCommitContributionStats(accessToken, now = new 
   if (payload.errors?.length) {
     throw new GitHubApiError(payload.errors[0].message || 'GitHub GraphQL request failed.');
   }
+  const dailyContributions = payload.data?.viewer?.year?.contributionCalendar?.weeks
+    ?.flatMap((week) => week.contributionDays || [])
+    ?.map((day) => ({
+      date: day.date,
+      count: day.contributionCount || 0,
+    })) || [];
 
   return {
     today: payload.data?.viewer?.today?.totalCommitContributions || 0,
     week: payload.data?.viewer?.week?.totalCommitContributions || 0,
     year: payload.data?.viewer?.year?.totalCommitContributions || 0,
+    dailyContributions,
     ranges: { todayFrom, weekFrom, yearFrom, to },
   };
 }

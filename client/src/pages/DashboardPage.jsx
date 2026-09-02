@@ -295,7 +295,7 @@ export default function DashboardPage() {
 function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
   const stats = dashboard?.stats || {}
   const languages = dashboard?.languages || []
-  const commitGraph = dashboard?.commitGraph || { today: 0, week: 0, year: 0 }
+  const commitGraph = dashboard?.commitGraph || { today: 0, week: 0, year: 0, dailyContributions: [] }
   const linkedProjects = dashboard?.linkedProjects || []
 
   return (
@@ -347,8 +347,8 @@ function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
               <Metric label="Linked repos" value={stats.linkedRepositories ?? 0} />
             </div>
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <CommitGraph stats={commitGraph} />
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
+              <CommitGraphOptions stats={commitGraph} />
               <LinkedProjectList projects={linkedProjects} />
             </div>
           </div>
@@ -394,44 +394,125 @@ function GitHubDashboardSkeleton() {
   )
 }
 
-function CommitGraph({ stats }) {
+function CommitGraphOptions({ stats }) {
+  const dailyContributions = stats.dailyContributions || []
+  const recentDays = dailyContributions.slice(-35)
+  const sparklineDays = dailyContributions.slice(-14)
   const points = [
     { label: 'Today', value: stats.today || 0 },
     { label: 'This week', value: stats.week || 0 },
     { label: 'This year', value: stats.year || 0 },
   ]
-  const maxValue = Math.max(...points.map((point) => point.value), 1)
 
   return (
     <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Commit graph</h3>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">GitHub commit contributions by period.</p>
+          <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Commit graph options</h3>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Three ways to show GitHub commit contribution activity.</p>
         </div>
         <span className="rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
           {stats.year || 0} YTD
         </span>
       </div>
 
-      <div className="mt-5 flex h-32 items-end gap-3">
+      <div className="mt-4 grid gap-3 xl:grid-cols-3">
+        <CommitStatCards points={points} />
+        <CommitSparkline days={sparklineDays} />
+        <CommitHeatmap days={recentDays} />
+      </div>
+    </div>
+  )
+}
+
+function CommitStatCards({ points }) {
+  const maxValue = Math.max(...points.map((point) => point.value), 1)
+
+  return (
+    <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Option 1</p>
+      <h4 className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-100">Compact stats</h4>
+      <div className="mt-3 grid gap-2">
         {points.map((point) => (
-          <div key={point.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-            <div className="flex h-24 w-full items-end rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
-              <div
-                className="w-full rounded-md bg-teal-500 transition-all duration-500"
-                style={{ height: `${Math.max((point.value / maxValue) * 100, point.value > 0 ? 10 : 4)}%` }}
-              />
+          <div key={point.label} className="rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{point.label}</span>
+              <span className="text-base font-semibold text-zinc-950 dark:text-zinc-100">{point.value}</span>
             </div>
-            <div className="w-full text-center">
-              <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">{point.value}</p>
-              <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{point.label}</p>
+            <div className="mt-2 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800">
+              <div
+                className="h-full rounded-full bg-teal-500"
+                style={{ width: `${Math.max((point.value / maxValue) * 100, point.value > 0 ? 10 : 4)}%` }}
+              />
             </div>
           </div>
         ))}
       </div>
     </div>
   )
+}
+
+function CommitSparkline({ days }) {
+  const values = days.length ? days.map((day) => day.count || 0) : Array.from({ length: 14 }, () => 0)
+  const maxValue = Math.max(...values, 1)
+  const width = 220
+  const height = 72
+  const padding = 8
+  const step = values.length > 1 ? (width - padding * 2) / (values.length - 1) : 0
+  const linePoints = values
+    .map((value, index) => {
+      const x = padding + index * step
+      const y = height - padding - (value / maxValue) * (height - padding * 2)
+      return `${x},${y}`
+    })
+    .join(' ')
+
+  return (
+    <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Option 2</p>
+      <h4 className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-100">Sparkline trend</h4>
+      <svg className="mt-4 h-24 w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+        <polyline points={linePoints} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-teal-500" />
+        {values.map((value, index) => {
+          const x = padding + index * step
+          const y = height - padding - (value / maxValue) * (height - padding * 2)
+          return <circle key={`${index}-${value}`} cx={x} cy={y} r="2.5" className="fill-teal-500" />
+        })}
+      </svg>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Last 14 days</p>
+    </div>
+  )
+}
+
+function CommitHeatmap({ days }) {
+  const values = days.length ? days : Array.from({ length: 35 }, (_, index) => ({ date: `empty-${index}`, count: 0 }))
+  const maxValue = Math.max(...values.map((day) => day.count || 0), 1)
+
+  return (
+    <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Option 3</p>
+      <h4 className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-100">Mini heatmap</h4>
+      <div className="mt-4 grid grid-cols-7 gap-1">
+        {values.map((day) => (
+          <span
+            key={day.date}
+            title={`${day.date}: ${day.count || 0} commits`}
+            className={`aspect-square rounded-[3px] ${heatmapClass(day.count || 0, maxValue)}`}
+          />
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">Last 35 days</p>
+    </div>
+  )
+}
+
+function heatmapClass(value, maxValue) {
+  if (value <= 0) return 'bg-zinc-200 dark:bg-zinc-800'
+  const ratio = value / maxValue
+  if (ratio > 0.75) return 'bg-teal-700 dark:bg-teal-300'
+  if (ratio > 0.45) return 'bg-teal-500 dark:bg-teal-400'
+  if (ratio > 0.2) return 'bg-teal-300 dark:bg-teal-600'
+  return 'bg-teal-100 dark:bg-teal-900'
 }
 
 function LinkedProjectList({ projects }) {
@@ -470,9 +551,9 @@ function LanguagePanel({ languages, total }) {
 
   return (
     <aside className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Top languages</h3>
+      <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Repository languages</h3>
       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-        Based on the first {total} repos returned by GitHub.
+        Primary language count across {pluralize(total, 'repo')} returned by GitHub.
       </p>
       {languages.length === 0 ? (
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">No language data yet.</p>
@@ -482,7 +563,7 @@ function LanguagePanel({ languages, total }) {
             <div key={language.name}>
               <div className="flex items-center justify-between gap-3 text-xs">
                 <span className="font-semibold text-zinc-700 dark:text-zinc-200">{language.name}</span>
-                <span className="text-zinc-500 dark:text-zinc-400">{language.count}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">{pluralize(language.count, 'repo')}</span>
               </div>
               <div className="mt-1 h-2 rounded-full bg-zinc-200 dark:bg-zinc-800">
                 <div
