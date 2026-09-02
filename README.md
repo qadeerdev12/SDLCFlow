@@ -145,6 +145,65 @@ across every board you belong to at `/activity`.
 
 </div>
 
+### GitHub context inside your workspace
+
+Most project tools ask you to describe work that already exists in git. SDLCFlow
+reads it instead. Connect a GitHub account once from your profile and repository
+context flows into the dashboard, into individual projects, and into the activity
+feed.
+
+**Connecting happens on the profile page** over OAuth, asking for `read:user`,
+`user:email` and `repo`. The card there shows the connected account and offers a
+disconnect that actually cleans up after itself.
+
+**The dashboard panel summarises the account as a whole:** total repositories,
+how many are private, how many SDLCFlow projects are linked to a repo, and how
+many distinct repositories that covers. Alongside those sit commit counts for
+today, this week and this year, a contribution heatmap of recent daily activity,
+your primary repository languages ranked by how many repos use each, and the
+projects you have already linked.
+
+<div align="center">
+
+<img src="docs/screenshots/dashboard-github.png" width="880" alt="The dashboard GitHub panel showing the connected account, repository and linked-project counts, commit totals for today, this week and this year, a contribution calendar, linked project repos and a repository language breakdown">
+
+</div>
+
+**Each project links one repository.** Owners and admins choose it from a
+searchable list of everything the connected account can see, and can change or
+unlink it later; members see the linked repo and its data but can't rewire it.
+The project panel shows recent commits next to the count of open pull requests
+and open issues.
+
+Project reads use the token of whoever linked the repo, so the rest of the team
+gets repository context without each person having to connect their own GitHub
+account.
+
+<div align="center">
+
+<img src="docs/screenshots/board-github.png" width="820" alt="A project's GitHub panel showing the connected account, the linked repository with change and unlink actions, open pull request and issue counts, and a list of recent commits">
+
+</div>
+
+**Synced commits land in the project activity feed** beside the card moves and
+comments, so a single timeline answers "what happened on this project". Commits
+are deduped by SHA against what is already recorded, and any one sync adds at
+most five — linking a busy repository shouldn't bury everything else that
+happened.
+
+**Cards can carry a GitHub reference** — an issue, pull request, commit, or
+repository URL — which renders as a labelled link in the card detail view.
+
+**Hardening.** Access tokens are encrypted with AES-256-GCM before they reach the
+database, and the field is `select: false` so it never loads by accident.
+Disconnecting makes a best-effort call to GitHub's token revocation endpoint and
+removes the local connection either way, so a GitHub outage can't strand a live
+token in your database; every project repo link belonging to that account is
+deleted in the same operation. Rate limits are read from GitHub's own headers and
+surfaced as a clear message instead of a generic failure, and connections made
+before the `repo` scope was required are asked to reconnect rather than failing
+opaquely.
+
 ### Project chat for project conversation
 
 Every project has its own realtime chat drawer. Messages are persisted to MongoDB,
@@ -261,12 +320,20 @@ members panel, and drag a card — that is the whole feature in one gesture.
 cd server && npm test
 ```
 
-Seventeen integration tests run against an in-memory MongoDB and a real Socket.IO
-server — no mocks standing in for the parts most likely to be wrong. They cover
-the permission matrix above, the handshake rejecting invalid JWTs, membership
-being checked before a room join, broadcasts reaching collaborators while acking
-the sender, assignee validation, workflow template creation, comment/chat scoping,
-and account deletion.
+Thirty-five integration tests run against an in-memory MongoDB and a real
+Socket.IO server — no mocks standing in for the parts most likely to be wrong.
+They cover the permission matrix above, the handshake rejecting invalid JWTs,
+membership being checked before a room join, broadcasts reaching collaborators
+while acking the sender, assignee validation, workflow template creation,
+comment/chat scoping, and account deletion.
+
+Nine of them cover the GitHub integration specifically: endpoints refusing to
+answer before an account is connected, tokens surviving a round trip through
+encryption while staying usable for API calls, disconnect revoking the token and
+removing linked project repos, rate limits returning a clear response, dashboard
+stats aggregation, role enforcement on project repo links, commit sync recording
+activity without duplicates, older connections being asked to reconnect for the
+`repo` scope, and cards storing GitHub references.
 
 Client checks:
 
@@ -287,11 +354,13 @@ client/src/
   pages/        landing, auth, dashboard, board, activity, profile
 
 server/src/
-  controllers/  REST handlers
+  controllers/  REST handlers, including GitHub account and project repo links
   data/         read-only workflow template catalog
-  services/     shared mutation, chat and activity logic
+  routes/       auth, board, template and GitHub integration routers
+  services/     shared mutation, chat, activity and GitHub API logic
   socket.js     handshake auth, rooms, presence, board events, chat events
-  models/       User, Board, List, Card, Comment, Message, Activity
+  models/       User, Board, List, Card, Comment, Message, Activity,
+                GitHubAccount, BoardGitHubIntegration
   utils/        board access and role resolution
 ```
 
@@ -318,6 +387,10 @@ email, and the server looks that email up. There is no email invitation flow yet
 **Reconnecting re-fetches the board rather than replaying what it missed.** It is
 correct and simple, and it costs one extra request after a dropped connection.
 Event replay is on the backlog.
+
+**Repository linking is manual, one repo per project.** You pick the repo from
+the project panel; there is no auto-matching by name and no support for a project
+that spans several repositories.
 
 **One server instance.** Socket.IO rooms live in that process's memory, so running
 two instances behind a load balancer would split the rooms. Fixing that is a Redis
