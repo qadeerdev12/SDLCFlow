@@ -16,6 +16,7 @@ import Activity from '../models/Activity.js';
 import Comment from '../models/Comment.js';
 import Message from '../models/Message.js';
 import Workflow from '../models/Workflow.js';
+import GitHubAccount from '../models/GitHubAccount.js';
 
 let mongo;
 
@@ -36,6 +37,7 @@ afterEach(async () => {
     Comment.deleteMany({}),
     Message.deleteMany({}),
     Workflow.deleteMany({}),
+    GitHubAccount.deleteMany({}),
   ]);
 });
 
@@ -141,6 +143,45 @@ function waitForConnectError(socket) {
 }
 
 describe.sequential('REST board permissions', () => {
+  it('protects GitHub integration endpoints before an account is connected', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const previousConfig = {
+      GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
+      GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
+      GITHUB_CALLBACK_URL: process.env.GITHUB_CALLBACK_URL,
+    };
+
+    delete process.env.GITHUB_CLIENT_ID;
+    delete process.env.GITHUB_CLIENT_SECRET;
+    delete process.env.GITHUB_CALLBACK_URL;
+
+    try {
+      await request(app)
+        .get('/api/v1/integrations/github/start')
+        .expect(401);
+
+      await request(app)
+        .get('/api/v1/integrations/github/start')
+        .set('Authorization', `Bearer ${owner.token}`)
+        .expect(500)
+        .expect((res) => {
+          expect(res.body.error.code).toBe('GITHUB_CONFIG_MISSING');
+        });
+
+      const account = await request(app)
+        .get('/api/v1/integrations/github/account')
+        .set('Authorization', `Bearer ${owner.token}`)
+        .expect(200);
+      expect(account.body.data.account).toBeNull();
+    } finally {
+      Object.entries(previousConfig).forEach(([key, value]) => {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      });
+    }
+  });
+
   it('serves the workflow template catalog and keeps the old board-template alias', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

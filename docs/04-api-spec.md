@@ -69,7 +69,28 @@ board. Each template includes display metadata plus list names and starter card
 previews. `GET /board-templates` remains as a compatibility alias for the
 current client and older integrations.
 
-### 2.3 Boards
+### 2.3 Integrations
+
+#### GitHub account connection
+
+| Method | Path | Auth | Body | Returns |
+|---|---|---|---|---|
+| GET | `/integrations/github/start` | ✅ | – | `200 { authorizationUrl, scopes }` |
+| GET | `/integrations/github/callback` | GitHub redirect | – | Redirects to client profile page |
+| GET | `/integrations/github/account` | ✅ | – | `200 { account }` |
+
+`GET /integrations/github/start` returns the authorization URL instead of
+redirecting immediately because protected REST routes need the SDLCFlow JWT in
+the `Authorization` header. The client should call this endpoint first, then set
+`window.location` to `authorizationUrl`.
+
+The OAuth callback validates a signed `state`, exchanges GitHub's temporary
+`code` server-side, fetches the GitHub profile/email, and stores the connection
+against the SDLCFlow user. The current MVP requests `read:user user:email`.
+Repository access will be added in a later slice when the project-level repo
+picker is introduced.
+
+### 2.4 Boards
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -86,7 +107,7 @@ project identity separate from project structure. Older boards are backfilled
 with the default workflow the first time they are loaded, and any legacy
 lists/cards without a workflow are attached to that default.
 
-### 2.4 Workflows
+### 2.5 Workflows
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -111,7 +132,7 @@ references. They remain nullable at the schema level during the compatibility
 migration, but board creation and board loading backfill missing references to
 the default workflow before returning work items to the client.
 
-### 2.5 Members
+### 2.6 Members
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -128,7 +149,7 @@ Member rules:
 - Admins cannot remove owners.
 - A board must keep at least one owner.
 
-### 2.6 Activity
+### 2.7 Activity
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -136,7 +157,7 @@ Member rules:
 
 Activity records store `actor`, `action`, `targetType`, `targetId`, `targetTitle`, optional `metadata`, and timestamps. The endpoint returns the latest board activity first.
 
-### 2.7 Project chat
+### 2.8 Project chat
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -153,7 +174,7 @@ hidden from future history loads. Normal chat is stored separately from activity
 so conversation does not flood the audit timeline, but moderation actions create
 activity records.
 
-### 2.8 Lists
+### 2.9 Lists
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -168,7 +189,7 @@ List workflow reassignment is not supported yet; `PATCH` rejects direct
 `workflow` or `workflowId` changes so cards do not silently jump between project
 areas.
 
-### 2.9 Cards
+### 2.10 Cards
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
@@ -184,7 +205,7 @@ areas.
 > `workflow`/`workflowId` updates are rejected until the UI supports an explicit
 > cross-workflow move.
 
-### 2.10 Comments
+### 2.11 Comments
 
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
