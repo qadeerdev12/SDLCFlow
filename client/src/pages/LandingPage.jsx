@@ -57,6 +57,16 @@ const features = [
     icon: 'activity',
   },
   {
+    title: 'GitHub dashboard',
+    text: 'Connect GitHub to see repository totals, commit activity, linked project repos, and primary languages.',
+    icon: 'github',
+  },
+  {
+    title: 'Repo-linked tasks',
+    text: 'Attach GitHub issues, pull requests, commits, or repositories directly to the cards that need them.',
+    icon: 'branch',
+  },
+  {
     title: 'Realtime sync',
     text: 'Move cards, edit tasks, add workflows, and keep every connected member in sync without refreshing.',
     icon: 'flow',
@@ -103,6 +113,14 @@ const taskHighlights = [
   { label: 'Tag', value: 'Realtime', tone: 'cyan' },
   { label: 'Assignee', value: 'John Smith', tone: 'amber' },
   { label: 'Due date', value: 'Today', tone: 'rose' },
+]
+
+const githubHeatmap = [0, 2, 1, 0, 4, 3, 1, 0, 1, 5, 2, 0, 3, 4, 1, 2, 0, 0, 6, 5, 2, 3, 1, 0, 4, 2, 1, 3, 7, 6, 2, 1, 0, 5, 4, 2, 0, 3, 1, 6, 2, 4]
+
+const githubLanguages = [
+  { name: 'JavaScript', count: 8, width: '100%' },
+  { name: 'TypeScript', count: 4, width: '52%' },
+  { name: 'CSS', count: 3, width: '38%' },
 ]
 
 export default function LandingPage() {
@@ -200,6 +218,99 @@ export default function LandingPage() {
               <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
                 <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Comments</p>
                 <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">Ready for review once QA signs off on the final endpoint list.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-zinc-200 bg-white py-20 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div className="mx-auto grid max-w-7xl gap-10 px-5 sm:px-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">GitHub integration</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-white">Bring development signals into the project dashboard.</h2>
+              <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                Link a repository to a project, surface commits in the activity feed, and keep a compact GitHub snapshot beside your SDLCFlow workspace.
+              </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <GitHubStat value="144" label="commits this year" />
+                <GitHubStat value="4" label="linked repos" />
+                <GitHubStat value="8" label="JavaScript repos" />
+              </div>
+            </div>
+
+            <div className="landing-feature rounded-xl border border-zinc-200 bg-stone-50 p-4 shadow-xl shadow-zinc-300/30 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/30">
+              <div className="flex flex-col gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+                    <FeatureIcon type="github" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Development snapshot</p>
+                    <p className="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-100">@johnsmith connected</p>
+                  </div>
+                </div>
+                <span className="rounded-md bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">Live repo context</span>
+              </div>
+
+              <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
+                <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Commit activity</h3>
+                    <span className="rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">144 YTD</span>
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
+                    <div className="space-y-2">
+                      {[
+                        ['Today', 2, '24%'],
+                        ['This week', 9, '58%'],
+                        ['This year', 144, '100%'],
+                      ].map(([label, value, width]) => (
+                        <div key={label} className="rounded-lg bg-zinc-50 px-2.5 py-2 dark:bg-zinc-950">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
+                            <span className="font-semibold text-zinc-950 dark:text-zinc-100">{value}</span>
+                          </div>
+                          <div className="mt-1.5 h-1 rounded-full bg-zinc-200 dark:bg-zinc-800">
+                            <span className="block h-full rounded-full bg-teal-500" style={{ width }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="rounded-lg bg-zinc-50 p-2.5 dark:bg-zinc-950">
+                      <div className="flex flex-wrap gap-1">
+                        {githubHeatmap.map((count, index) => (
+                          <span key={index} className={`h-4 w-4 rounded ${landingHeatmapClass(count)}`} />
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Recent contribution rhythm</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-3">
+                  <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                    <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Linked project repos</h3>
+                    {['uptime-desk/api', 'uptime-desk/web', 'sdlcflow/server'].map((repo) => (
+                      <p key={repo} className="mt-2 truncate rounded-lg bg-zinc-50 px-2.5 py-2 text-xs font-semibold text-zinc-600 dark:bg-zinc-950 dark:text-zinc-300">{repo}</p>
+                    ))}
+                  </div>
+                  <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                    <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Repository languages</h3>
+                    <div className="mt-3 space-y-2">
+                      {githubLanguages.map((language) => (
+                        <div key={language.name}>
+                          <div className="flex justify-between gap-3 text-xs">
+                            <span className="font-semibold text-zinc-700 dark:text-zinc-200">{language.name}</span>
+                            <span className="text-zinc-500 dark:text-zinc-400">{language.count} repos</span>
+                          </div>
+                          <div className="mt-1 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800">
+                            <span className="block h-full rounded-full bg-teal-500" style={{ width: language.width }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -457,9 +568,20 @@ function FeatureIcon({ type }) {
     filter: <><path d="M4 5h16" /><path d="M7 12h10" /><path d="M10 19h4" /></>,
     shield: <><path d="M12 3 20 7v5c0 5-3.4 8.1-8 9-4.6-.9-8-4-8-9V7l8-4Z" /><path d="m9 12 2 2 4-5" /></>,
     settings: <><path d="M4 7h16" /><path d="M4 17h16" /><path d="M8 4v6" /><path d="M16 14v6" /></>,
+    github: <><path d="M12 2C6.5 2 2 6.6 2 12.2c0 4.5 2.9 8.3 6.8 9.7.5.1.7-.2.7-.5v-1.9c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1.1 1.5 1.1.9 1.6 2.4 1.1 2.9.9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.6-.3 2.5-.3s1.7.1 2.5.3c1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.8 1 1.7 1 2.8 0 4-2.3 4.8-4.6 5.1.4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5 4-1.4 6.8-5.2 6.8-9.7C22 6.6 17.5 2 12 2Z" /></>,
+    branch: <><circle cx="6" cy="6" r="3" /><circle cx="18" cy="18" r="3" /><path d="M6 9v3a6 6 0 0 0 6 6h3" /><path d="M18 6v5" /><path d="m15 8 3-3 3 3" /></>,
   }
 
   return <svg {...common}>{icons[type]}</svg>
+}
+
+function GitHubStat({ value, label }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <p className="text-xl font-semibold text-zinc-950 dark:text-white">{value}</p>
+      <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
+    </div>
+  )
 }
 
 function Stat({ value, label }) {
@@ -500,6 +622,14 @@ function highlightClass(tone) {
   }
 
   return tones[tone]
+}
+
+function landingHeatmapClass(value) {
+  if (value <= 0) return 'bg-zinc-200 dark:bg-zinc-800'
+  if (value >= 6) return 'bg-teal-700 dark:bg-teal-300'
+  if (value >= 4) return 'bg-teal-500 dark:bg-teal-400'
+  if (value >= 2) return 'bg-teal-300 dark:bg-teal-600'
+  return 'bg-teal-100 dark:bg-teal-900'
 }
 
 function ThemeIcon({ dark }) {
