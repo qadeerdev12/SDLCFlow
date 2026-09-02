@@ -271,7 +271,7 @@ export default function DashboardPage() {
       {boardDeleteTarget && (
         <ConfirmDialog
           title={`Delete "${boardDeleteTarget.name}"?`}
-          description="This will permanently delete the project, its workflow lists, cards, comments, chat messages, and activity history."
+          description="This will permanently delete the project, its workflows, lists, cards, comments, chat messages, and activity history."
           confirmLabel="Delete project"
           pending={boardDeleting}
           onCancel={() => setBoardDeleteTarget(null)}

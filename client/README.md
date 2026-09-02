@@ -101,6 +101,11 @@ derives the active workflow's visible lists and cards for filters, drag/drop,
 card details, and new list/card creation. This keeps realtime events simple
 while letting the UI focus one project area at a time.
 
+The add-list control lives in the active workflow toolbar, not the project
+header. That placement is intentional: list creation always passes the active
+`workflowId`, so the UI should make it obvious which workflow receives the new
+stage.
+
 When a project is still a clean container with only the default `General`
 workflow and no work items, the board shows a first-run welcome state instead of
 empty filters and columns. Its quick-start buttons call the same
@@ -122,7 +127,7 @@ socket updates stay harmless.
 actions. Use it instead of `window.confirm` so delete and removal flows keep the
 same styling, dark mode support, Escape behavior, and pending state.
 
-Current usages include chat message deletion, clear chat, workflow list deletion,
+Current usages include chat message deletion, clear chat, list deletion,
 board deletion, card deletion, and member removal.
 
 ---

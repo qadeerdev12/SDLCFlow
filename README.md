@@ -116,7 +116,7 @@ right now, grey for the one who isn't.
 
 ### Cards carry the metadata a software task needs
 
-A card opens into a detail view with a description, a workflow list, one of seven
+A card opens into a detail view with a description, a workflow stage, one of seven
 tags (Task, Feature, Bug, Design, Research, Docs, Chore), one of five statuses
 (Todo, In Progress, Review, Blocked, Done), an assignee, and a due date. Due dates
 turn amber as they approach.

@@ -245,7 +245,7 @@ export default function LandingPage() {
               <div className="mt-8 grid grid-cols-3 gap-3">
                 <StatDark value="3" label="active members" />
                 <StatDark value="24" label="open tasks" />
-                <StatDark value="5" label="workflow lists" />
+                <StatDark value="5" label="workflow stages" />
               </div>
             </div>
 
