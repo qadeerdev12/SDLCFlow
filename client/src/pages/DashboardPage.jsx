@@ -126,6 +126,13 @@ export default function DashboardPage() {
       <AppHeader />
 
       <main className="mx-auto max-w-[1760px] px-4 py-5 sm:px-6 lg:py-7 2xl:px-8">
+        <GitHubDashboardPanel
+          dashboard={githubDashboard}
+          loading={githubLoading}
+          error={githubError}
+          onManage={() => navigate('/profile')}
+        />
+
         <section className="mb-5 rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-stretch 2xl:grid-cols-[minmax(0,1fr)_420px]">
             <div className="flex min-w-0 flex-col justify-between gap-5">
@@ -173,13 +180,6 @@ export default function DashboardPage() {
             </aside>
           </div>
         </section>
-
-        <GitHubDashboardPanel
-          dashboard={githubDashboard}
-          loading={githubLoading}
-          error={githubError}
-          onManage={() => navigate('/profile')}
-        />
 
         <section className="mb-5 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -299,23 +299,23 @@ function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
   const linkedProjects = dashboard?.linkedProjects || []
 
   return (
-    <section className="mb-5 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
-              <GitHubIcon className="h-5 w-5" />
-            </span>
-            <div>
+    <section className="mb-4 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+            <GitHubIcon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">GitHub</p>
-              <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-100">Development dashboard</h2>
+              {dashboard?.connected && (
+                <span className="truncate text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  @{dashboard.account?.username || 'GitHub'}
+                </span>
+              )}
             </div>
+            <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-100">Development snapshot</h2>
           </div>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-            {dashboard?.connected
-              ? `Connected as @${dashboard.account?.username || 'GitHub'}. Track repositories, linked projects, and recent development activity from one place.`
-              : 'Connect GitHub to bring repository context into your SDLCFlow projects.'}
-          </p>
         </div>
 
         <button
@@ -338,31 +338,38 @@ function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
           Reconnect GitHub to refresh repository permissions and load dashboard stats.
         </div>
       ) : dashboard?.connected ? (
-        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="min-w-0">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Metric label="Repositories" value={stats.repositories ?? 0} />
-              <Metric label="Private repos" value={stats.privateRepositories ?? 0} />
-              <Metric label="Linked projects" value={stats.linkedProjects ?? 0} />
-              <Metric label="Linked repos" value={stats.linkedRepositories ?? 0} />
-            </div>
-
-            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-              <CommitGraphOptions stats={commitGraph} />
-              <LinkedProjectList projects={linkedProjects} />
-            </div>
-          </div>
-
+        <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-[230px_minmax(0,1fr)_260px_260px]">
+          <GitHubMetricGrid stats={stats} />
+          <CommitGraphOptions stats={commitGraph} />
+          <LinkedProjectList projects={linkedProjects} />
           <LanguagePanel languages={languages} total={stats.repositories || 0} />
         </div>
       ) : (
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <Metric label="Repositories" value="-" />
-          <Metric label="Linked projects" value="-" />
-          <Metric label="Recent activity" value="-" />
+        <div className="mt-3 rounded-lg border border-dashed border-zinc-300 px-4 py-4 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+          Connect GitHub to bring repository context into your SDLCFlow projects.
         </div>
       )}
     </section>
+  )
+}
+
+function GitHubMetricGrid({ stats }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <MiniMetric label="Repos" value={stats.repositories ?? 0} />
+      <MiniMetric label="Private" value={stats.privateRepositories ?? 0} />
+      <MiniMetric label="Projects" value={stats.linkedProjects ?? 0} />
+      <MiniMetric label="Linked" value={stats.linkedRepositories ?? 0} />
+    </div>
+  )
+}
+
+function MiniMetric({ label, value }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
+      <p className="text-lg font-semibold text-zinc-950 dark:text-white">{value}</p>
+      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
+    </div>
   )
 }
 
@@ -377,19 +384,10 @@ function Metric({ label, value }) {
 
 function GitHubDashboardSkeleton() {
   return (
-    <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
-      <div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-[74px] animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
-          ))}
-        </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div className="h-44 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
-          <div className="h-44 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
-        </div>
-      </div>
-      <div className="h-full min-h-44 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+    <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-[230px_minmax(0,1fr)_260px_260px]">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="h-36 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+      ))}
     </div>
   )
 }
@@ -408,7 +406,6 @@ function CommitGraphOptions({ stats }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Commit activity</h3>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">GitHub commit contribution totals and daily activity.</p>
         </div>
         <span className="rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
           {stats.year || 0} YTD
@@ -427,17 +424,16 @@ function CommitStatCards({ points }) {
   const maxValue = Math.max(...points.map((point) => point.value), 1)
 
   return (
-    <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950">
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Totals</p>
-      <h4 className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-100">Contribution totals</h4>
-      <div className="mt-3 grid gap-2">
+    <div className="rounded-lg bg-zinc-50 p-2.5 dark:bg-zinc-950">
+      <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Totals</h4>
+      <div className="mt-2 grid gap-1.5">
         {points.map((point) => (
-          <div key={point.label} className="rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+          <div key={point.label} className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{point.label}</span>
-              <span className="text-base font-semibold text-zinc-950 dark:text-zinc-100">{point.value}</span>
+              <span className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">{point.value}</span>
             </div>
-            <div className="mt-2 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800">
+            <div className="mt-1.5 h-1 rounded-full bg-zinc-100 dark:bg-zinc-800">
               <div
                 className="h-full rounded-full bg-teal-500"
                 style={{ width: `${Math.max((point.value / maxValue) * 100, point.value > 0 ? 10 : 4)}%` }}
@@ -455,10 +451,9 @@ function CommitHeatmap({ days }) {
   const maxValue = Math.max(...values.map((day) => day.count || 0), 1)
 
   return (
-    <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950">
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Calendar</p>
-      <h4 className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-100">Daily activity</h4>
-      <div className="mt-4 grid grid-cols-7 gap-1">
+    <div className="rounded-lg bg-zinc-50 p-2.5 dark:bg-zinc-950">
+      <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Calendar</h4>
+      <div className="mt-2 grid grid-cols-7 gap-1">
         {values.map((day) => (
           <span
             key={day.date}
@@ -467,7 +462,7 @@ function CommitHeatmap({ days }) {
           />
         ))}
       </div>
-      <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">Last 35 days</p>
+      <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Last 35 days</p>
     </div>
   )
 }
@@ -482,20 +477,23 @@ function heatmapClass(value, maxValue) {
 }
 
 function LinkedProjectList({ projects }) {
+  const visibleProjects = projects.slice(0, 3)
+  const hiddenCount = Math.max(projects.length - visibleProjects.length, 0)
+
   return (
     <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
       <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Linked project repos</h3>
       {projects.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Link a repository inside a project to see it here.</p>
       ) : (
-        <div className="mt-3 space-y-2">
-          {projects.map((project) => (
+        <div className="mt-2 space-y-1.5">
+          {visibleProjects.map((project) => (
             <a
               key={project.id}
               href={project.repoUrl}
               target="_blank"
               rel="noreferrer"
-              className="block rounded-lg px-2 py-2 transition hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              className="block rounded-lg px-2 py-1.5 transition hover:bg-zinc-50 dark:hover:bg-zinc-800"
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -506,6 +504,7 @@ function LinkedProjectList({ projects }) {
               <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">{project.repoFullName}</p>
             </a>
           ))}
+          {hiddenCount > 0 && <p className="px-2 text-xs text-zinc-500 dark:text-zinc-400">+ {pluralize(hiddenCount, 'more project')}</p>}
         </div>
       )}
     </div>
@@ -516,15 +515,15 @@ function LanguagePanel({ languages, total }) {
   const topCount = Math.max(...languages.map((language) => language.count), 1)
 
   return (
-    <aside className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <aside className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
       <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Repository languages</h3>
       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
         Primary language count across {pluralize(total, 'repo')} returned by GitHub.
       </p>
       {languages.length === 0 ? (
-        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">No language data yet.</p>
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">No language data yet.</p>
       ) : (
-        <div className="mt-4 space-y-3">
+        <div className="mt-3 space-y-2">
           {languages.map((language) => (
             <div key={language.name}>
               <div className="flex items-center justify-between gap-3 text-xs">
