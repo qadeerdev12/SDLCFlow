@@ -453,12 +453,12 @@ function CommitHeatmap({ days }) {
   return (
     <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-950">
       <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Calendar</h4>
-      <div className="mt-2 grid grid-cols-7 gap-1.5">
+      <div className="mt-2 grid grid-cols-7 gap-1">
         {values.map((day) => (
           <span
             key={day.date}
             title={`${day.date}: ${day.count || 0} commits`}
-            className={`h-4 w-4 rounded ${heatmapClass(day.count || 0, maxValue)}`}
+            className={`h-[18px] w-[18px] rounded ${heatmapClass(day.count || 0, maxValue)}`}
           />
         ))}
       </div>
