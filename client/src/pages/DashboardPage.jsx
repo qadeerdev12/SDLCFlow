@@ -24,9 +24,6 @@ export default function DashboardPage() {
   const navigate = useNavigate()
 
   const [boards, setBoards] = useState([])
-  const [templates, setTemplates] = useState([])
-  const [templatesLoading, setTemplatesLoading] = useState(true)
-  const [templatesError, setTemplatesError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
@@ -47,15 +44,6 @@ export default function DashboardPage() {
         setLoading(false)
       }
 
-      try {
-        const templatesRes = await boardApi.listTemplates(token)
-        setTemplates(templatesRes.data.templates || [])
-        setTemplatesError('')
-      } catch (err) {
-        setTemplatesError(err.message)
-      } finally {
-        setTemplatesLoading(false)
-      }
     }
     loadDashboard()
   }, [token])
@@ -78,13 +66,13 @@ export default function DashboardPage() {
   async function handleCreate(name, options) {
     const res = await boardApi.create(name, token, options)
     setBoards((prev) => [res.data.board, ...prev])
-    toast.success('Board created', res.data.board.name)
+    toast.success('Project created', res.data.board.name)
   }
 
   async function handleUpdate(board, name, options) {
     const res = await boardApi.update(board._id, { name, ...options }, token)
     setBoards((prev) => prev.map((b) => (b._id === board._id ? res.data.board : b)))
-    toast.success('Board updated', res.data.board.name)
+    toast.success('Project updated', res.data.board.name)
   }
 
   async function handleDelete(board) {
@@ -98,11 +86,11 @@ export default function DashboardPage() {
     try {
       await boardApi.delete(board._id, token)
       setBoards((prev) => prev.filter((b) => b._id !== board._id))
-      toast.success('Board deleted', board.name)
+      toast.success('Project deleted', board.name)
       setBoardDeleteTarget(null)
     } catch (err) {
       setError(err.message)
-      toast.error('Could not delete board', err.message)
+      toast.error('Could not delete project', err.message)
     } finally {
       setBoardDeleting(false)
     }
@@ -128,7 +116,7 @@ export default function DashboardPage() {
                     {firstName ? `${firstName}'s projects` : 'Project dashboard'}
                   </h1>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                    Open a board, review active spaces, or start from a software workflow template.
+                    Open a project, review active spaces, or create a clean container for your next build.
                   </p>
                 </div>
 
@@ -137,12 +125,12 @@ export default function DashboardPage() {
                   className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500 sm:w-auto"
                 >
                   <PlusIcon className="h-4 w-4" />
-                  <span>New board</span>
+                  <span>New project</span>
                 </button>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <Metric label="Total boards" value={loading ? '-' : boards.length} />
+                <Metric label="Total projects" value={loading ? '-' : boards.length} />
                 <Metric label="Owned by you" value={loading ? '-' : ownedBoards} />
                 <Metric label="Shared spaces" value={loading ? '-' : sharedBoards} />
                 <Metric label="Current view" value={loading ? '-' : visibleBoards.length} />
@@ -154,12 +142,12 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Quick start</p>
                   <span className="rounded-md bg-white/10 px-2 py-1 text-xs text-zinc-300">
-                    {templatesLoading ? 'Loading' : pluralize(templates.length, 'template')}
+                    Workflows inside
                   </span>
                 </div>
-                <h2 className="mt-4 text-lg font-semibold">Start with a proven workflow.</h2>
+                <h2 className="mt-4 text-lg font-semibold">Create the project first.</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Create a sprint, bug triage, roadmap, release plan, or custom board from the same modal.
+                  Each project starts with a General workflow. Add Sprint, Bug Triage, Release Plan, or custom workflows once you are inside.
                 </p>
               </div>
               <button
@@ -167,7 +155,7 @@ export default function DashboardPage() {
                 onClick={() => setCreating(true)}
                 className="mt-5 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-teal-50"
               >
-                Browse templates
+                New project
                 <ArrowRightIcon className="h-4 w-4" />
               </button>
             </aside>
@@ -181,8 +169,8 @@ export default function DashboardPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search project boards"
-                aria-label="Search boards"
+                placeholder="Search projects"
+                aria-label="Search projects"
                 className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-2.5 pl-9 pr-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950"
               />
             </div>
@@ -200,7 +188,7 @@ export default function DashboardPage() {
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                aria-label="Sort boards"
+                aria-label="Sort projects"
                 className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950"
               >
                 {SORTS.map((s) => (
@@ -212,7 +200,7 @@ export default function DashboardPage() {
                 className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-teal-200 bg-teal-50 px-3 py-2.5 text-sm font-semibold text-teal-800 transition hover:bg-teal-100 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200 dark:hover:bg-teal-500/15"
               >
                 <PlusIcon className="h-4 w-4" />
-                New board
+                New project
               </button>
             </div>
           </div>
@@ -232,9 +220,9 @@ export default function DashboardPage() {
         <section>
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-100">Project boards</h2>
+              <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-100">Projects</h2>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                {loading ? 'Loading your workspace...' : `${pluralize(visibleBoards.length, 'board')} shown`}
+                {loading ? 'Loading your workspace...' : `${pluralize(visibleBoards.length, 'project')} shown`}
               </p>
             </div>
           </div>
@@ -242,7 +230,7 @@ export default function DashboardPage() {
           {loading ? (
             <BoardGridSkeleton />
           ) : boards.length === 0 ? (
-            <EmptyState templateCount={templates.length} onCreate={() => setCreating(true)} />
+            <EmptyState onCreate={() => setCreating(true)} />
           ) : visibleBoards.length === 0 ? (
             <NoSearchResults query={query} onClear={() => setQuery('')} />
           ) : (
@@ -260,7 +248,7 @@ export default function DashboardPage() {
                 />
               ))}
 
-              <CreateBoardTile templateCount={templates.length} onCreate={() => setCreating(true)} />
+              <CreateBoardTile onCreate={() => setCreating(true)} />
             </div>
           )}
         </section>
@@ -268,9 +256,6 @@ export default function DashboardPage() {
 
       {creating && (
         <NewBoardModal
-          templates={templates}
-          templatesLoading={templatesLoading}
-          templatesError={templatesError}
           onClose={() => setCreating(false)}
           onCreate={handleCreate}
         />
@@ -286,8 +271,8 @@ export default function DashboardPage() {
       {boardDeleteTarget && (
         <ConfirmDialog
           title={`Delete "${boardDeleteTarget.name}"?`}
-          description="This will permanently delete the board, its workflow lists, cards, comments, chat messages, and activity history."
-          confirmLabel="Delete board"
+          description="This will permanently delete the project, its workflow lists, cards, comments, chat messages, and activity history."
+          confirmLabel="Delete project"
           pending={boardDeleting}
           onCancel={() => setBoardDeleteTarget(null)}
           onConfirm={confirmDeleteBoard}
@@ -324,22 +309,22 @@ function BoardGridSkeleton() {
   )
 }
 
-function EmptyState({ templateCount, onCreate }) {
+function EmptyState({ onCreate }) {
   return (
     <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-14 text-center dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-lg bg-teal-600 text-white shadow-lg shadow-teal-600/20">
         <LayoutIcon className="h-7 w-7" />
       </div>
-      <h2 className="mt-5 text-lg font-semibold">Create your first project board</h2>
+      <h2 className="mt-5 text-lg font-semibold">Create your first project</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-        Start blank or choose from {pluralize(templateCount, 'software template')} with workflow lists and starter cards already in place.
+        Start with a clean project container. Inside it, you can add workflows for sprints, bugs, releases, roadmaps, and custom work.
       </p>
       <button
         onClick={onCreate}
         className="mt-6 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500"
       >
         <PlusIcon className="h-4 w-4" />
-        New board
+        New project
       </button>
     </div>
   )
@@ -348,7 +333,7 @@ function EmptyState({ templateCount, onCreate }) {
 function NoSearchResults({ query, onClear }) {
   return (
     <div className="rounded-lg border border-dashed border-zinc-300 bg-white py-14 text-center dark:border-zinc-800 dark:bg-zinc-900">
-      <p className="text-zinc-500 dark:text-zinc-400">No boards match "{query}".</p>
+      <p className="text-zinc-500 dark:text-zinc-400">No projects match "{query}".</p>
       <button onClick={onClear} className="mt-2 text-sm font-semibold text-teal-700 hover:underline dark:text-teal-300">
         Clear search
       </button>
@@ -356,7 +341,7 @@ function NoSearchResults({ query, onClear }) {
   )
 }
 
-function CreateBoardTile({ templateCount, onCreate }) {
+function CreateBoardTile({ onCreate }) {
   return (
     <button
       onClick={onCreate}
@@ -366,9 +351,9 @@ function CreateBoardTile({ templateCount, onCreate }) {
         <PlusIcon className="h-5 w-5" />
       </span>
       <span>
-        <span className="block whitespace-nowrap text-sm font-semibold text-zinc-800 dark:text-zinc-100">New board</span>
+        <span className="block whitespace-nowrap text-sm font-semibold text-zinc-800 dark:text-zinc-100">New project</span>
         <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-          Start blank or browse {pluralize(templateCount, 'template')}.
+          Create a project container and add workflows inside.
         </span>
       </span>
     </button>

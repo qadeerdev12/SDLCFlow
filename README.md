@@ -49,11 +49,11 @@ toast if the server disagrees.
 Ordering uses fractional positions, so moving one card writes one document
 instead of renumbering the column.
 
-New projects can start blank or from a software-focused workflow template.
-SDLCFlow ships with starter workflows for sprints, GitHub-style issue tracking,
-bug triage, roadmaps, personal development, and release planning. Templates seed
-the starter workflow's lists and cards server-side, so setup is one reliable
-request instead of a chain of client-side creates.
+New projects start as clean containers with a default General workflow.
+Software-focused workflow templates now live inside each project, where owners
+and admins can add sprints, GitHub-style issue tracking, bug triage, roadmaps,
+personal development, release planning, or a custom workflow as separate project
+areas.
 
 <div align="center">
 
@@ -259,7 +259,7 @@ Seventeen integration tests run against an in-memory MongoDB and a real Socket.I
 server — no mocks standing in for the parts most likely to be wrong. They cover
 the permission matrix above, the handshake rejecting invalid JWTs, membership
 being checked before a room join, broadcasts reaching collaborators while acking
-the sender, assignee validation, template board creation, comment/chat scoping,
+the sender, assignee validation, workflow template creation, comment/chat scoping,
 and account deletion.
 
 Client checks:

@@ -6,7 +6,7 @@ The client is responsible for:
 
 - authentication screens
 - landing page and dashboard
-- workflow template selection during board creation
+- identity-only project creation
 - kanban board UI
 - card search, tag filtering, and status filtering
 - card comment threads
@@ -90,12 +90,10 @@ See `../docs/06-realtime-architecture.md` for the server-side contract.
 
 ## Workflow Templates
 
-`src/pages/DashboardPage.jsx` loads the protected workflow template catalog
-through `boardApi.listTemplates`. `src/components/NewBoardModal.jsx` shows those
-templates only in create mode; edit mode stays focused on board name, icon, and
-color. Selecting a template passes `templateId` through `boardApi.create` for
-backward compatibility; the server treats it as the starter workflow template.
-`Start blank` keeps the existing empty-board flow.
+`src/components/NewBoardModal.jsx` keeps project creation focused on project
+identity: name, icon, and color. New projects start with the default `General`
+workflow and no starter cards, which keeps the model clear: project container
+first, workflow templates inside the project.
 
 `src/pages/BoardPage.jsx` renders project workflows as a horizontal switcher
 above the board. The board keeps the full list/card snapshot in state, then

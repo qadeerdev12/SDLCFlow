@@ -7,8 +7,7 @@ import Message from '../models/Message.js';
 import Workflow from '../models/Workflow.js';
 import { getBoardIfMember, getBoardIfRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
-import { resolveWorkflowTemplate, seedWorkflowFromTemplate } from '../services/workflowTemplateService.js';
-import { backfillBoardWorkItemsToDefaultWorkflow, ensureStarterWorkflow } from '../services/workflowService.js';
+import { backfillBoardWorkItemsToDefaultWorkflow, ensureDefaultWorkflow } from '../services/workflowService.js';
 
 // Keep in sync with the Board schema's color enum.
 const BOARD_COLORS = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'sky', 'violet'];
@@ -25,7 +24,7 @@ function sendBoardError(res, err) {
 export async function createBoard(req, res) {
   let board;
   try {
-    const { name, emoji, color, templateId, workflowTemplateId } = req.body;
+    const { name, emoji, color } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -33,14 +32,10 @@ export async function createBoard(req, res) {
       });
     }
 
-    const template = resolveWorkflowTemplate(workflowTemplateId || templateId);
-
     // Only accept a color from the known palette; otherwise fall back to the
     // schema default. This keeps a bad value from throwing a validation error.
-    const requestedColor = color ?? template?.color;
-    const requestedEmoji = emoji ?? template?.emoji;
-    const safeColor = BOARD_COLORS.includes(requestedColor) ? requestedColor : undefined;
-    const safeEmoji = typeof requestedEmoji === 'string' && requestedEmoji.trim() ? requestedEmoji.trim() : undefined;
+    const safeColor = BOARD_COLORS.includes(color) ? color : undefined;
+    const safeEmoji = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : undefined;
 
     // req.user was set by the `protect` middleware — that's who's creating this.
     board = await Board.create({
@@ -51,8 +46,9 @@ export async function createBoard(req, res) {
       members: [{ user: req.user._id, role: 'owner' }], // creator is the owner-member
     });
 
-    const starterWorkflow = await ensureStarterWorkflow(board._id, template);
-    await seedWorkflowFromTemplate(board._id, starterWorkflow._id, template);
+    // A board is the project container. Workflow templates are added inside the
+    // project, so creation only seeds the default empty workflow target.
+    const starterWorkflow = await ensureDefaultWorkflow(board._id);
     const lists = await List.find({ board: board._id }).sort({ position: 1 });
     const cards = await Card.find({ board: board._id }).sort({ position: 1 });
 

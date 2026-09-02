@@ -90,8 +90,8 @@ export const boardApi = {
   getOne: (boardId, token) =>
     request(`/boards/${boardId}`, { token }),
 
-  create: (name, token, { emoji, color, templateId } = {}) =>
-    request('/boards', { method: 'POST', body: { name, emoji, color, workflowTemplateId: templateId }, token }),
+  create: (name, token, { emoji, color } = {}) =>
+    request('/boards', { method: 'POST', body: { name, emoji, color }, token }),
 
   update: (boardId, updates, token) =>
     request(`/boards/${boardId}`, { method: 'PATCH', body: updates, token }),

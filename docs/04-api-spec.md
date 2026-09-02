@@ -74,20 +74,17 @@ current client and older integrations.
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
 | GET | `/boards` | member | – | `200 { boards: [...] }` (boards I belong to) |
-| POST | `/boards` | any auth | `{ name, emoji?, color?, workflowTemplateId?, templateId? }` | `201 { board, workflows, lists, cards }` (creator becomes owner) |
+| POST | `/boards` | any auth | `{ name, emoji?, color? }` | `201 { board, workflows, lists, cards }` (creator becomes owner) |
 | GET | `/boards/:boardId` | member | – | `200 { board, workflows, lists, cards }` (full initial load) |
 | PATCH | `/boards/:boardId` | admin | `{ name?, emoji?, color? }` | `200 { board, activity }` |
 | DELETE | `/boards/:boardId` | owner | – | `200 { deleted: true }` |
 
-Every board starts with one workflow. If no template id is provided,
-`POST /boards` creates the default `General` workflow and returns empty `lists`
-and `cards` arrays. If `workflowTemplateId` matches a catalog template, the
-server creates a workflow from that template and seeds its lists/cards in one
-request. `templateId` remains as a compatibility alias for the same value.
-Template icon/color become board defaults unless the request provides explicit
-`emoji` or `color` values. Older boards are backfilled with the default workflow
-the first time they are loaded, and any legacy lists/cards without a workflow are
-attached to that default.
+Every board is a project container. `POST /boards` creates the default
+`General` workflow and returns empty `lists` and `cards` arrays. Workflow
+templates are added later through `POST /boards/:boardId/workflows`, which keeps
+project identity separate from project structure. Older boards are backfilled
+with the default workflow the first time they are loaded, and any legacy
+lists/cards without a workflow are attached to that default.
 
 ### 2.4 Workflows
 
@@ -99,11 +96,10 @@ attached to that default.
 Workflows are top-level project areas inside a board, such as a release plan,
 software sprint, bug triage, roadmap, or a custom planning track. This is the
 foundation for treating a board as a project and grouping several workflow
-templates under it. Blank boards get a default `General` workflow, boards
-created from a workflow template get that template as their starter workflow,
-and older boards use lazy backfill. Lists/cards are workflow-aware on create,
-while board snapshots still include all board work until the client adds a
-workflow switcher.
+templates under it. New boards get a default `General` workflow, and older
+boards use lazy backfill. Lists/cards are workflow-aware on create and board
+snapshots include all workflows plus all board work so the client can switch
+between project areas without reloading.
 
 When `workflowTemplateId` is provided to `POST /boards/:boardId/workflows`, the
 server creates a new workflow from that template and seeds its lists/cards.
@@ -166,8 +162,8 @@ activity records.
 | DELETE | `/boards/:boardId/lists/:listId` | member | – | `200 { deleted: true, activity }` |
 
 If `workflowId` is omitted, new lists are created in the board's first workflow.
-For blank projects that is `General`; for projects started from a template, it
-is the starter workflow. If provided, the workflow must belong to the board.
+For new projects that is `General`; if additional workflows are added later, the
+client should pass the active `workflowId`. If provided, the workflow must belong to the board.
 List workflow reassignment is not supported yet; `PATCH` rejects direct
 `workflow` or `workflowId` changes so cards do not silently jump between project
 areas.
