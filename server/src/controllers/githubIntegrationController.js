@@ -5,10 +5,11 @@ import {
   exchangeCodeForToken,
   fetchGitHubProfile,
   fetchPrimaryGitHubEmail,
+  fetchGitHubRepositories,
 } from '../services/githubService.js';
 
 const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
-const GITHUB_SCOPES = ['read:user', 'user:email'];
+const GITHUB_SCOPES = ['read:user', 'user:email', 'repo'];
 
 function githubConfigReady() {
   return Boolean(
@@ -157,4 +158,44 @@ export async function disconnectGitHubAccount(req, res) {
       disconnected: true,
     },
   });
+}
+
+// GET /api/v1/integrations/github/repos
+// Returns repositories visible to the connected GitHub account. Private repo
+// access requires the broader `repo` OAuth scope, so older connections may need
+// to reconnect before this endpoint can populate the project repo picker.
+export async function getGitHubRepositories(req, res) {
+  try {
+    const account = await GitHubAccount.findOne({ user: req.user._id }).select('+accessToken');
+    if (!account) {
+      return res.status(409).json({
+        error: { code: 'GITHUB_NOT_CONNECTED', message: 'Connect GitHub before choosing a repository.' },
+      });
+    }
+
+    if (!account.scopes.includes('repo')) {
+      return res.status(403).json({
+        error: {
+          code: 'GITHUB_REPO_SCOPE_REQUIRED',
+          message: 'Reconnect GitHub to allow SDLCFlow to list repositories.',
+        },
+      });
+    }
+
+    const repositories = await fetchGitHubRepositories(account.accessToken);
+    account.lastSyncedAt = new Date();
+    await account.save();
+
+    return res.status(200).json({
+      data: {
+        repositories,
+        lastSyncedAt: account.lastSyncedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Get GitHub repositories error:', error);
+    return res.status(502).json({
+      error: { code: 'GITHUB_REQUEST_FAILED', message: 'Could not load repositories from GitHub.' },
+    });
+  }
 }

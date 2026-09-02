@@ -79,6 +79,7 @@ current client and older integrations.
 | GET | `/integrations/github/callback` | GitHub redirect | – | Redirects to client profile page |
 | GET | `/integrations/github/account` | ✅ | – | `200 { account }` |
 | DELETE | `/integrations/github/account` | ✅ | – | `200 { disconnected: true }` |
+| GET | `/integrations/github/repos` | ✅ | – | `200 { repositories, lastSyncedAt }` |
 
 `GET /integrations/github/start` returns the authorization URL instead of
 redirecting immediately because protected REST routes need the SDLCFlow JWT in
@@ -87,12 +88,18 @@ the `Authorization` header. The client should call this endpoint first, then set
 
 The OAuth callback validates a signed `state`, exchanges GitHub's temporary
 `code` server-side, fetches the GitHub profile/email, and stores the connection
-against the SDLCFlow user. The current MVP requests `read:user user:email`.
-Repository access will be added in a later slice when the project-level repo
-picker is introduced.
+against the SDLCFlow user. The current MVP requests `read:user user:email repo`;
+`repo` is required so private and public repositories can appear in the project
+repo picker. Existing GitHub connections made before repo access was introduced
+must reconnect before `GET /integrations/github/repos` can return repository
+data.
 Disconnecting removes SDLCFlow's stored GitHub connection. Users can also revoke
 the OAuth app from GitHub settings if they want GitHub to invalidate issued
 tokens immediately.
+
+`repositories` are normalized to safe picker fields: `id`, `name`, `fullName`,
+`owner`, `private`, `htmlUrl`, `description`, `defaultBranch`, `language`, and
+`updatedAt`.
 
 ### 2.4 Boards
 

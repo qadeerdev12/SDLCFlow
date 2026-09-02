@@ -2,6 +2,7 @@ import express from 'express';
 import {
   disconnectGitHubAccount,
   getGitHubAccount,
+  getGitHubRepositories,
   handleGitHubCallback,
   startGitHubOAuth,
 } from '../controllers/githubIntegrationController.js';
@@ -12,6 +13,7 @@ const router = express.Router();
 router.get('/github/start', protect, startGitHubOAuth);
 router.get('/github/account', protect, getGitHubAccount);
 router.delete('/github/account', protect, disconnectGitHubAccount);
+router.get('/github/repos', protect, getGitHubRepositories);
 router.get('/github/callback', handleGitHubCallback);
 
 export default router;

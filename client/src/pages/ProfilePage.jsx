@@ -525,7 +525,7 @@ function GitHubConnectionCard({ account, loading, busy, error, onConnect, onDisc
           <div>
             <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">No GitHub account connected yet.</p>
             <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-              This first connection only reads your GitHub profile and email. Repository access comes next when we add project repo linking.
+              SDLCFlow requests repository access so you can choose a repo for each project and show development activity beside the work.
             </p>
           </div>
         )}
@@ -539,7 +539,7 @@ function GitHubConnectionCard({ account, loading, busy, error, onConnect, onDisc
 
       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-          Current scopes: <span className="font-semibold">read:user</span>, <span className="font-semibold">user:email</span>
+          Current scopes: <span className="font-semibold">read:user</span>, <span className="font-semibold">user:email</span>, <span className="font-semibold">repo</span>
         </p>
         {account ? (
           <button

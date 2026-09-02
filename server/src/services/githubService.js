@@ -76,3 +76,32 @@ export async function fetchPrimaryGitHubEmail(accessToken) {
 
   return primaryEmail?.email || verifiedEmail?.email || null;
 }
+
+export async function fetchGitHubRepositories(accessToken) {
+  const params = new URLSearchParams({
+    affiliation: 'owner,collaborator,organization_member',
+    per_page: '100',
+    sort: 'updated',
+  });
+  const response = await fetch(`${GITHUB_API_BASE}/user/repos?${params.toString()}`, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${accessToken}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+
+  const repositories = await parseGitHubResponse(response);
+  return repositories.map((repo) => ({
+    id: repo.id,
+    name: repo.name,
+    fullName: repo.full_name,
+    owner: repo.owner?.login,
+    private: repo.private,
+    htmlUrl: repo.html_url,
+    description: repo.description,
+    defaultBranch: repo.default_branch,
+    language: repo.language,
+    updatedAt: repo.updated_at,
+  }));
+}

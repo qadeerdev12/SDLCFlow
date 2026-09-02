@@ -87,6 +87,9 @@ export const integrationApi = {
   getGitHubAccount: (token) =>
     request('/integrations/github/account', { token }),
 
+  listGitHubRepos: (token) =>
+    request('/integrations/github/repos', { token }),
+
   disconnectGitHubAccount: (token) =>
     request('/integrations/github/account', { method: 'DELETE', token }),
 }

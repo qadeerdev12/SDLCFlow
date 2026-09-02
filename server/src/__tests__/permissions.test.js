@@ -176,6 +176,14 @@ describe.sequential('REST board permissions', () => {
       expect(account.body.data.account).toBeNull();
 
       await request(app)
+        .get('/api/v1/integrations/github/repos')
+        .set('Authorization', `Bearer ${owner.token}`)
+        .expect(409)
+        .expect((res) => {
+          expect(res.body.error.code).toBe('GITHUB_NOT_CONNECTED');
+        });
+
+      await request(app)
         .delete('/api/v1/integrations/github/account')
         .set('Authorization', `Bearer ${owner.token}`)
         .expect(200)
@@ -188,6 +196,26 @@ describe.sequential('REST board permissions', () => {
         else process.env[key] = value;
       });
     }
+  });
+
+  it('asks old GitHub connections to reconnect before listing repositories', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    await GitHubAccount.create({
+      user: owner.user.id,
+      githubId: '12345',
+      username: 'octocat',
+      accessToken: 'token-without-repo-scope',
+      scopes: ['read:user', 'user:email'],
+    });
+
+    await request(app)
+      .get('/api/v1/integrations/github/repos')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(403)
+      .expect((res) => {
+        expect(res.body.error.code).toBe('GITHUB_REPO_SCOPE_REQUIRED');
+      });
   });
 
   it('serves the workflow template catalog and keeps the old board-template alias', async () => {
