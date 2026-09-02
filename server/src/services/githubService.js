@@ -1,4 +1,5 @@
 const GITHUB_API_BASE = 'https://api.github.com';
+const GITHUB_GRAPHQL_BASE = 'https://api.github.com/graphql';
 const GITHUB_OAUTH_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 
 export class GitHubApiError extends Error {
@@ -17,6 +18,21 @@ function normalizeScopes(scopeString = '') {
     .split(',')
     .map((scope) => scope.trim())
     .filter(Boolean);
+}
+
+function startOfUtcDay(date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function startOfUtcWeek(date) {
+  const start = startOfUtcDay(date);
+  const day = start.getUTCDay();
+  start.setUTCDate(start.getUTCDate() - day);
+  return start;
+}
+
+function startOfUtcYear(date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
 }
 
 async function parseGitHubResponse(response) {
@@ -156,6 +172,53 @@ export async function fetchGitHubRepositories(accessToken) {
     language: repo.language,
     updatedAt: repo.updated_at,
   }));
+}
+
+export async function fetchGitHubCommitContributionStats(accessToken, now = new Date()) {
+  const todayFrom = startOfUtcDay(now).toISOString();
+  const weekFrom = startOfUtcWeek(now).toISOString();
+  const yearFrom = startOfUtcYear(now).toISOString();
+  const to = now.toISOString();
+
+  const response = await fetch(GITHUB_GRAPHQL_BASE, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+    body: JSON.stringify({
+      query: `
+        query CommitContributionStats($todayFrom: DateTime!, $weekFrom: DateTime!, $yearFrom: DateTime!, $to: DateTime!) {
+          viewer {
+            today: contributionsCollection(from: $todayFrom, to: $to) {
+              totalCommitContributions
+            }
+            week: contributionsCollection(from: $weekFrom, to: $to) {
+              totalCommitContributions
+            }
+            year: contributionsCollection(from: $yearFrom, to: $to) {
+              totalCommitContributions
+            }
+          }
+        }
+      `,
+      variables: { todayFrom, weekFrom, yearFrom, to },
+    }),
+  });
+
+  const payload = await parseGitHubResponse(response);
+  if (payload.errors?.length) {
+    throw new GitHubApiError(payload.errors[0].message || 'GitHub GraphQL request failed.');
+  }
+
+  return {
+    today: payload.data?.viewer?.today?.totalCommitContributions || 0,
+    week: payload.data?.viewer?.week?.totalCommitContributions || 0,
+    year: payload.data?.viewer?.year?.totalCommitContributions || 0,
+    ranges: { todayFrom, weekFrom, yearFrom, to },
+  };
 }
 
 export async function fetchGitHubCommits(accessToken, owner, repo, { limit = 10, sha } = {}) {

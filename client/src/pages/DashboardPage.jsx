@@ -295,7 +295,7 @@ export default function DashboardPage() {
 function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
   const stats = dashboard?.stats || {}
   const languages = dashboard?.languages || []
-  const recentRepositories = dashboard?.recentRepositories || []
+  const commitGraph = dashboard?.commitGraph || { today: 0, week: 0, year: 0 }
   const linkedProjects = dashboard?.linkedProjects || []
 
   return (
@@ -348,7 +348,7 @@ function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
             </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <RepoList title="Recently updated" repositories={recentRepositories} emptyText="No repositories returned yet." />
+              <CommitGraph stats={commitGraph} />
               <LinkedProjectList projects={linkedProjects} />
             </div>
           </div>
@@ -394,35 +394,42 @@ function GitHubDashboardSkeleton() {
   )
 }
 
-function RepoList({ title, repositories, emptyText }) {
+function CommitGraph({ stats }) {
+  const points = [
+    { label: 'Today', value: stats.today || 0 },
+    { label: 'This week', value: stats.week || 0 },
+    { label: 'This year', value: stats.year || 0 },
+  ]
+  const maxValue = Math.max(...points.map((point) => point.value), 1)
+
   return (
     <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-      <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">{title}</h3>
-      {repositories.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">{emptyText}</p>
-      ) : (
-        <div className="mt-3 space-y-2">
-          {repositories.map((repo) => (
-            <a
-              key={repo.id || repo.fullName}
-              href={repo.htmlUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="block rounded-lg px-2 py-2 transition hover:bg-zinc-50 dark:hover:bg-zinc-800"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{repo.fullName}</p>
-                <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                  {repo.private ? 'Private' : 'Public'}
-                </span>
-              </div>
-              <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
-                {repo.language || 'No primary language'}{repo.updatedAt ? ` - Updated ${formatShortDate(repo.updatedAt)}` : ''}
-              </p>
-            </a>
-          ))}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Commit graph</h3>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">GitHub commit contributions by period.</p>
         </div>
-      )}
+        <span className="rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
+          {stats.year || 0} YTD
+        </span>
+      </div>
+
+      <div className="mt-5 flex h-32 items-end gap-3">
+        {points.map((point) => (
+          <div key={point.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+            <div className="flex h-24 w-full items-end rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
+              <div
+                className="w-full rounded-md bg-teal-500 transition-all duration-500"
+                style={{ height: `${Math.max((point.value / maxValue) * 100, point.value > 0 ? 10 : 4)}%` }}
+              />
+            </div>
+            <div className="w-full text-center">
+              <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">{point.value}</p>
+              <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{point.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -489,12 +496,6 @@ function LanguagePanel({ languages, total }) {
       )}
     </aside>
   )
-}
-
-function formatShortDate(value) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'recently'
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
 }
 
 function BoardGridSkeleton() {

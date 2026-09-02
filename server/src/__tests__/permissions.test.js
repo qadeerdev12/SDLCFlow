@@ -381,45 +381,62 @@ describe.sequential('REST board permissions', () => {
     });
 
     const previousFetch = global.fetch;
-    global.fetch = async () => ({
-      ok: true,
-      json: async () => [
-        {
-          id: 1,
-          name: 'sdlcflow',
-          full_name: 'octocat/sdlcflow',
-          owner: { login: 'octocat' },
-          private: true,
-          html_url: 'https://github.com/octocat/sdlcflow',
-          description: 'Project management for builders',
-          default_branch: 'main',
-          language: 'JavaScript',
-          updated_at: '2026-09-02T00:00:00.000Z',
-        },
-        {
-          id: 2,
-          name: 'api',
-          full_name: 'octocat/api',
-          owner: { login: 'octocat' },
-          private: false,
-          html_url: 'https://github.com/octocat/api',
-          default_branch: 'main',
-          language: 'JavaScript',
-          updated_at: '2026-09-01T00:00:00.000Z',
-        },
-        {
-          id: 3,
-          name: 'docs',
-          full_name: 'octocat/docs',
-          owner: { login: 'octocat' },
-          private: false,
-          html_url: 'https://github.com/octocat/docs',
-          default_branch: 'main',
-          language: 'Markdown',
-          updated_at: '2026-08-31T00:00:00.000Z',
-        },
-      ],
-    });
+    global.fetch = async (url) => {
+      if (url === 'https://api.github.com/graphql') {
+        return {
+          ok: true,
+          json: async () => ({
+            data: {
+              viewer: {
+                today: { totalCommitContributions: 2 },
+                week: { totalCommitContributions: 9 },
+                year: { totalCommitContributions: 144 },
+              },
+            },
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        json: async () => [
+          {
+            id: 1,
+            name: 'sdlcflow',
+            full_name: 'octocat/sdlcflow',
+            owner: { login: 'octocat' },
+            private: true,
+            html_url: 'https://github.com/octocat/sdlcflow',
+            description: 'Project management for builders',
+            default_branch: 'main',
+            language: 'JavaScript',
+            updated_at: '2026-09-02T00:00:00.000Z',
+          },
+          {
+            id: 2,
+            name: 'api',
+            full_name: 'octocat/api',
+            owner: { login: 'octocat' },
+            private: false,
+            html_url: 'https://github.com/octocat/api',
+            default_branch: 'main',
+            language: 'JavaScript',
+            updated_at: '2026-09-01T00:00:00.000Z',
+          },
+          {
+            id: 3,
+            name: 'docs',
+            full_name: 'octocat/docs',
+            owner: { login: 'octocat' },
+            private: false,
+            html_url: 'https://github.com/octocat/docs',
+            default_branch: 'main',
+            language: 'Markdown',
+            updated_at: '2026-08-31T00:00:00.000Z',
+          },
+        ],
+      };
+    };
 
     try {
       await request(app)
@@ -437,7 +454,7 @@ describe.sequential('REST board permissions', () => {
             linkedRepositories: 1,
           });
           expect(res.body.data.languages[0]).toEqual({ name: 'JavaScript', count: 2 });
-          expect(res.body.data.recentRepositories[0].fullName).toBe('octocat/sdlcflow');
+          expect(res.body.data.commitGraph).toMatchObject({ today: 2, week: 9, year: 144 });
           expect(res.body.data.linkedProjects).toHaveLength(1);
           expect(res.body.data.linkedProjects[0].board.name).toBe('Visible project');
         });

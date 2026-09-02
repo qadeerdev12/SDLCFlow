@@ -5,6 +5,7 @@ import GitHubAccount from '../models/GitHubAccount.js';
 import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
 import {
   exchangeCodeForToken,
+  fetchGitHubCommitContributionStats,
   fetchGitHubProfile,
   fetchPrimaryGitHubEmail,
   fetchGitHubRepositories,
@@ -253,7 +254,7 @@ export async function getGitHubDashboard(req, res) {
             linkedRepositories: 0,
           },
           languages: [],
-          recentRepositories: [],
+          commitGraph: { today: 0, week: 0, year: 0 },
           linkedProjects: [],
         },
       });
@@ -273,7 +274,7 @@ export async function getGitHubDashboard(req, res) {
             linkedRepositories: 0,
           },
           languages: [],
-          recentRepositories: [],
+          commitGraph: { today: 0, week: 0, year: 0 },
           linkedProjects: [],
         },
       });
@@ -281,8 +282,10 @@ export async function getGitHubDashboard(req, res) {
 
     const userBoards = await Board.find({ 'members.user': req.user._id }).select('_id');
     const boardIds = userBoards.map((board) => board._id);
-    const [repositories, linkedIntegrations] = await Promise.all([
-      fetchGitHubRepositories(account.getAccessToken()),
+    const accessToken = account.getAccessToken();
+    const [repositories, commitGraph, linkedIntegrations] = await Promise.all([
+      fetchGitHubRepositories(accessToken),
+      fetchGitHubCommitContributionStats(accessToken),
       BoardGitHubIntegration.find({ githubAccount: account._id, board: { $in: boardIds } })
         .sort({ updatedAt: -1 })
         .populate('board', 'name emoji color'),
@@ -324,7 +327,7 @@ export async function getGitHubDashboard(req, res) {
           linkedRepositories: new Set(linkedIntegrations.map((repo) => repo.repoFullName)).size,
         },
         languages,
-        recentRepositories: repositories.slice(0, 5),
+        commitGraph,
         linkedProjects,
         lastSyncedAt: account.lastSyncedAt,
       },
