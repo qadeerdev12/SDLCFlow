@@ -11,6 +11,8 @@ const ACTION_LABELS = {
   'comment.created': 'commented on a card',
   'message.deleted': 'deleted a chat message',
   'chat.cleared': 'cleared board chat',
+  'github.repo_linked': 'linked a GitHub repository',
+  'github.repo_unlinked': 'unlinked a GitHub repository',
   'member.added': 'added a member',
   'member.role_updated': 'changed a member role',
   'member.removed': 'removed a member',

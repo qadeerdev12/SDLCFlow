@@ -17,7 +17,7 @@ import {
 import { useAuth } from '../context/useAuth'
 import { useTheme } from '../context/useTheme'
 import { useToast } from '../context/useToast'
-import { boardApi } from '../lib/api'
+import { boardApi, integrationApi } from '../lib/api'
 import { useSocket } from '../hooks/useSocket'
 import { positionBetween, positionForIndex } from '../lib/position'
 import { CARD_STATUSES, CARD_TAGS } from '../lib/cardMeta'
@@ -563,6 +563,267 @@ function AddWorkflowModal({
   )
 }
 
+function GitHubIntegrationPanel({
+  board,
+  account,
+  integration,
+  loading,
+  error,
+  repos,
+  reposLoading,
+  reposError,
+  reposLoaded,
+  saving,
+  canEdit,
+  onClose,
+  onRefreshRepos,
+  onLinkRepo,
+  onUnlinkRepo,
+}) {
+  const [search, setSearch] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const showPicker = !integration || pickerOpen
+  const filteredRepos = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return repos
+    return repos.filter((repo) => {
+      const haystack = `${repo.fullName} ${repo.description || ''} ${repo.language || ''}`.toLowerCase()
+      return haystack.includes(query)
+    })
+  }, [repos, search])
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  async function chooseRepo(repo) {
+    await onLinkRepo(repo)
+    setPickerOpen(false)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-stretch justify-end bg-zinc-950/35 p-0 backdrop-blur-sm dark:bg-black/70 sm:p-4"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="GitHub repository"
+        className="flex h-full w-full max-w-xl flex-col overflow-hidden border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:rounded-lg"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">GitHub</p>
+            <h2 className="mt-1 truncate text-lg font-semibold text-zinc-950 dark:text-zinc-100">{board.name}</h2>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Link one repository to this project.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          {loading ? (
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="h-4 w-40 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+              <div className="mt-3 h-3 w-full animate-pulse rounded bg-zinc-100 dark:bg-zinc-800/70" />
+              <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800/70" />
+            </div>
+          ) : error ? (
+            <PanelMessage tone="error" title="Could not load GitHub" text={error} />
+          ) : !account ? (
+            <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-5 text-center dark:border-zinc-700 dark:bg-zinc-950">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+                <GitHubMark className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 text-sm font-semibold text-zinc-950 dark:text-zinc-100">Connect GitHub first</h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                Link your GitHub account from your profile, then come back here to choose a project repository.
+              </p>
+              <Link
+                to="/profile"
+                className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-500"
+              >
+                Open profile
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="flex items-center gap-3">
+                  {account.avatarUrl ? (
+                    <img src={account.avatarUrl} alt="" className="h-10 w-10 rounded-lg border border-zinc-200 object-cover dark:border-zinc-800" />
+                  ) : (
+                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-zinc-950 text-sm font-bold text-white dark:bg-white dark:text-zinc-950">
+                      {account.username?.[0]?.toUpperCase() || 'G'}
+                    </span>
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-zinc-950 dark:text-zinc-100">Connected as @{account.username}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Repositories are loaded from this GitHub account.</p>
+                  </div>
+                </div>
+              </div>
+
+              {integration && (
+                <div className="rounded-lg border border-teal-200 bg-teal-50 p-4 dark:border-teal-500/30 dark:bg-teal-500/10">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Linked repository</p>
+                      <a href={integration.repoUrl} target="_blank" rel="noreferrer" className="mt-2 block truncate text-base font-semibold text-zinc-950 hover:text-teal-700 dark:text-zinc-100 dark:hover:text-teal-200">
+                        {integration.repoFullName}
+                      </a>
+                      <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+                        {integration.private ? 'Private' : 'Public'} · {integration.defaultBranch || 'default branch'}{integration.language ? ` · ${integration.language}` : ''}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-teal-600 px-2.5 py-1 text-xs font-bold text-white dark:bg-teal-300 dark:text-zinc-950">Active</span>
+                  </div>
+                  {canEdit && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        disabled={saving}
+                        className="rounded-lg bg-zinc-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                      >
+                        Change repo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onUnlinkRepo}
+                        disabled={saving}
+                        className="rounded-lg border border-teal-300 px-3 py-2 text-sm font-semibold text-teal-800 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-teal-500/40 dark:text-teal-200 dark:hover:bg-zinc-900"
+                      >
+                        {saving ? 'Updating...' : 'Unlink'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!canEdit && !integration && (
+                <PanelMessage tone="info" title="No repository linked" text="Ask a project owner or admin to choose a GitHub repository for this project." />
+              )}
+
+              {!canEdit && integration && (
+                <PanelMessage tone="info" title="View only" text="Owners and admins can change the linked repository." />
+              )}
+
+              {canEdit && showPicker && (
+                <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Choose repository</h3>
+                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Select the repo that belongs to this project.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onRefreshRepos}
+                      disabled={reposLoading}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    >
+                      {reposLoading ? 'Refreshing...' : reposLoaded ? 'Refresh' : 'Load repos'}
+                    </button>
+                  </div>
+
+                  <label className="mt-4 block">
+                    <span className="sr-only">Search repositories</span>
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search repositories"
+                      className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-950"
+                    />
+                  </label>
+
+                  {reposError && <PanelMessage tone="error" title="Could not load repositories" text={reposError} />}
+
+                  <div className="mt-3 space-y-2">
+                    {reposLoading && Array.from({ length: 4 }).map((_, index) => (
+                      <div key={index} className="h-[76px] animate-pulse rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950" />
+                    ))}
+
+                    {!reposLoading && reposLoaded && filteredRepos.length === 0 && (
+                      <PanelMessage tone="info" title="No repositories found" text="Try a different search or refresh the list." />
+                    )}
+
+                    {!reposLoading && filteredRepos.map((repo) => {
+                      const selected = integration?.repoId === String(repo.id)
+                      return (
+                        <button
+                          key={repo.id}
+                          type="button"
+                          onClick={() => chooseRepo(repo)}
+                          disabled={saving || selected}
+                          className={`w-full rounded-lg border p-3 text-left transition hover:border-teal-300 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-70 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 ${
+                            selected
+                              ? 'border-teal-300 bg-teal-50 dark:border-teal-500/40 dark:bg-teal-500/10'
+                              : 'border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950'
+                          }`}
+                        >
+                          <span className="flex items-start justify-between gap-3">
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold text-zinc-950 dark:text-zinc-100">{repo.fullName}</span>
+                              <span className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                                {repo.description || 'No description'}
+                              </span>
+                              <span className="mt-2 block text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                                {repo.private ? 'Private' : 'Public'} · {repo.defaultBranch || 'main'}{repo.language ? ` · ${repo.language}` : ''}
+                              </span>
+                            </span>
+                            <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${selected ? 'bg-teal-600 text-white dark:bg-teal-300 dark:text-zinc-950' : 'bg-white text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-800'}`}>
+                              {selected ? 'Linked' : saving ? 'Saving' : 'Link'}
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </div>
+      </aside>
+    </div>
+  )
+}
+
+function PanelMessage({ tone = 'info', title, text }) {
+  const classes = tone === 'error'
+    ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300'
+    : 'border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400'
+
+  return (
+    <div className={`mt-3 rounded-lg border px-3 py-2 ${classes}`}>
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="mt-1 text-sm leading-5 opacity-90">{text}</p>
+    </div>
+  )
+}
+
+function GitHubMark({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path fillRule="evenodd" clipRule="evenodd" d="M12 .5C5.65.5.5 5.65.5 12c0 5.09 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.13c-3.2.7-3.88-1.36-3.88-1.36-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.17 1.18A10.97 10.97 0 0 1 12 5.99c.98 0 1.97.13 2.89.39 2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.4-5.27 5.69.41.36.78 1.06.78 2.14v3.16c0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+    </svg>
+  )
+}
+
 export default function BoardPage() {
   const { boardId } = useParams()
   const { user, token } = useAuth()
@@ -604,6 +865,15 @@ export default function BoardPage() {
   const [messagesError, setMessagesError] = useState('')
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [typingUsers, setTypingUsers] = useState([])
+  const [githubAccount, setGithubAccount] = useState(null)
+  const [githubIntegration, setGithubIntegration] = useState(null)
+  const [githubLoading, setGithubLoading] = useState(false)
+  const [githubError, setGithubError] = useState('')
+  const [githubRepos, setGithubRepos] = useState([])
+  const [githubReposLoaded, setGithubReposLoaded] = useState(false)
+  const [githubReposLoading, setGithubReposLoading] = useState(false)
+  const [githubReposError, setGithubReposError] = useState('')
+  const [githubSaving, setGithubSaving] = useState(false)
   const [cardSearch, setCardSearch] = useState('')
   const [tagFilter, setTagFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -656,6 +926,7 @@ export default function BoardPage() {
   const filtersActive = Boolean(cardSearch.trim()) || tagFilter !== 'all' || statusFilter !== 'all'
   const activityPanelOpen = searchParams.get('panel') === 'activity'
   const chatPanelOpen = searchParams.get('panel') === 'chat'
+  const githubPanelOpen = searchParams.get('panel') === 'github'
   const visibleCardsByList = useMemo(() => {
     const query = cardSearch.trim().toLowerCase()
     const next = {}
@@ -774,6 +1045,37 @@ export default function BoardPage() {
     }
   }, [boardId, token])
 
+  const loadGitHubSummary = useCallback(async () => {
+    try {
+      setGithubLoading(true)
+      setGithubError('')
+      const [accountRes, integrationRes] = await Promise.all([
+        integrationApi.getGitHubAccount(token),
+        boardApi.getGitHubIntegration(boardId, token),
+      ])
+      setGithubAccount(accountRes.data.account)
+      setGithubIntegration(integrationRes.data.integration)
+    } catch (err) {
+      setGithubError(err.message)
+    } finally {
+      setGithubLoading(false)
+    }
+  }, [boardId, token])
+
+  const loadGitHubRepos = useCallback(async () => {
+    try {
+      setGithubReposLoading(true)
+      setGithubReposError('')
+      const res = await integrationApi.listGitHubRepos(token)
+      setGithubRepos(res.data.repositories || [])
+      setGithubReposLoaded(true)
+    } catch (err) {
+      setGithubReposError(err.message)
+    } finally {
+      setGithubReposLoading(false)
+    }
+  }, [token])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       loadBoard()
@@ -811,6 +1113,22 @@ export default function BoardPage() {
   }, [board, loadActivities])
 
   useEffect(() => {
+    if (!board) return undefined
+    const timer = setTimeout(() => {
+      loadGitHubSummary()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [board, loadGitHubSummary])
+
+  useEffect(() => {
+    if (!githubPanelOpen || !githubAccount || !canEditBoard || githubReposLoaded || githubReposLoading) return undefined
+    const timer = setTimeout(() => {
+      loadGitHubRepos()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [canEditBoard, githubAccount, githubPanelOpen, githubReposLoaded, githubReposLoading, loadGitHubRepos])
+
+  useEffect(() => {
     if (!board || !chatPanelOpen || messagesLoaded) return undefined
     const timer = setTimeout(() => {
       loadMessages()
@@ -826,6 +1144,12 @@ export default function BoardPage() {
       setMessagesError('')
       setUnreadMessages(0)
       setTypingUsers([])
+      setGithubAccount(null)
+      setGithubIntegration(null)
+      setGithubError('')
+      setGithubRepos([])
+      setGithubReposLoaded(false)
+      setGithubReposError('')
       typingTimersRef.current.forEach((typingTimer) => clearTimeout(typingTimer))
       typingTimersRef.current.clear()
     }, 0)
@@ -1204,6 +1528,14 @@ export default function BoardPage() {
     })
   }
 
+  function closeGitHubPanel() {
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params)
+      next.delete('panel')
+      return next
+    })
+  }
+
   // --- add list / card -----------------------------------------------------
 
   async function handleAddCard(e, listId) {
@@ -1404,6 +1736,43 @@ export default function BoardPage() {
       toast.error('Could not add workflow', err.message)
     } finally {
       setQuickWorkflowId('')
+    }
+  }
+
+  async function handleRefreshGitHubRepos() {
+    setGithubReposLoaded(false)
+    await loadGitHubRepos()
+  }
+
+  async function handleLinkGitHubRepo(repository) {
+    setGithubSaving(true)
+    try {
+      const res = await boardApi.linkGitHubRepo(boardId, repository, token)
+      setGithubIntegration(res.data.integration)
+      prependActivity(res.data.activity)
+      toast.success('GitHub repo linked', res.data.integration.repoFullName)
+    } catch (err) {
+      setGithubReposError(err.message)
+      toast.error('Could not link GitHub repo', err.message)
+      throw err
+    } finally {
+      setGithubSaving(false)
+    }
+  }
+
+  async function handleUnlinkGitHubRepo() {
+    setGithubSaving(true)
+    try {
+      const res = await boardApi.unlinkGitHubRepo(boardId, token)
+      setGithubIntegration(null)
+      prependActivity(res.data.activity)
+      toast.success('GitHub repo unlinked')
+    } catch (err) {
+      setGithubReposError(err.message)
+      toast.error('Could not unlink GitHub repo', err.message)
+      throw err
+    } finally {
+      setGithubSaving(false)
     }
   }
 
@@ -1705,6 +2074,17 @@ export default function BoardPage() {
             </Link>
             <button
               type="button"
+              onClick={() => openPanel('github')}
+              className="relative inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              <GitHubMark className="h-[15px] w-[15px]" />
+              GitHub
+              {githubIntegration && (
+                <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-teal-500 dark:border-zinc-900" />
+              )}
+            </button>
+            <button
+              type="button"
               onClick={openChatPanel}
               className="relative inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
@@ -1986,6 +2366,26 @@ export default function BoardPage() {
           error={activityError}
           onRetry={loadActivities}
           onClose={closeActivityPanel}
+        />
+      )}
+
+      {githubPanelOpen && (
+        <GitHubIntegrationPanel
+          board={board}
+          account={githubAccount}
+          integration={githubIntegration}
+          loading={githubLoading}
+          error={githubError}
+          repos={githubRepos}
+          reposLoading={githubReposLoading}
+          reposError={githubReposError}
+          reposLoaded={githubReposLoaded}
+          saving={githubSaving}
+          canEdit={canEditBoard}
+          onClose={closeGitHubPanel}
+          onRefreshRepos={handleRefreshGitHubRepos}
+          onLinkRepo={handleLinkGitHubRepo}
+          onUnlinkRepo={handleUnlinkGitHubRepo}
         />
       )}
 

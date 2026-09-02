@@ -260,7 +260,7 @@ describe.sequential('REST board permissions', () => {
       .put(`/api/v1/boards/${board._id}/integrations/github`)
       .set('Authorization', `Bearer ${member.token}`)
       .send({
-        id: 'repo-1',
+        id: 1001,
         fullName: 'octocat/sdlcflow',
         owner: 'octocat',
         name: 'sdlcflow',
@@ -274,7 +274,7 @@ describe.sequential('REST board permissions', () => {
       .put(`/api/v1/boards/${board._id}/integrations/github`)
       .set('Authorization', `Bearer ${owner.token}`)
       .send({
-        id: 'repo-1',
+        id: 1001,
         fullName: 'octocat/sdlcflow',
         owner: 'octocat',
         name: 'sdlcflow',
@@ -286,7 +286,7 @@ describe.sequential('REST board permissions', () => {
       .expect(200);
 
     expect(linked.body.data.integration).toMatchObject({
-      repoId: 'repo-1',
+      repoId: '1001',
       repoOwner: 'octocat',
       repoName: 'sdlcflow',
       repoFullName: 'octocat/sdlcflow',
