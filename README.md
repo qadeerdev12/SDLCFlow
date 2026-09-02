@@ -240,6 +240,11 @@ members panel, and drag a card — that is the whole feature in one gesture.
 | `JWT_SECRET` | yes | Secret used to sign and verify tokens |
 | `PORT` | no | HTTP and Socket.IO port. Defaults to `5050` |
 | `CLIENT_ORIGIN` | no | Comma-separated allowed browser origins |
+| `CLIENT_URL` | no | Browser URL used after OAuth redirects |
+| `GITHUB_CLIENT_ID` | for GitHub | GitHub OAuth app client id |
+| `GITHUB_CLIENT_SECRET` | for GitHub | GitHub OAuth app client secret |
+| `GITHUB_CALLBACK_URL` | for GitHub | OAuth callback URL registered in GitHub |
+| `GITHUB_TOKEN_ENCRYPTION_KEY` | for GitHub | Long random secret used to encrypt stored GitHub tokens |
 
 **`client/.env`**
 

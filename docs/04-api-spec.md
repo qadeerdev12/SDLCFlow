@@ -78,7 +78,7 @@ current client and older integrations.
 | GET | `/integrations/github/start` | ✅ | – | `200 { authorizationUrl, scopes }` |
 | GET | `/integrations/github/callback` | GitHub redirect | – | Redirects to client profile page |
 | GET | `/integrations/github/account` | ✅ | – | `200 { account }` |
-| DELETE | `/integrations/github/account` | ✅ | – | `200 { disconnected: true }` |
+| DELETE | `/integrations/github/account` | ✅ | – | `200 { disconnected, revoked, unlinkedProjects }` |
 | GET | `/integrations/github/repos` | ✅ | – | `200 { repositories, lastSyncedAt }` |
 
 `GET /integrations/github/start` returns the authorization URL instead of
@@ -87,15 +87,16 @@ the `Authorization` header. The client should call this endpoint first, then set
 `window.location` to `authorizationUrl`.
 
 The OAuth callback validates a signed `state`, exchanges GitHub's temporary
-`code` server-side, fetches the GitHub profile/email, and stores the connection
-against the SDLCFlow user. The current MVP requests `read:user user:email repo`;
+`code` server-side, fetches the GitHub profile/email, and stores the encrypted
+connection against the SDLCFlow user. The current MVP requests `read:user user:email repo`;
 `repo` is required so private and public repositories can appear in the project
 repo picker. Existing GitHub connections made before repo access was introduced
 must reconnect before `GET /integrations/github/repos` can return repository
 data.
-Disconnecting removes SDLCFlow's stored GitHub connection. Users can also revoke
-the OAuth app from GitHub settings if they want GitHub to invalidate issued
-tokens immediately.
+Disconnecting makes a best-effort token revoke call to GitHub, removes
+SDLCFlow's stored GitHub connection, and unlinks projects that depended on that
+account. GitHub rate limits return `429 GITHUB_RATE_LIMITED` with retry metadata
+when GitHub provides it.
 
 `repositories` are normalized to safe picker fields: `id`, `name`, `fullName`,
 `owner`, `private`, `htmlUrl`, `description`, `defaultBranch`, `language`, and

@@ -1,6 +1,17 @@
 const GITHUB_API_BASE = 'https://api.github.com';
 const GITHUB_OAUTH_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 
+export class GitHubApiError extends Error {
+  constructor(message, { code = 'GITHUB_REQUEST_FAILED', statusCode = 502, retryAfter = null, resetAt = null } = {}) {
+    super(message);
+    this.name = 'GitHubApiError';
+    this.code = code;
+    this.statusCode = statusCode;
+    this.retryAfter = retryAfter;
+    this.resetAt = resetAt;
+  }
+}
+
 function normalizeScopes(scopeString = '') {
   return scopeString
     .split(',')
@@ -13,10 +24,51 @@ async function parseGitHubResponse(response) {
 
   if (!response.ok) {
     const message = payload.message || 'GitHub request failed.';
-    throw new Error(message);
+    const remaining = response.headers?.get?.('x-ratelimit-remaining');
+    const reset = response.headers?.get?.('x-ratelimit-reset');
+    const retryAfter = response.headers?.get?.('retry-after');
+    const isRateLimited = response.status === 429 || (response.status === 403 && remaining === '0');
+
+    if (isRateLimited) {
+      throw new GitHubApiError('GitHub rate limit reached. Please try again shortly.', {
+        code: 'GITHUB_RATE_LIMITED',
+        statusCode: 429,
+        retryAfter: retryAfter ? Number(retryAfter) : null,
+        resetAt: reset ? new Date(Number(reset) * 1000).toISOString() : null,
+      });
+    }
+
+    throw new GitHubApiError(message, {
+      statusCode: response.status >= 500 ? 502 : response.status,
+    });
   }
 
   return payload;
+}
+
+export async function revokeGitHubToken(accessToken) {
+  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET || !accessToken) {
+    return { revoked: false, reason: 'missing_config' };
+  }
+
+  const credentials = Buffer.from(`${process.env.GITHUB_CLIENT_ID}:${process.env.GITHUB_CLIENT_SECRET}`).toString('base64');
+  const response = await fetch(`${GITHUB_API_BASE}/applications/${process.env.GITHUB_CLIENT_ID}/token`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Basic ${credentials}`,
+      'Content-Type': 'application/json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+    body: JSON.stringify({ access_token: accessToken }),
+  });
+
+  if (response.status === 204 || response.status === 404) {
+    return { revoked: response.status === 204 };
+  }
+
+  await parseGitHubResponse(response);
+  return { revoked: true };
 }
 
 export async function exchangeCodeForToken(code) {

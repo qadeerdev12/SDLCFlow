@@ -1,11 +1,13 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import GitHubAccount from '../models/GitHubAccount.js';
+import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
 import {
   exchangeCodeForToken,
   fetchGitHubProfile,
   fetchPrimaryGitHubEmail,
   fetchGitHubRepositories,
+  revokeGitHubToken,
 } from '../services/githubService.js';
 
 const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
@@ -66,6 +68,23 @@ function redirectToClient(res, status) {
   const url = new URL('/profile', clientRedirectBase());
   url.searchParams.set('github', status);
   return res.redirect(url.toString());
+}
+
+function sendGitHubError(res, error, fallbackMessage) {
+  if (error.code || error.statusCode) {
+    return res.status(error.statusCode || 502).json({
+      error: {
+        code: error.code || 'GITHUB_REQUEST_FAILED',
+        message: error.message || fallbackMessage,
+        retryAfter: error.retryAfter,
+        resetAt: error.resetAt,
+      },
+    });
+  }
+
+  return res.status(502).json({
+    error: { code: 'GITHUB_REQUEST_FAILED', message: fallbackMessage },
+  });
 }
 
 // GET /api/v1/integrations/github/start
@@ -148,14 +167,31 @@ export async function getGitHubAccount(req, res) {
 }
 
 // DELETE /api/v1/integrations/github/account
-// Removes SDLCFlow's stored connection. Users should also revoke the OAuth app
-// in GitHub settings if they want GitHub to invalidate already issued tokens.
+// Removes SDLCFlow's stored connection and attempts to revoke the GitHub token.
+// Local cleanup still succeeds if GitHub is temporarily unavailable.
 export async function disconnectGitHubAccount(req, res) {
-  await GitHubAccount.deleteOne({ user: req.user._id });
+  const account = await GitHubAccount.findOne({ user: req.user._id }).select('+accessToken');
+  let revokeResult = { revoked: false, reason: 'not_connected' };
+  let unlinkedProjects = 0;
+
+  if (account) {
+    try {
+      revokeResult = await revokeGitHubToken(account.getAccessToken());
+    } catch (error) {
+      console.warn('GitHub token revoke failed; deleting local connection:', error.message);
+      revokeResult = { revoked: false, reason: 'github_request_failed' };
+    }
+
+    const unlinkResult = await BoardGitHubIntegration.deleteMany({ githubAccount: account._id });
+    unlinkedProjects = unlinkResult.deletedCount || 0;
+    await account.deleteOne();
+  }
 
   return res.status(200).json({
     data: {
       disconnected: true,
+      revoked: revokeResult.revoked,
+      unlinkedProjects,
     },
   });
 }
@@ -182,7 +218,7 @@ export async function getGitHubRepositories(req, res) {
       });
     }
 
-    const repositories = await fetchGitHubRepositories(account.accessToken);
+    const repositories = await fetchGitHubRepositories(account.getAccessToken());
     account.lastSyncedAt = new Date();
     await account.save();
 
@@ -194,8 +230,6 @@ export async function getGitHubRepositories(req, res) {
     });
   } catch (error) {
     console.error('Get GitHub repositories error:', error);
-    return res.status(502).json({
-      error: { code: 'GITHUB_REQUEST_FAILED', message: 'Could not load repositories from GitHub.' },
-    });
+    return sendGitHubError(res, error, 'Could not load repositories from GitHub.');
   }
 }

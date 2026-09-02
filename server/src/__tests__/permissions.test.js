@@ -220,6 +220,130 @@ describe.sequential('REST board permissions', () => {
       });
   });
 
+  it('encrypts stored GitHub access tokens while keeping them usable for API calls', async () => {
+    const owner = await createUser('Owner', 'owner@example.com');
+    const account = await GitHubAccount.create({
+      user: owner._id,
+      githubId: '12345',
+      username: 'octocat',
+      accessToken: 'plain-text-token',
+      scopes: ['read:user', 'user:email', 'repo'],
+    });
+
+    const storedAccount = await GitHubAccount.findById(account._id).select('+accessToken');
+    expect(storedAccount.accessToken).not.toBe('plain-text-token');
+    expect(storedAccount.accessToken.startsWith('enc:v1:')).toBe(true);
+    expect(storedAccount.getAccessToken()).toBe('plain-text-token');
+  });
+
+  it('revokes GitHub tokens and removes linked project repos on disconnect', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    const account = await GitHubAccount.create({
+      user: owner.user.id,
+      githubId: '12345',
+      username: 'octocat',
+      accessToken: 'token-to-revoke',
+      scopes: ['read:user', 'user:email', 'repo'],
+    });
+    await BoardGitHubIntegration.create({
+      board: board._id,
+      connectedBy: owner.user.id,
+      githubAccount: account._id,
+      repoId: '1001',
+      repoOwner: 'octocat',
+      repoName: 'sdlcflow',
+      repoFullName: 'octocat/sdlcflow',
+      repoUrl: 'https://github.com/octocat/sdlcflow',
+    });
+
+    const previousConfig = {
+      GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
+      GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
+    };
+    const previousFetch = global.fetch;
+    process.env.GITHUB_CLIENT_ID = 'github-client-id';
+    process.env.GITHUB_CLIENT_SECRET = 'github-client-secret';
+    const revokeCalls = [];
+    global.fetch = async (url, options) => {
+      revokeCalls.push({ url, options });
+      return {
+        status: 204,
+        ok: true,
+        json: async () => ({}),
+      };
+    };
+
+    try {
+      await request(app)
+        .delete('/api/v1/integrations/github/account')
+        .set('Authorization', `Bearer ${owner.token}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.data).toMatchObject({
+            disconnected: true,
+            revoked: true,
+            unlinkedProjects: 1,
+          });
+        });
+
+      expect(revokeCalls).toHaveLength(1);
+      expect(revokeCalls[0].url).toContain('/applications/github-client-id/token');
+      expect(JSON.parse(revokeCalls[0].options.body)).toEqual({ access_token: 'token-to-revoke' });
+      await expect(GitHubAccount.countDocuments({ user: owner.user.id })).resolves.toBe(0);
+      await expect(BoardGitHubIntegration.countDocuments({ board: board._id })).resolves.toBe(0);
+    } finally {
+      global.fetch = previousFetch;
+      Object.entries(previousConfig).forEach(([key, value]) => {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      });
+    }
+  });
+
+  it('returns a clear GitHub rate-limit response when GitHub throttles repository reads', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    await GitHubAccount.create({
+      user: owner.user.id,
+      githubId: '12345',
+      username: 'octocat',
+      accessToken: 'repo-token',
+      scopes: ['read:user', 'user:email', 'repo'],
+    });
+
+    const previousFetch = global.fetch;
+    global.fetch = async () => ({
+      status: 403,
+      ok: false,
+      headers: {
+        get: (name) => {
+          if (name === 'x-ratelimit-remaining') return '0';
+          if (name === 'x-ratelimit-reset') return '1788307200';
+          return null;
+        },
+      },
+      json: async () => ({ message: 'API rate limit exceeded.' }),
+    });
+
+    try {
+      await request(app)
+        .get('/api/v1/integrations/github/repos')
+        .set('Authorization', `Bearer ${owner.token}`)
+        .expect(429)
+        .expect((res) => {
+          expect(res.body.error).toMatchObject({
+            code: 'GITHUB_RATE_LIMITED',
+            message: 'GitHub rate limit reached. Please try again shortly.',
+            resetAt: '2026-09-02T00:00:00.000Z',
+          });
+        });
+    } finally {
+      global.fetch = previousFetch;
+    }
+  });
+
   it('enforces roles for project GitHub repository links', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

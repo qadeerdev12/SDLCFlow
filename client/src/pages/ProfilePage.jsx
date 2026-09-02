@@ -206,9 +206,15 @@ export default function ProfilePage() {
     setGithubBusy(true)
     setGithubError('')
     try {
-      await integrationApi.disconnectGitHubAccount(token)
+      const res = await integrationApi.disconnectGitHubAccount(token)
       setGithubAccount(null)
-      toast.success('GitHub disconnected', 'Your GitHub account was removed from SDLCFlow.')
+      const unlinkedProjects = res.data.unlinkedProjects || 0
+      toast.success(
+        'GitHub disconnected',
+        unlinkedProjects > 0
+          ? `Removed GitHub from ${unlinkedProjects} linked project${unlinkedProjects === 1 ? '' : 's'}.`
+          : 'Your GitHub account was removed from SDLCFlow.'
+      )
     } catch (err) {
       setGithubError(err.message)
       toast.error('Could not disconnect GitHub', err.message)
@@ -525,7 +531,7 @@ function GitHubConnectionCard({ account, loading, busy, error, onConnect, onDisc
           <div>
             <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">No GitHub account connected yet.</p>
             <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-              SDLCFlow requests repository access so you can choose a repo for each project and show development activity beside the work.
+              Connect GitHub to choose a repository for each project, show commits, and surface development activity beside the work.
             </p>
           </div>
         )}
@@ -539,7 +545,7 @@ function GitHubConnectionCard({ account, loading, busy, error, onConnect, onDisc
 
       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-          Current scopes: <span className="font-semibold">read:user</span>, <span className="font-semibold">user:email</span>, <span className="font-semibold">repo</span>
+          Permissions: profile and email for account matching, repository access for repo picker, commits, issues, and pull requests. Disconnect revokes the token when GitHub allows it and removes linked project repos.
         </p>
         {account ? (
           <button

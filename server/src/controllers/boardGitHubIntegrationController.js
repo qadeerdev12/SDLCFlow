@@ -9,7 +9,14 @@ function sendIntegrationError(res, err) {
   const status = err.statusCode || 500;
   const code = err.code || 'SERVER';
   const message = status === 500 ? 'Something went wrong.' : err.message;
-  return res.status(status).json({ error: { code, message } });
+  return res.status(status).json({
+    error: {
+      code,
+      message,
+      retryAfter: err.retryAfter,
+      resetAt: err.resetAt,
+    },
+  });
 }
 
 function makeError(message, statusCode = 400, code = 'VALIDATION') {
@@ -238,7 +245,7 @@ export async function getBoardGitHubCommits(req, res) {
     const integration = await getLinkedIntegrationWithToken(board._id);
 
     const commits = await fetchGitHubCommits(
-      integration.githubAccount.accessToken,
+      integration.githubAccount.getAccessToken(),
       integration.repoOwner,
       integration.repoName,
       { limit: Number(req.query.limit) || 10, sha: req.query.sha || integration.defaultBranch }
@@ -281,7 +288,7 @@ export async function getBoardGitHubStats(req, res) {
 
     const integration = await getLinkedIntegrationWithToken(board._id);
     const stats = await fetchGitHubRepositoryStats(
-      integration.githubAccount.accessToken,
+      integration.githubAccount.getAccessToken(),
       integration.repoOwner,
       integration.repoName
     );
