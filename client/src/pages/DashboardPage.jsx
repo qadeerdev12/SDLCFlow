@@ -397,7 +397,6 @@ function GitHubDashboardSkeleton() {
 function CommitGraphOptions({ stats }) {
   const dailyContributions = stats.dailyContributions || []
   const recentDays = dailyContributions.slice(-35)
-  const sparklineDays = dailyContributions.slice(-14)
   const points = [
     { label: 'Today', value: stats.today || 0 },
     { label: 'This week', value: stats.week || 0 },
@@ -409,16 +408,15 @@ function CommitGraphOptions({ stats }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Commit graph options</h3>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Three ways to show GitHub commit contribution activity.</p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Two ways to show GitHub commit contribution activity.</p>
         </div>
         <span className="rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
           {stats.year || 0} YTD
         </span>
       </div>
 
-      <div className="mt-4 grid gap-3 xl:grid-cols-3">
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
         <CommitStatCards points={points} />
-        <CommitSparkline days={sparklineDays} />
         <CommitHeatmap days={recentDays} />
       </div>
     </div>
@@ -448,38 +446,6 @@ function CommitStatCards({ points }) {
           </div>
         ))}
       </div>
-    </div>
-  )
-}
-
-function CommitSparkline({ days }) {
-  const values = days.length ? days.map((day) => day.count || 0) : Array.from({ length: 14 }, () => 0)
-  const maxValue = Math.max(...values, 1)
-  const width = 220
-  const height = 72
-  const padding = 8
-  const step = values.length > 1 ? (width - padding * 2) / (values.length - 1) : 0
-  const linePoints = values
-    .map((value, index) => {
-      const x = padding + index * step
-      const y = height - padding - (value / maxValue) * (height - padding * 2)
-      return `${x},${y}`
-    })
-    .join(' ')
-
-  return (
-    <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950">
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Option 2</p>
-      <h4 className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-100">Sparkline trend</h4>
-      <svg className="mt-4 h-24 w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-        <polyline points={linePoints} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-teal-500" />
-        {values.map((value, index) => {
-          const x = padding + index * step
-          const y = height - padding - (value / maxValue) * (height - padding * 2)
-          return <circle key={`${index}-${value}`} cx={x} cy={y} r="2.5" className="fill-teal-500" />
-        })}
-      </svg>
-      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Last 14 days</p>
     </div>
   )
 }
