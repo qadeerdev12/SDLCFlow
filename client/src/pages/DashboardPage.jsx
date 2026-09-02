@@ -338,7 +338,7 @@ function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
           Reconnect GitHub to refresh repository permissions and load dashboard stats.
         </div>
       ) : dashboard?.connected ? (
-        <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:h-[184px] xl:grid-cols-[220px_minmax(0,1fr)_250px_250px] xl:items-stretch">
+        <div className="mt-3 grid items-start gap-3 lg:grid-cols-2 xl:grid-cols-[220px_minmax(0,760px)_250px_250px]">
           <GitHubMetricGrid stats={stats} />
           <CommitGraphOptions stats={commitGraph} />
           <LinkedProjectList projects={linkedProjects} />
@@ -355,7 +355,7 @@ function GitHubDashboardPanel({ dashboard, loading, error, onManage }) {
 
 function GitHubMetricGrid({ stats }) {
   return (
-    <div className="grid grid-cols-2 gap-2 xl:h-full">
+    <div className="grid self-stretch grid-cols-2 gap-2">
       <MiniMetric label="Repos" value={stats.repositories ?? 0} />
       <MiniMetric label="Private" value={stats.privateRepositories ?? 0} />
       <MiniMetric label="Projects" value={stats.linkedProjects ?? 0} />
@@ -366,7 +366,7 @@ function GitHubMetricGrid({ stats }) {
 
 function MiniMetric({ label, value }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="flex min-h-16 flex-col justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
       <p className="text-lg font-semibold text-zinc-950 dark:text-white">{value}</p>
       <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
     </div>
@@ -384,9 +384,9 @@ function Metric({ label, value }) {
 
 function GitHubDashboardSkeleton() {
   return (
-    <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:h-[184px] xl:grid-cols-[220px_minmax(0,1fr)_250px_250px]">
+    <div className="mt-3 grid items-start gap-3 lg:grid-cols-2 xl:grid-cols-[220px_minmax(0,760px)_250px_250px]">
       {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="h-36 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800 xl:h-full" />
+        <div key={index} className="h-36 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
       ))}
     </div>
   )
@@ -402,7 +402,7 @@ function CommitGraphOptions({ stats }) {
   ]
 
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-800 xl:h-full">
+    <div className="rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-800">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Commit activity</h3>
@@ -458,7 +458,7 @@ function CommitHeatmap({ days }) {
           <span
             key={day.date}
             title={`${day.date}: ${day.count || 0} commits`}
-            className={`h-2.5 w-2.5 rounded-[3px] ${heatmapClass(day.count || 0, maxValue)}`}
+            className={`h-3.5 w-3.5 rounded-[3px] ${heatmapClass(day.count || 0, maxValue)}`}
           />
         ))}
       </div>
@@ -481,7 +481,7 @@ function LinkedProjectList({ projects }) {
   const hiddenCount = Math.max(projects.length - visibleProjects.length, 0)
 
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-800 xl:h-full">
+    <div className="rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-800">
       <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Linked project repos</h3>
       {projects.length === 0 ? (
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Link a repo inside a project to see it here.</p>
@@ -517,7 +517,7 @@ function LanguagePanel({ languages, total }) {
   const topCount = Math.max(...languages.map((language) => language.count), 1)
 
   return (
-    <aside className="overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-800 dark:bg-zinc-950 xl:h-full">
+    <aside className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-800 dark:bg-zinc-950">
       <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Repository languages</h3>
       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
         Primary language across {pluralize(total, 'repo')}.
