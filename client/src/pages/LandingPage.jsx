@@ -32,9 +32,14 @@ const previewColumns = [
 
 const features = [
   {
-    title: 'Realtime project sync',
-    text: 'Move cards, edit tasks, and update lists while every project member stays in sync.',
+    title: 'Project workspaces',
+    text: 'Create one project for the product you are building, then organize the actual work inside focused workflows.',
     icon: 'layout',
+  },
+  {
+    title: 'Workflow templates',
+    text: 'Start with Software Sprint, Bug Triage, Release Plan, API Roadmap, or a completely custom workflow.',
+    icon: 'template',
   },
   {
     title: 'Task detail modal',
@@ -42,8 +47,8 @@ const features = [
     icon: 'detail',
   },
   {
-    title: 'Project chat',
-    text: 'Keep quick project decisions beside the work with realtime messages, unread counts, and owner-controlled chat clearing.',
+    title: 'Realtime project chat',
+    text: 'Keep quick project decisions beside the board with live messages, unread counts, and owner-controlled chat clearing.',
     icon: 'chat',
   },
   {
@@ -52,8 +57,8 @@ const features = [
     icon: 'activity',
   },
   {
-    title: 'Jira-style flow',
-    text: 'Use Backlog, Next, In Progress, Review, and Done without a heavy process layer.',
+    title: 'Realtime sync',
+    text: 'Move cards, edit tasks, add workflows, and keep every connected member in sync without refreshing.',
     icon: 'flow',
   },
   {
@@ -72,13 +77,20 @@ const features = [
     icon: 'target',
   },
   {
-    title: 'Project management',
+    title: 'Project controls',
     text: 'Rename or delete projects, workflows, lists, and cards as your project shape changes.',
     icon: 'settings',
   },
 ]
 
 const workflow = ['Capture', 'Prioritise', 'Build', 'Review', 'Ship']
+
+const workflowTemplates = [
+  { title: 'Software Sprint', meta: 'Backlog to shipped', tone: 'teal' },
+  { title: 'Bug Triage', meta: 'Report, verify, fix', tone: 'rose' },
+  { title: 'Release Plan', meta: 'Scope, QA, launch', tone: 'amber' },
+  { title: 'Custom Workflow', meta: 'Start from blank', tone: 'cyan' },
+]
 
 const activity = [
   { person: 'JS', action: 'moved Realtime drag persistence to Review', time: '2m ago' },
@@ -136,7 +148,7 @@ export default function LandingPage() {
               Bring your projects into one live workspace.
             </h1>
             <p className="landing-rise landing-delay-2 mt-5 text-lg leading-8 text-zinc-600 dark:text-zinc-300">
-              SDLCFlow gives you a focused Jira-style workspace for planning, prioritising, and shipping the projects you are building now.
+              SDLCFlow gives each project a home, then lets you add the workflows, tasks, chat, and live activity you need to keep delivery moving.
             </p>
             <div className="landing-rise landing-delay-3 mt-8 flex flex-wrap gap-3">
               <Link to="/register" className="landing-button rounded-lg bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500">
@@ -147,9 +159,9 @@ export default function LandingPage() {
               </Link>
             </div>
             <div className="landing-rise landing-delay-4 mt-10 grid grid-cols-3 gap-5 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-              <Stat value="Live" label="updates" />
-              <Stat value="Chat" label="included" />
-              <Stat value="Activity" label="timeline" />
+              <Stat value="Projects" label="as containers" />
+              <Stat value="Workflows" label="inside each project" />
+              <Stat value="Chat" label="beside the work" />
             </div>
           </div>
 
@@ -159,10 +171,10 @@ export default function LandingPage() {
         <section className="border-y border-zinc-200 bg-stone-100 py-20 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="mx-auto grid max-w-7xl gap-8 px-5 sm:px-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-700 dark:text-cyan-300">Task detail</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-white">Every card can carry the context behind the work.</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-700 dark:text-cyan-300">Cards</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-white">Every task can carry the context behind the work.</h2>
               <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                Open a task to add the details that keep delivery moving: what it means, who owns it, when it is due, what status it is in, and what changed recently.
+                Open a card to add the details that keep delivery moving: what it means, who owns it, when it is due, what status it is in, and what changed recently.
               </p>
             </div>
 
@@ -170,12 +182,12 @@ export default function LandingPage() {
               <div className="flex items-start justify-between gap-4 border-b border-zinc-200 pb-4 dark:border-zinc-800">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Card detail</p>
-                  <h3 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">Ship realtime project events</h3>
+                  <h3 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">Prepare API release notes</h3>
                 </div>
                 <span className="landing-pulse rounded-full bg-teal-100 px-2.5 py-1 text-xs font-bold text-teal-800 dark:bg-teal-400 dark:text-zinc-950">Synced</span>
               </div>
               <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                Persist socket mutations, broadcast updates to project members, and recover missed changes after reconnect.
+                Add status, tags, assignee, due date, and discussion context so a card can move across any workflow without losing the why.
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {taskHighlights.map((item) => (
@@ -187,7 +199,7 @@ export default function LandingPage() {
               </div>
               <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
                 <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Comments</p>
-                <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">Ready for review once reconnect fallback is tested.</p>
+                <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">Ready for review once QA signs off on the final endpoint list.</p>
               </div>
             </div>
           </div>
@@ -211,11 +223,19 @@ export default function LandingPage() {
           <div className="mx-auto max-w-7xl px-5 sm:px-8">
             <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:items-center">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-300">Workflow</p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-white">A simple path from idea to done.</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-300">Workflows</p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-white">One project can hold every type of work.</h2>
                 <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                  Shape each workflow around a practical delivery loop. Keep the columns obvious, keep the cards moving, and avoid burying your project in ceremony.
+                  Add a sprint, bug triage, release plan, API roadmap, or custom workflow inside the same project. Each workflow keeps its own lists and cards, while the project stays easy to understand.
                 </p>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {workflowTemplates.map((template, index) => (
+                    <div key={template.title} className="landing-feature rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900" style={{ animationDelay: `${index * 110}ms` }}>
+                      <span className={tagClass(template.tone)}>{template.title}</span>
+                      <p className="mt-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">{template.meta}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-xl shadow-zinc-300/30 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30">
@@ -240,12 +260,12 @@ export default function LandingPage() {
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300">Realtime collaboration</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">See momentum as it happens.</h2>
               <p className="mt-4 text-sm leading-6 text-zinc-300">
-                SDLCFlow is designed around shared state: cards move, projects update, and collaborators stay oriented without refreshing or asking what changed.
+                SDLCFlow is designed around shared state: cards move, workflows update, chat stays live, and collaborators stay oriented without refreshing or asking what changed.
               </p>
               <div className="mt-8 grid grid-cols-3 gap-3">
                 <StatDark value="3" label="active members" />
                 <StatDark value="24" label="open tasks" />
-                <StatDark value="5" label="workflow stages" />
+                <StatDark value="4" label="workflows" />
               </div>
             </div>
 
@@ -273,7 +293,7 @@ export default function LandingPage() {
           <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Ready</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white">Start with one software project.</h2>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white">Start with one project, then add the workflows you need.</h2>
             </div>
             <Link to="/register" className="landing-button rounded-lg bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-500">
               Create workspace
@@ -290,8 +310,8 @@ function HeroBoard() {
     <div className="landing-board relative z-10 min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-300/40 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40">
       <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
         <div>
-          <p className="text-sm font-semibold text-zinc-950 dark:text-white">Product rebuild</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Sprint workflow · 18 open tasks</p>
+          <p className="text-sm font-semibold text-zinc-950 dark:text-white">Uptime Desk</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Software Sprint · Bug Triage · 18 open tasks</p>
         </div>
         <div className="flex -space-x-2">
           {['JS', 'AL', 'DK'].map((person) => (
@@ -353,7 +373,7 @@ function LandingChatPreview() {
       <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-3 py-3 dark:border-zinc-800">
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Project chat</p>
-          <p className="mt-0.5 truncate font-semibold text-zinc-950 dark:text-zinc-100">Product rebuild</p>
+          <p className="mt-0.5 truncate font-semibold text-zinc-950 dark:text-zinc-100">Uptime Desk</p>
           <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
             <span className="landing-pulse h-1.5 w-1.5 rounded-full bg-teal-500" />
             Live messages active
@@ -428,6 +448,7 @@ function FeatureIcon({ type }) {
   const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }
   const icons = {
     layout: <><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></>,
+    template: <><path d="M4 5a2 2 0 0 1 2-2h5l2 2h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" /><path d="M8 10h8" /><path d="M8 14h5" /></>,
     flow: <><path d="M5 6h9a4 4 0 0 1 0 8H8" /><path d="m8 10-4 4 4 4" /></>,
     target: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></>,
     detail: <><path d="M8 4h8l4 4v12H4V4h4Z" /><path d="M14 4v5h5" /><path d="M8 13h8" /><path d="M8 17h5" /></>,
