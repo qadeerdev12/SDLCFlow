@@ -227,11 +227,12 @@ areas.
 | Method | Path | Min role | Body | Returns |
 |---|---|---|---|---|
 | POST | `/boards/:boardId/cards` | member | `{ listId, title, position, workflowId?, tag?, status?, assignee?, dueDate? }` | `201 { card, activity }` |
-| PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, tag?, status?, assignee?, dueDate?, list?, position? }` | `200 { card, activity }` |
+| PATCH | `/boards/:boardId/cards/:cardId` | member | `{ title?, description?, tag?, status?, assignee?, dueDate?, githubUrl?, list?, position? }` | `200 { card, activity }` |
 | DELETE | `/boards/:boardId/cards/:cardId` | member | – | `200 { deleted: true, activity }` |
 
 > Card **move** = a `PATCH` changing `list` and/or `position`. The same operation is also available over sockets (below) for low-latency drags; both paths run the same service function.
 > `assignee` must be `null`, empty, or a user id that already belongs to the board. `dueDate` accepts an ISO date/date-time string or `null`.
+> `githubUrl` is optional and must be empty or a valid `github.com` URL. It can point to a repository, issue, pull request, or commit.
 > If `workflowId` is omitted, the card inherits the target list's workflow. If
 > provided, it must belong to the board and match the target list's workflow.
 > Card moves are constrained to the card's current workflow. Direct

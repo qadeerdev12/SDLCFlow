@@ -901,6 +901,38 @@ describe.sequential('REST board permissions', () => {
     await expect(Card.countDocuments({ board: board._id })).resolves.toBe(1);
   });
 
+  it('stores optional GitHub references on cards', async () => {
+    const app = createApp();
+    const owner = await register(app, 'Owner', 'owner@example.com');
+    const board = await createBoardWithOwner(app, owner.token);
+    const list = await createListForBoard(app, owner.token, board._id);
+    const created = await request(app)
+      .post(`/api/v1/boards/${board._id}/cards`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ listId: list._id, title: 'GitHub linked task', position: 1000 })
+      .expect(201);
+
+    const linked = await request(app)
+      .patch(`/api/v1/boards/${board._id}/cards/${created.body.data.card._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ githubUrl: 'https://github.com/qadeerafzal/SDLCFlow/issues/12' })
+      .expect(200);
+    expect(linked.body.data.card.githubUrl).toBe('https://github.com/qadeerafzal/SDLCFlow/issues/12');
+
+    await request(app)
+      .patch(`/api/v1/boards/${board._id}/cards/${created.body.data.card._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ githubUrl: 'https://example.com/not-github' })
+      .expect(400);
+
+    const cleared = await request(app)
+      .patch(`/api/v1/boards/${board._id}/cards/${created.body.data.card._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ githubUrl: '' })
+      .expect(200);
+    expect(cleared.body.data.card.githubUrl).toBe('');
+  });
+
   it('keeps card comments board-scoped and records comment activity', async () => {
     const app = createApp();
     const owner = await register(app, 'Owner', 'owner@example.com');

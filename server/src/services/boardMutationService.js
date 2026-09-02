@@ -85,6 +85,21 @@ function safeDueDate(value) {
   return date;
 }
 
+function safeGitHubUrl(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return '';
+
+  const text = typeof value === 'string' ? value.trim() : '';
+  try {
+    const url = new URL(text);
+    const allowedHost = url.hostname === 'github.com' || url.hostname.endsWith('.github.com');
+    if (!allowedHost) throw new Error('Invalid GitHub host.');
+    return url.toString();
+  } catch {
+    throw makeMutationError('GitHub link must be a valid github.com URL.');
+  }
+}
+
 async function safeAssignee(boardId, userId) {
   if (userId === undefined) return undefined;
   if (userId === null || userId === '') return null;
@@ -214,6 +229,7 @@ export async function updateCard({ boardId, cardId, updates }) {
   if (updates.status !== undefined) safeUpdates.status = safeEnumValue(updates.status, CARD_STATUSES, 'Card status');
   if (updates.assignee !== undefined) safeUpdates.assignee = await safeAssignee(boardId, updates.assignee);
   if (updates.dueDate !== undefined) safeUpdates.dueDate = safeDueDate(updates.dueDate);
+  if (updates.githubUrl !== undefined) safeUpdates.githubUrl = safeGitHubUrl(updates.githubUrl);
   if (updates.position !== undefined) safeUpdates.position = updates.position;
   if (updates.list !== undefined) {
     const [card, targetList] = await Promise.all([

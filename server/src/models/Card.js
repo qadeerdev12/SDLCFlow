@@ -50,6 +50,11 @@ const cardSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    githubUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     position: {
       type: Number,
       required: true,

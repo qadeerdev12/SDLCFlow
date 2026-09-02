@@ -41,6 +41,28 @@ function commentTime(comment) {
   }).format(date)
 }
 
+function githubLinkLabel(url) {
+  try {
+    const parsed = new URL(url)
+    const parts = parsed.pathname.split('/').filter(Boolean)
+    if (parts.length >= 4 && parts[2] === 'pull') return `Pull request #${parts[3]}`
+    if (parts.length >= 4 && parts[2] === 'issues') return `Issue #${parts[3]}`
+    if (parts.length >= 4 && parts[2] === 'commit') return `Commit ${parts[3].slice(0, 7)}`
+    if (parts.length >= 2) return `${parts[0]}/${parts[1]}`
+  } catch {
+    return 'GitHub reference'
+  }
+  return 'GitHub reference'
+}
+
+function GitHubIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path fillRule="evenodd" clipRule="evenodd" d="M12 .5C5.65.5.5 5.65.5 12c0 5.09 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.13c-3.2.7-3.88-1.36-3.88-1.36-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.17 1.18A10.97 10.97 0 0 1 12 5.99c.98 0 1.97.13 2.89.39 2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.4-5.27 5.69.41.36.78 1.06.78 2.14v3.16c0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+    </svg>
+  )
+}
+
 export default function CardDetailModal({
   boardId,
   card,
@@ -62,6 +84,7 @@ export default function CardDetailModal({
   const [status, setStatus] = useState(card.status || 'Todo')
   const [assignee, setAssignee] = useState(cardAssigneeId(card))
   const [dueDate, setDueDate] = useState(dateInputValue(card.dueDate))
+  const [githubUrl, setGithubUrl] = useState(card.githubUrl || '')
   const [listId, setListId] = useState(card.list)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -135,6 +158,7 @@ export default function CardDetailModal({
         status,
         assignee: assignee || null,
         dueDate: dueDate || null,
+        githubUrl: githubUrl.trim(),
         list: listId,
       })
       onClose()
@@ -305,7 +329,32 @@ export default function CardDetailModal({
               <span className={`h-2 w-2 rounded-full ${statusDotStyle(status)}`} />
               {status}
             </span>
+            {githubUrl.trim() && (
+              <a
+                href={githubUrl.trim()}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md bg-zinc-950 px-2 py-1 text-xs font-semibold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+              >
+                <GitHubIcon />
+                {githubLinkLabel(githubUrl.trim())}
+              </a>
+            )}
           </div>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">GitHub reference</span>
+            <input
+              type="url"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              placeholder="https://github.com/org/repo/issues/123"
+              className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+            />
+            <p className="mt-1.5 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              Link this card to a GitHub issue, pull request, commit, or repository.
+            </p>
+          </label>
 
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">Description</span>
