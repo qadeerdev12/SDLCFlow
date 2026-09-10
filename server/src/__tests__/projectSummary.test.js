@@ -9,6 +9,7 @@ import Card from '../models/Card.js';
 import User from '../models/User.js';
 import GitHubAccount from '../models/GitHubAccount.js';
 import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
+import { GitHubApiError } from '../services/githubService.js';
 
 let mongo;
 const app = createApp();
@@ -50,6 +51,22 @@ function mockGitHubAndAI(transform = (value) => value, githubCommits = [{ sha: c
 }
 
 describe('opt-in GitHub AI summaries', () => {
+  it('surfaces commit timeouts without calling OpenAI and releases the summary limiter', async () => {
+    const ctx = await fixture();
+    await linkGitHub(ctx);
+    await ctx.add();
+    fetch.mockRejectedValueOnce(new GitHubApiError('GitHub took too long to respond. Try again shortly.', {
+      code: 'GITHUB_TIMEOUT', statusCode: 504,
+    }));
+    const res = await ctx.send().send({ includeGitHub: true }).expect(504);
+    expect(res.body.error.code).toBe('GITHUB_TIMEOUT');
+    expect(res.body.data).toBeUndefined();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toContain('https://api.github.com/');
+    await ctx.send().send({ includeGitHub: false }).expect(200);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[1][0]).toBe('https://api.openai.com/v1/responses');
+  });
   it.each(['owner', 'admin', 'member'])('includes cited commits for %s without writes or raw metadata', async (role) => {
     const ctx = await fixture(role);
     await linkGitHub(ctx);

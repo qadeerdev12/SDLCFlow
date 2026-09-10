@@ -1,6 +1,7 @@
 const GITHUB_API_BASE = 'https://api.github.com';
 const GITHUB_GRAPHQL_BASE = 'https://api.github.com/graphql';
 const GITHUB_OAUTH_TOKEN_URL = 'https://github.com/login/oauth/access_token';
+const GITHUB_COMMITS_TIMEOUT_MS = 10_000;
 
 export class GitHubApiError extends Error {
   constructor(message, { code = 'GITHUB_REQUEST_FAILED', statusCode = 502, retryAfter = null, resetAt = null } = {}) {
@@ -242,25 +243,44 @@ export async function fetchGitHubCommits(accessToken, owner, repo, { limit = 10,
   });
   if (sha) params.set('sha', sha);
 
-  const response = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/commits?${params.toString()}`, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${accessToken}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-  });
+  // Keep the deadline active through body parsing, not just response headers.
+  // Abort the underlying fetch so a timed-out read does not keep running.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), GITHUB_COMMITS_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/commits?${params.toString()}`, {
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${accessToken}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
 
-  const commits = await parseGitHubResponse(response);
-  return commits.map((item) => ({
-    sha: item.sha,
-    shortSha: item.sha?.slice(0, 7),
-    message: item.commit?.message || '',
-    authorName: item.commit?.author?.name || item.author?.login || 'Unknown author',
-    authorUsername: item.author?.login || null,
-    authorAvatarUrl: item.author?.avatar_url || null,
-    committedAt: item.commit?.author?.date || item.commit?.committer?.date,
-    htmlUrl: item.html_url,
-  }));
+    const commits = await parseGitHubResponse(response);
+    // The shared parser tolerates JSON failures; an aborted body is a timeout,
+    // not an empty or malformed commit response.
+    controller.signal.throwIfAborted();
+    return commits.map((item) => ({
+      sha: item.sha,
+      shortSha: item.sha?.slice(0, 7),
+      message: item.commit?.message || '',
+      authorName: item.commit?.author?.name || item.author?.login || 'Unknown author',
+      authorUsername: item.author?.login || null,
+      authorAvatarUrl: item.author?.avatar_url || null,
+      committedAt: item.commit?.author?.date || item.commit?.committer?.date,
+      htmlUrl: item.html_url,
+    }));
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new GitHubApiError('GitHub took too long to respond. Try again shortly.', {
+        code: 'GITHUB_TIMEOUT', statusCode: 504,
+      });
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function fetchGitHubRepositoryStats(accessToken, owner, repo) {

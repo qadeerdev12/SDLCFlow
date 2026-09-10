@@ -113,6 +113,15 @@ summary; callers can retry with GitHub disabled. If only commits exist, they can
 still be summarized. If neither sample contains data, OpenAI is not called.
 The existing summary limiter, model, timeout, and output budget remain unchanged.
 
+GitHub commit reads have a separate 10-second deadline covering both response
+headers and body consumption. The underlying fetch is aborted on expiry and the
+API returns 504 `GITHUB_TIMEOUT`. OpenAI is not called after a commit timeout,
+and the in-flight summary limiter is released so the user can retry. There is no
+automatic retry. The same deadline also applies to the project's GitHub commit
+panel because both consumers use `fetchGitHubCommits`; other GitHub endpoints are
+unchanged. The timer is cleared on success and on every failure. The summary UI's
+existing GitHub error handling offers an explicit task-only fallback.
+
 ## GitHub context collection
 
 `collectProjectGitHubContext({ boardId, userId })` in
@@ -152,3 +161,7 @@ using a temporary database and mocked GitHub calls.
 requests, unchanged defaults, bounded cited output, commit-only/empty inputs,
 provider failures, and revoked access/connections during AI generation. These use
 mocked providers, not live GitHub data or paid OpenAI requests.
+`server/src/__tests__/githubCommitsTimeout.test.js` uses fake timers to cover
+stalled headers/bodies, abort behavior, successful cleanup, and unchanged
+rate-limit/network failures. The summary API test verifies timeout propagation,
+no OpenAI call, and release of the in-flight limiter.
