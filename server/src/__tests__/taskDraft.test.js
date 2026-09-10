@@ -93,7 +93,7 @@ describe('AI task drafting', () => {
     }
   });
   it('handles provider rate limits and timeout without retrying', async () => {
-    fetch.mockResolvedValue({ ok: false, status: 429 });
+    fetch.mockResolvedValue({ ok: false, status: 429, json: async () => ({ error: { code: 'rate_limit_exceeded' } }) });
     await expect(generateTaskDraft({ title: 'Task', brief: '' })).rejects.toMatchObject({ statusCode: 429 });
     fetch.mockRejectedValue(Object.assign(new Error('secret'), { name: 'TimeoutError' }));
     await expect(generateTaskDraft({ title: 'Task', brief: '' })).rejects.toMatchObject({ statusCode: 504 });
@@ -110,5 +110,26 @@ describe('AI task drafting', () => {
     const now = Date.now();
     vi.spyOn(Date, 'now').mockReturnValue(now + 60_001);
     expect(() => acquire('a')()).not.toThrow();
+  });
+  it.each([
+    { code: 'credit_balance_exhausted', type: 'insufficient_quota' },
+    { code: 'insufficient_quota' },
+    { code: 'organization_usage_limit_exceeded' },
+    { code: 'organization_spend_limit_exceeded' },
+    { code: 'project_spend_limit_exceeded' },
+    { code: 'future_quota_code', type: 'insufficient_quota' },
+  ])('distinguishes unavailable quota from temporary throttling: %j', async (error) => {
+    const ctx = await fixture();
+    fetch.mockResolvedValue({ ok: false, status: 429, json: async () => ({ error: { ...error, message: 'Private account details' } }) });
+    const res = await ctx.send().expect(503);
+    expect(res.body.error.code).toBe('AI_QUOTA');
+    expect(res.body.error.message).toContain('billing');
+    expect(res.headers['retry-after']).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain('Private account details');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('handles a non-JSON throttling response safely', async () => {
+    fetch.mockResolvedValue({ ok: false, status: 429, json: async () => { throw new Error('HTML response'); } });
+    await expect(generateTaskDraft({ title: 'Task', brief: '' })).rejects.toMatchObject({ code: 'AI_RATE_LIMIT', statusCode: 429 });
   });
 });

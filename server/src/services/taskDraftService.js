@@ -65,7 +65,16 @@ export async function generateTaskDraft(input) {
         text: { format: { type: 'json_schema', name: 'task_draft', strict: true, schema } },
       }),
     });
-    if (response.status === 429) throw draftError('AI drafting is temporarily rate limited. Try again later.', 429, 'AI_RATE_LIMIT');
+    if (response.status === 429) {
+      // OpenAI uses 429 for both temporary throttling and unavailable quota.
+      // Inspect only structured codes; never forward the raw provider message.
+      const details = await response.json().catch(() => null);
+      const quotaCodes = ['insufficient_quota', 'credit_balance_exhausted', 'organization_usage_limit_exceeded', 'organization_spend_limit_exceeded', 'project_spend_limit_exceeded'];
+      if (details?.error?.type === 'insufficient_quota' || quotaCodes.includes(details?.error?.code)) {
+        throw draftError('AI drafting has no available API quota. Ask the server administrator to check OpenAI billing, credit balance, and spending limits.', 503, 'AI_QUOTA');
+      }
+      throw draftError('AI drafting is temporarily rate limited. Try again later.', 429, 'AI_RATE_LIMIT');
+    }
     if (!response.ok) throw new Error('Provider error');
     const result = await response.json();
     if (result.status !== 'completed') throw new Error('Incomplete response');
@@ -73,7 +82,7 @@ export async function generateTaskDraft(input) {
     if (content.some((item) => item.type === 'refusal')) throw new Error('Refused response');
     return validateDraft(JSON.parse(content.filter((item) => item.type === 'output_text').map((item) => item.text).join('')));
   } catch (err) {
-    if (err.code === 'AI_RATE_LIMIT') throw err;
+    if (err.code === 'AI_RATE_LIMIT' || err.code === 'AI_QUOTA') throw err;
     // Never expose provider errors, credentials, or submitted task text in logs.
     if (err.name === 'TimeoutError' || err.name === 'AbortError') throw draftError('AI drafting timed out. Please try again.', 504, 'AI_TIMEOUT');
     throw draftError('Could not generate a draft. Please try again.', 502, 'AI_UNAVAILABLE');

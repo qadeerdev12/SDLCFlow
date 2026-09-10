@@ -140,7 +140,8 @@ and member roles are allowed only for a card belonging to that project.
 Generation is read-only and responses are `Cache-Control: no-store`.
 Validation failures return 400; missing/inaccessible cards return 404;
 request limits return 429 with `Retry-After: 60`; missing AI configuration returns
-503; provider/output failures return 502; timeout returns 504.
+503 `AI_NOT_CONFIGURED`; exhausted credit/quota or provider spending limits return
+503 `AI_QUOTA` without retry timing; provider/output failures return 502; timeout returns 504.
 See [AI task drafting](ai-task-drafting.md) for configuration, review/apply semantics,
 limits, and provider data boundaries.
 

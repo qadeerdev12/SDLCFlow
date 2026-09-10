@@ -52,6 +52,19 @@ never replaced. Concurrent scalar field edits retain existing last-write behavio
 
 ## Verification
 
+### Billing versus throttling
+
+OpenAI can return HTTP 429 for either temporary rate limits or unavailable quota.
+The service maps `insufficient_quota` types and known credit/spend-limit codes
+to `503 AI_QUOTA`, with billing guidance and no `Retry-After` header. Actual
+throttling remains `429 AI_RATE_LIMIT`. Neither is automatically retried.
+For `credit_balance_exhausted`, review the API account's credit balance and
+billing settings; waiting for the local request window is not a billing fix.
+Raw provider messages are never exposed. See the official
+[error guide](https://developers.openai.com/api/docs/guides/error-codes).
+
+### Tests
+
 `taskDraft.test.js` uses a temporary database and mocked provider responses to
 cover permissions, privacy boundaries, validation, provider errors, and limits.
 `taskDraftPanel.test.jsx` covers explicit review, edited suggestions, checklist
