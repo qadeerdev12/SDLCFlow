@@ -432,6 +432,7 @@ server/src/
 | [Board page maintenance](docs/board-page-maintenance.md) | Component ownership, drag invariants, regression checks, and future extraction boundaries |
 | [Workspace activity](docs/workspace-activity.md) | Membership-scoped feed, cursor pagination, query behavior, and regression checks |
 | [AI task drafting](docs/ai-task-drafting.md) | OpenAI setup, editable previews, privacy boundaries, and testing |
+| [AI project summaries](docs/ai-project-summaries.md) | On-demand task snapshots, validated card citations, coverage, and privacy |
 
 ---
 

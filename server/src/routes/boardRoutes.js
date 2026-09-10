@@ -5,6 +5,7 @@ import { protect } from '../middleware/auth.js';
 import { createList, updateList, deleteList } from '../controllers/listController.js';
 import { createCard, updateCard, deleteCard } from '../controllers/cardController.js';
 import { createTaskDraft } from '../controllers/taskDraftController.js';
+import { createProjectSummary } from '../controllers/projectSummaryController.js';
 import { getMembers, addMember, updateMemberRole, removeMember } from '../controllers/memberController.js';
 import { getActivities } from '../controllers/activityController.js';
 import { getCardComments, createCardComment } from '../controllers/commentController.js';
@@ -35,6 +36,7 @@ router.get('/', getMyBoards);
 router.get('/:boardId', getBoard); // GET    /api/v1/boards/:boardId
 router.patch('/:boardId', updateBoard);
 router.delete('/:boardId', deleteBoard);
+router.post('/:boardId/summary', createProjectSummary);
 
 // Members
 router.get('/:boardId/members', getMembers);

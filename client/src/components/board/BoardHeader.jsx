@@ -5,13 +5,14 @@ import Logo from '../Logo'
 import NotificationBell from '../NotificationBell'
 import BoardSwitcher from '../BoardSwitcher'
 import GitHubMark from './GitHubMark'
+import { Sparkles } from 'lucide-react'
 
 // Present project context and permission-gated actions; mutations remain in the page.
 export default function BoardHeader({
   boardId, board, activeWorkflow, listCount, totalCardCount, filteredCardCount,
   filtersActive, connected, onlineCount, members, canEditBoard, canDeleteBoard,
   githubIntegration, unreadMessages, onManageMembers, onOpenGitHub, onOpenChat,
-  onEditBoard, onDeleteBoard,
+  onEditBoard, onDeleteBoard, onOpenSummary,
 }) {
   const navigate = useNavigate()
   const { dark, toggle } = useTheme()
@@ -40,6 +41,9 @@ export default function BoardHeader({
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+          <button type="button" onClick={onOpenSummary} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">
+            <Sparkles size={15} />Summarize project
+          </button>
           <button
             type="button"
             onClick={onManageMembers}

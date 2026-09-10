@@ -27,6 +27,7 @@ import ProjectWelcomeState from '../components/board/ProjectWelcomeState'
 import WorkflowSwitcher from '../components/board/WorkflowSwitcher'
 import AddWorkflowModal from '../components/board/AddWorkflowModal'
 import GitHubIntegrationPanel from '../components/board/GitHubIntegrationPanel'
+import ProjectSummaryPanel from '../components/board/ProjectSummaryPanel'
 
 export default function BoardPage() {
   const { boardId } = useParams()
@@ -1182,6 +1183,7 @@ function BoardSession({ boardId, user, token }) {
         unreadMessages={unreadMessages}
         onManageMembers={() => setManagingMembers(true)}
         onOpenGitHub={() => openPanel('github')}
+        onOpenSummary={() => openPanel('summary')}
         onOpenChat={openChatPanel}
         onEditBoard={() => setEditingBoard(true)}
         onDeleteBoard={handleDeleteBoard}
@@ -1347,6 +1349,10 @@ function BoardSession({ boardId, user, token }) {
           onChangeRole={handleChangeMemberRole}
           onRemoveMember={handleRemoveMember}
         />
+      )}
+
+      {searchParams.get('panel') === 'summary' && (
+        <ProjectSummaryPanel board={board} token={token} onClose={closeActivityPanel} />
       )}
 
       {activityPanelOpen && (

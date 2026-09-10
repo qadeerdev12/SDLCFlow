@@ -134,6 +134,15 @@ using the linked repository token.
 
 ### AI task drafting
 
+`POST /boards/:boardId/summary` generates a read-only project snapshot for current
+members (owner/admin/member). Returns `{ data: { summary: { sections, scope,
+sampledAt, generatedAt, empty } } }`. `sections` contains `completed`, `inProgress`,
+and `blocked` arrays of `{ text, cards: [{ id, title }] }`. Each `scope` entry
+contains `{ included, truncated }`. Access is checked before and after generation.
+No body is required; project scope comes only from the authorized route parameter.
+Responses are `no-store`; errors use the AI codes below. See
+[project summaries](ai-project-summaries.md) for status and coverage semantics.
+
 `POST /boards/:boardId/cards/:cardId/draft` accepts `{ title, brief }` and returns
 `{ data: { draft: { description, tag, checklist: string[] } } }`. Owner, admin,
 and member roles are allowed only for a card belonging to that project.

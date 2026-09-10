@@ -128,6 +128,7 @@ export const taskApi = {
 }
 
 export const boardApi = {
+  summarize: (boardId, token) => request(`/boards/${boardId}/summary`, { method: 'POST', token }),
   draftCard: (boardId, cardId, input, token) =>
     request(`/boards/${boardId}/cards/${cardId}/draft`, { method: 'POST', body: input, token }),
   listTemplates: (token) =>
