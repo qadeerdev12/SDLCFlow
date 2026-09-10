@@ -7,14 +7,19 @@ import { createApp } from '../app.js';
 import Board from '../models/Board.js';
 import Card from '../models/Card.js';
 import User from '../models/User.js';
+import GitHubAccount from '../models/GitHubAccount.js';
+import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
 
 let mongo;
 const app = createApp();
 const statuses = ['Done', 'In Progress', 'Blocked'];
 function provider(value) { return { ok: true, json: async () => ({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(value) }] }] }) }; }
 function summaryFor(options) {
-  const groups = JSON.parse(JSON.parse(options.body).input[0].content);
-  return Object.fromEntries(groups.map((group) => [group.section, group.cards.length ? [{ text: 'Task status summary.', cardIds: [group.cards[0].id] }] : []]));
+  const input = JSON.parse(JSON.parse(options.body).input[0].content);
+  const groups = input.tasks || input;
+  const result = Object.fromEntries(groups.map((group) => [group.section, group.cards.length ? [{ text: 'Task status summary.', cardIds: [group.cards[0].id] }] : []]));
+  if (input.github) result.github = input.github.commits.length ? [{ text: 'Commit reports an API fix.', commitShas: [input.github.commits[0].sha] }] : [];
+  return result;
 }
 beforeAll(async () => {
   process.env.JWT_SECRET = 'summary-test';
@@ -28,7 +33,130 @@ beforeEach(() => {
 });
 afterEach(async () => {
   vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks();
-  await Promise.all([Board, Card, User].map((model) => model.deleteMany({})));
+  await Promise.all([Board, Card, User, GitHubAccount, BoardGitHubIntegration].map((model) => model.deleteMany({})));
+});
+
+const commitSha = 'a'.repeat(40);
+async function linkGitHub(ctx) {
+  const account = await GitHubAccount.create({ user: ctx.user._id, githubId: '1', username: 'private-user', accessToken: 'private-token' });
+  return BoardGitHubIntegration.create({ board: ctx.board._id, connectedBy: ctx.user._id, githubAccount: account._id,
+    repoId: '1', repoOwner: 'team', repoName: 'app', repoFullName: 'team/app', repoUrl: 'https://github.com/team/app', defaultBranch: 'main' });
+}
+function mockGitHubAndAI(transform = (value) => value, githubCommits = [{ sha: commitSha, commit: { message: 'Fix API\nSECRET_BODY', author: { name: 'SECRET_NAME', email: 'SECRET_EMAIL', date: '2026-09-01T00:00:00Z' } }, html_url: 'https://untrusted.example' }]) {
+  fetch.mockImplementation(async (url, options) => {
+    if (url.startsWith('https://api.github.com/')) return { ok: true, json: async () => githubCommits };
+    return provider(await transform(summaryFor(options), options));
+  });
+}
+
+describe('opt-in GitHub AI summaries', () => {
+  it.each(['owner', 'admin', 'member'])('includes cited commits for %s without writes or raw metadata', async (role) => {
+    const ctx = await fixture(role);
+    await linkGitHub(ctx);
+    const card = await ctx.add();
+    const before = await BoardGitHubIntegration.findOne({}).lean();
+    mockGitHubAndAI();
+    const res = await ctx.send().send({ includeGitHub: true }).expect(200);
+    expect(res.body.data.summary.github).toMatchObject({ status: 'ready', included: 1, limit: 10,
+      bullets: [{ text: 'Commit reports an API fix.', commits: [{ sha: commitSha, title: 'Fix API', htmlUrl: `https://github.com/team/app/commit/${commitSha}` }] }] });
+    expect(res.body.data.summary.sections.completed[0].cards[0].id).toBe(card.id);
+    const calls = fetch.mock.calls.filter(([url]) => url === 'https://api.openai.com/v1/responses');
+    expect(calls).toHaveLength(1);
+    for (const secret of ['private-token', 'SECRET_BODY', 'SECRET_NAME', 'SECRET_EMAIL', 'untrusted.example']) {
+      expect(calls[0][1].body).not.toContain(secret);
+      expect(JSON.stringify(res.body)).not.toContain(secret);
+    }
+    expect(await BoardGitHubIntegration.findOne({}).lean()).toEqual(before);
+  });
+  it.each([undefined, false])('does not fetch GitHub unless explicitly enabled (%s)', async (includeGitHub) => {
+    const ctx = await fixture();
+    await linkGitHub(ctx);
+    await ctx.add();
+    const res = await ctx.send().send(includeGitHub === undefined ? {} : { includeGitHub }).expect(200);
+    expect(res.body.data.summary.github).toBeUndefined();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toBe('https://api.openai.com/v1/responses');
+    expect(Array.isArray(JSON.parse(JSON.parse(fetch.mock.calls[0][1].body).input[0].content))).toBe(true);
+  });
+  it.each(['true', 1, null, {}])('rejects nonboolean opt-in: %j', async (includeGitHub) => {
+    const ctx = await fixture();
+    await ctx.send().send({ includeGitHub }).expect(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('rejects outsiders before fetching either provider', async () => {
+    const ctx = await fixture(null);
+    await linkGitHub(ctx);
+    await ctx.send().send({ includeGitHub: true }).expect(404);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('can summarize commits even when there are no eligible tasks', async () => {
+    const ctx = await fixture();
+    await linkGitHub(ctx);
+    mockGitHubAndAI();
+    const summary = (await ctx.send().send({ includeGitHub: true }).expect(200)).body.data.summary;
+    expect(summary.empty).toBe(false);
+    expect(summary.sections).toEqual({ completed: [], inProgress: [], blocked: [] });
+    expect(summary.github.bullets).toHaveLength(1);
+  });
+  it('reports an unlinked project without fabricating GitHub activity', async () => {
+    const ctx = await fixture();
+    await ctx.add();
+    const summary = (await ctx.send().send({ includeGitHub: true }).expect(200)).body.data.summary;
+    expect(summary.github).toMatchObject({ status: 'not_linked', included: 0, bullets: [] });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('skips OpenAI when both task and commit samples are empty', async () => {
+    const ctx = await fixture();
+    await linkGitHub(ctx);
+    mockGitHubAndAI(undefined, []);
+    const summary = (await ctx.send().send({ includeGitHub: true }).expect(200)).body.data.summary;
+    expect(summary.empty).toBe(true);
+    expect(summary.github).toMatchObject({ status: 'ready', included: 0, bullets: [] });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it.each(['unknown', 'missing', 'empty', 'url', 'tooMany', 'longText', 'wrongTaskSection'])('rejects invalid AI commit output: %s', async (kind) => {
+    const ctx = await fixture();
+    await linkGitHub(ctx);
+    mockGitHubAndAI((value) => {
+      if (kind === 'unknown') value.github[0].commitShas = ['other-sha'];
+      if (kind === 'missing') value.github[0].commitShas = [];
+      if (kind === 'empty') value.github = [];
+      if (kind === 'url') value.github[0].htmlUrl = 'https://untrusted.example';
+      if (kind === 'tooMany') value.github = Array(4).fill(value.github[0]);
+      if (kind === 'longText') value.github[0].text = 'x'.repeat(501);
+      if (kind === 'wrongTaskSection') value.completed = [{ text: 'Done', cardIds: [commitSha] }];
+      return value;
+    });
+    expect((await ctx.send().send({ includeGitHub: true }).expect(502)).body.error.code).toBe('AI_UNAVAILABLE');
+  });
+  it.each(['unlink', 'relink', 'disconnect', 'membership'])('discards summaries when %s occurs during AI generation', async (change) => {
+    const ctx = await fixture();
+    await linkGitHub(ctx);
+    mockGitHubAndAI(async (value) => {
+      if (change === 'unlink') await BoardGitHubIntegration.deleteMany({});
+      if (change === 'relink') await BoardGitHubIntegration.updateOne({}, { repoName: 'other' });
+      if (change === 'disconnect') await GitHubAccount.deleteMany({});
+      if (change === 'membership') await Board.updateOne({}, { members: [] });
+      return value;
+    });
+    const res = await ctx.send().send({ includeGitHub: true }).expect(change === 'membership' ? 404 : 409);
+    expect(res.body.data).toBeUndefined();
+  });
+  it('does not discard a summary just because the GitHub panel updated lastSyncedAt', async () => {
+    const ctx = await fixture();
+    await linkGitHub(ctx);
+    mockGitHubAndAI(async (value) => { await BoardGitHubIntegration.updateOne({}, { lastSyncedAt: new Date() }); return value; });
+    await ctx.send().send({ includeGitHub: true }).expect(200);
+  });
+  it('preserves GitHub throttling and does not call OpenAI after a GitHub failure', async () => {
+    const ctx = await fixture();
+    await linkGitHub(ctx);
+    fetch.mockResolvedValue({ ok: false, status: 429, headers: { get: (key) => key === 'retry-after' ? '120' : null }, json: async () => ({ message: 'Limited' }) });
+    const res = await ctx.send().send({ includeGitHub: true }).expect(429);
+    expect(res.body.error.code).toBe('GITHUB_RATE_LIMITED');
+    expect(res.headers['retry-after']).toBe('120');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });
 afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 async function fixture(role = 'member') {

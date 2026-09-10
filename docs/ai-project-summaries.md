@@ -1,6 +1,6 @@
 # AI Project Summaries
 
-## First slice
+## Current UI
 
 The project header's **Summarize project** button opens a read-only panel. No
 request runs on open. **Generate summary** explicitly submits the selected task
@@ -26,7 +26,7 @@ after generation, returning 404 if access was revoked or the board deleted.
 The request body cannot widen the project scope or supply model instructions.
 
 `projectSummaryService` selects only task IDs, titles, descriptions, and statuses.
-Provider input truncates titles to 300 and descriptions to 1000 characters per
+Task-only provider input truncates titles to 300 and descriptions to 1000 characters per
 card. No account names, emails, chat, checklist data, GitHub context, or secrets
 from environment variables are added to that input. Descriptions themselves may
 contain sensitive information; the panel discloses this transfer before generation.
@@ -70,14 +70,44 @@ empty input, per-status limits, citations, revoked access, and quota errors.
 `client/src/__tests__/projectSummary.test.jsx` covers explicit generation, source
 links, partial coverage, errors, duplicate clicks, stale responses, and keyboard
 focus. Provider calls are mocked; live summary quality remains a manual check.
-GitHub activity, scheduled reports, and persisted/shared summaries are deferred.
+The GitHub summary UI, scheduled reports, and persisted/shared summaries are deferred.
 
-## GitHub context preparation (backend only)
+## Opt-in GitHub summaries (API only)
+
+The existing summary endpoint now accepts `{ "includeGitHub": true }`. Omitting
+this field or passing `false` retains the original task-only request and response.
+Non-boolean values return 400. The client does not send this option yet: the next
+UI slice must add an explicit opt-in and disclose which repository data will be
+sent before enabling it. Do not silently enable it for existing users.
+
+When opted in, a single OpenAI request receives task groups plus the linked
+repository's name and the bounded commit SHA/title/date sample. The response adds
+`summary.github` with `status`, `repository`, `sampledAt`, `included`, `limit`, and
+`bullets`. Each bullet has `text` and server-resolved `commits` source objects.
+The three task sections and their status rules remain unchanged. A commit is not
+evidence that a task is Done, deployed, verified, or associated with that commit.
+
+Strict output validation requires at most three GitHub bullets, each with 1-5
+known commit SHAs and at most 500 characters. Unknown citations, model-supplied
+URLs, or fabricated task citations reject the entire result. This extends the
+existing [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
+schema and retains application-level citation validation. Valid identifiers do
+not guarantee factual accuracy: users must still review the source commits.
+
+No linked repository produces `not_linked` metadata and task-only content. GitHub
+failures abort the opted-in request, rather than silently returning an incomplete
+summary; callers can retry with GitHub disabled. If only commits exist, they can
+still be summarized. If neither sample contains data, OpenAI is not called.
+The existing summary limiter, model, timeout, and output budget remain unchanged.
+
+## GitHub context collection
 
 `collectProjectGitHubContext({ boardId, userId })` in
 `server/src/services/projectSummaryGitHubService.js` prepares a read-only snapshot
-for a later iteration. No route, UI, or AI prompt calls it yet. Existing summaries
-still send only the task data described above to OpenAI.
+for read-only consumers. The summary controller uses `withProjectGitHubContext`
+to consume this snapshot and check membership/connection both before and after
+AI generation. Credentials remain inside that wrapper, never in its callback's
+input, the AI prompt, or the response. The ordinary client remains task-only.
 
 The collector checks project membership before reading the saved repository link
 and uses the linking account's encrypted credentials through the existing GitHub
@@ -96,10 +126,16 @@ No link returns `status: not_linked`; a successful fetch returns `status: ready`
 including when its sample is empty. Missing credentials require reconnection.
 Provider failures retain their existing error and rate-limit details rather than
 being disguised as empty activity. Membership, link, and credentials are checked
-again after fetching; changes discard the result. This does not cancel an already
-running GitHub request. There are no writes, sync timestamp updates, activity
-entries, broadcasts, or OpenAI calls.
+again after fetching and after consumption; changes discard the result. Routine
+`lastSyncedAt` updates do not invalidate it. This does not cancel an already
+running GitHub/OpenAI request or undo data already sent or charges already incurred.
+There are no writes, sync timestamp updates, activity entries, or broadcasts.
+Only the opted-in summary consumer calls OpenAI, not standalone collection.
 
 `server/src/__tests__/projectSummaryGitHub.test.js` verifies permissions, sample
 bounds, output projection, disconnected accounts, stale requests, and throttling
 using a temporary database and mocked GitHub calls.
+`server/src/__tests__/projectSummary.test.js` additionally exercises opted-in API
+requests, unchanged defaults, bounded cited output, commit-only/empty inputs,
+provider failures, and revoked access/connections during AI generation. These use
+mocked providers, not live GitHub data or paid OpenAI requests.

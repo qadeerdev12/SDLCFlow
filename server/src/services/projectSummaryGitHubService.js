@@ -12,11 +12,16 @@ async function requireProjectAccess(boardId, userId) {
   }
 }
 
-/** Read-only preparation for future summaries; not yet called by the AI endpoint. */
-export async function collectProjectGitHubContext({ boardId, userId }) {
+/** Collect a read-only snapshot without consuming it in another service. */
+export async function collectProjectGitHubContext(options) {
+  return withProjectGitHubContext(options, async (context) => context);
+}
+
+/** Keep credentials private while checking access around asynchronous consumption. */
+export async function withProjectGitHubContext({ boardId, userId }, consume) {
   await requireProjectAccess(boardId, userId);
   const integration = await BoardGitHubIntegration.findOne({ board: boardId }).lean();
-  if (!integration) return { status: 'not_linked', repository: null, commits: [] };
+  if (!integration) return consume({ status: 'not_linked', repository: null, commits: [] });
 
   // Match project GitHub reads: members use the account that linked the repo,
   // never a caller-supplied token, repository, branch, or page size.
@@ -32,19 +37,22 @@ export async function collectProjectGitHubContext({ boardId, userId }) {
 
   // An external request can outlive membership, unlinking, or token rotation.
   // Discard that snapshot instead of returning data from an obsolete link.
-  await requireProjectAccess(boardId, userId);
-  const currentLink = await BoardGitHubIntegration.findOne({ board: boardId }).lean();
-  const currentAccount = await GitHubAccount.findById(account._id).select('+accessToken');
-  const linkFields = ['_id', 'githubAccount', 'repoId', 'repoOwner', 'repoName', 'defaultBranch', 'updatedAt'];
-  if (!currentLink || linkFields.some((field) => String(currentLink[field]) !== String(integration[field]))
-    || currentAccount?.accessToken !== account.accessToken) {
-    throw new GitHubApiError('GitHub connection changed. Try again.', {
-      statusCode: 409, code: 'GITHUB_CONTEXT_CHANGED',
-    });
+  async function assertCurrent() {
+    await requireProjectAccess(boardId, userId);
+    const currentLink = await BoardGitHubIntegration.findOne({ board: boardId }).lean();
+    const currentAccount = await GitHubAccount.findById(account._id).select('+accessToken');
+    const linkFields = ['_id', 'githubAccount', 'repoId', 'repoOwner', 'repoName', 'defaultBranch'];
+    if (!currentLink || linkFields.some((field) => String(currentLink[field]) !== String(integration[field]))
+      || currentAccount?.accessToken !== account.accessToken) {
+      throw new GitHubApiError('GitHub connection changed. Try again.', {
+        statusCode: 409, code: 'GITHUB_CONTEXT_CHANGED',
+      });
+    }
   }
+  await assertCurrent();
 
   const repositoryUrl = `https://github.com/${encodeURIComponent(integration.repoOwner)}/${encodeURIComponent(integration.repoName)}`;
-  return {
+  const context = {
     status: 'ready',
     repository: {
       fullName: `${integration.repoOwner}/${integration.repoName}`,
@@ -62,4 +70,7 @@ export async function collectProjectGitHubContext({ boardId, userId }) {
     limit: COMMIT_LIMIT,
     sampledAt: new Date().toISOString(),
   };
+  const result = await consume(context);
+  await assertCurrent();
+  return result;
 }
