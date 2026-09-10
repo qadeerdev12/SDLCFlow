@@ -7,6 +7,13 @@ request runs on open. **Generate summary** explicitly submits the selected task
 data to OpenAI. This uses the existing server `OPENAI_API_KEY` and
 `OPENAI_TASK_DRAFT_MODEL`; no new key, model, or permissions are required.
 
+**Include recent GitHub commits** is unchecked by default and resets on reopening.
+The adjacent disclosure explains the additional transfer: repository name and up
+to 10 recent commit titles, SHAs, and dates, excluding bodies, author details, and
+source code. Checking the box does not fetch or generate anything. Generating
+with it checked adds a separate **Recent GitHub activity** section with the
+repository, sample count/time, and external commit links opening in a new tab.
+
 The snapshot spans all project workflows, regardless of the current UI filters:
 
 - Completed: cards whose status is exactly `Done`.
@@ -59,7 +66,12 @@ explicit regeneration. Results are snapshots, not live updates; linked cards can
 change or disappear afterward. Existing board access checks still apply on open.
 
 Transient regeneration failures retain the previous dated snapshot. Access
-failures clear it. The panel supports Escape, contained tab navigation, restored
+failures and GitHub reconnect/connection-change errors clear it. Changing the
+GitHub selection also clears the snapshot to avoid misrepresenting its sources;
+selection is disabled during generation. GitHub errors offer **Use tasks only**,
+which unchecks the option but requires another explicit Generate click. No retry
+or fallback silently sends another paid request. The panel supports Escape,
+contained tab navigation (including the checkbox), restored
 focus on close, loading state, manual retry, empty sections, and partial-coverage
 labels. Provider text is rendered as plain text, never interpreted HTML.
 
@@ -69,16 +81,17 @@ labels. Provider text is rendered as plain text, never interpreted HTML.
 empty input, per-status limits, citations, revoked access, and quota errors.
 `client/src/__tests__/projectSummary.test.jsx` covers explicit generation, source
 links, partial coverage, errors, duplicate clicks, stale responses, and keyboard
-focus. Provider calls are mocked; live summary quality remains a manual check.
-The GitHub summary UI, scheduled reports, and persisted/shared summaries are deferred.
+focus, GitHub consent, source links, empty states, connection changes, and manual
+task-only fallback. `projectSummaryApi.test.js` checks the serialized opt-in flag.
+Provider calls are mocked; live summary quality remains a manual check.
+Scheduled reports and persisted/shared summaries are deferred.
 
-## Opt-in GitHub summaries (API only)
+## Opt-in GitHub summaries
 
 The existing summary endpoint now accepts `{ "includeGitHub": true }`. Omitting
 this field or passing `false` retains the original task-only request and response.
-Non-boolean values return 400. The client does not send this option yet: the next
-UI slice must add an explicit opt-in and disclose which repository data will be
-sent before enabling it. Do not silently enable it for existing users.
+Non-boolean values return 400. The client sends an explicit boolean matching the
+checkbox. Do not silently enable it for existing users.
 
 When opted in, a single OpenAI request receives task groups plus the linked
 repository's name and the bounded commit SHA/title/date sample. The response adds
@@ -107,7 +120,7 @@ The existing summary limiter, model, timeout, and output budget remain unchanged
 for read-only consumers. The summary controller uses `withProjectGitHubContext`
 to consume this snapshot and check membership/connection both before and after
 AI generation. Credentials remain inside that wrapper, never in its callback's
-input, the AI prompt, or the response. The ordinary client remains task-only.
+input, the AI prompt, or the response. The client remains task-only by default.
 
 The collector checks project membership before reading the saved repository link
 and uses the linking account's encrypted credentials through the existing GitHub
@@ -119,8 +132,8 @@ The result contains repository identity, a sample timestamp, and at most 10 rece
 commits: SHA, first-line title (300 characters), date, and a server-built GitHub
 link. It excludes author identities, commit bodies, and raw API metadata. This is
 a recent sample, not a weekly report or complete commit history. Text can still
-contain sensitive information or malicious instructions; future AI integration
-must disclose the transfer and treat it as untrusted source data.
+contain sensitive information or malicious instructions; the UI discloses the
+transfer and the AI instructions treat it as untrusted source data.
 
 No link returns `status: not_linked`; a successful fetch returns `status: ready`,
 including when its sample is empty. Missing credentials require reconnection.
