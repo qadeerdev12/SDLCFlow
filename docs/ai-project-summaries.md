@@ -75,6 +75,17 @@ contained tab navigation (including the checkbox), restored
 focus on close, loading state, manual retry, empty sections, and partial-coverage
 labels. Provider text is rendered as plain text, never interpreted HTML.
 
+GitHub failures have specific guidance for throttling, timeouts, reconnection,
+repository access, connection changes, and temporary unavailability. Rate-limit
+responses preserve `retryAfter` seconds and `resetAt` in the JSON error. The UI
+reuses `githubRetryAt` and `useRetryCooldown` to choose the later deadline and
+disable Generate until then. Missing/invalid timing uses a suggested one-minute
+pause, not a guarantee of provider availability. The deadline is captured once
+when the request fails; expiry enables manual retry but never makes a request.
+Task-only fallback remains available during that pause. This is a panel-local
+UX guard, not a server rate limiter; reopening resets it. Non-GitHub AI errors
+keep their existing messages and are not described as GitHub throttling.
+
 ## Verification
 
 `server/src/__tests__/projectSummary.test.js` covers roles, privacy/scoping,

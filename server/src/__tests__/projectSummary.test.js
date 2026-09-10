@@ -168,10 +168,21 @@ describe('opt-in GitHub AI summaries', () => {
   it('preserves GitHub throttling and does not call OpenAI after a GitHub failure', async () => {
     const ctx = await fixture();
     await linkGitHub(ctx);
-    fetch.mockResolvedValue({ ok: false, status: 429, headers: { get: (key) => key === 'retry-after' ? '120' : null }, json: async () => ({ message: 'Limited' }) });
+    fetch.mockResolvedValue({ ok: false, status: 429, headers: { get: (key) => ({ 'retry-after': '120', 'x-ratelimit-reset': '2000000000' })[key] || null }, json: async () => ({ message: 'Limited' }) });
     const res = await ctx.send().send({ includeGitHub: true }).expect(429);
     expect(res.body.error.code).toBe('GITHUB_RATE_LIMITED');
     expect(res.headers['retry-after']).toBe('120');
+    expect(res.body.error.retryAfter).toBe(120);
+    expect(res.body.error.resetAt).toBe(new Date(2000000000000).toISOString());
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('labels network failures as GitHub unavailable without exposing raw details', async () => {
+    const ctx = await fixture();
+    await linkGitHub(ctx);
+    fetch.mockRejectedValue(new TypeError('PRIVATE_CONNECTION_DETAILS'));
+    const res = await ctx.send().send({ includeGitHub: true }).expect(502);
+    expect(res.body.error.code).toBe('GITHUB_UNAVAILABLE');
+    expect(JSON.stringify(res.body)).not.toContain('PRIVATE_CONNECTION_DETAILS');
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

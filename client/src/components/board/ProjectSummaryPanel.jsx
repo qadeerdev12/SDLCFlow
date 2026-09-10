@@ -4,6 +4,8 @@ import { Sparkles, X } from 'lucide-react'
 import { boardApi } from '../../lib/api'
 import { useLatestRequest } from '../../hooks/useLatestRequest'
 import GitHubSummarySection from './GitHubSummarySection'
+import { projectSummaryError } from '../../lib/projectSummaryError'
+import { useRetryCooldown } from '../../hooks/useRetryCooldown'
 
 const SECTIONS = [ ['completed', 'Completed', 'text-teal-700 dark:text-teal-300'], ['inProgress', 'In progress', 'text-sky-700 dark:text-sky-300'], ['blocked', 'Blocked', 'text-rose-700 dark:text-rose-300'] ]
 
@@ -12,6 +14,7 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(null)
   const [includeGitHub, setIncludeGitHub] = useState(false)
+  const retryCoolingDown = useRetryCooldown(error?.retryAt || 0)
   const busy = useRef(false)
   const dialog = useRef(null)
   const beginRead = useLatestRequest()
@@ -22,7 +25,7 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
   }, [])
 
   async function generate() {
-    if (busy.current) return
+    if (busy.current || retryCoolingDown) return
     busy.current = true
     const isCurrent = beginRead('summary')
     setPending(true)
@@ -35,7 +38,7 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
         // Drop the old snapshot on access failure instead of displaying private
         // history alongside a revoked-membership error.
         if ([401, 403, 404].includes(err.status) || ['GITHUB_CONTEXT_CHANGED', 'GITHUB_RECONNECT_REQUIRED'].includes(err.code)) setSummary(null)
-        setError(err)
+        setError(projectSummaryError(err))
       }
     } finally {
       if (isCurrent()) { setPending(false); busy.current = false }
@@ -75,12 +78,12 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
             </label>
             <p id="summary-github-disclosure" className="mt-2 text-xs leading-5 text-zinc-500">When selected, generating also sends the linked repository name and up to 10 recent commit titles, SHAs, and dates to OpenAI. Commit bodies, author details, and source code are excluded. Titles may contain sensitive information.</p>
           </div>
-          <button type="button" disabled={pending} onClick={generate} className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"><Sparkles size={16} />{pending ? 'Summarizing...' : summary ? 'Regenerate summary' : 'Generate summary'}</button>
+          <button type="button" disabled={pending || retryCoolingDown} onClick={generate} className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"><Sparkles size={16} />{pending ? 'Summarizing...' : summary ? 'Regenerate summary' : 'Generate summary'}</button>
           {pending && <p role="status" className="text-sm text-zinc-500">Preparing your project summary...</p>}
           {error && <div role="alert" className="space-y-2 text-sm text-red-600 dark:text-red-300">
             <p className="break-words">{error.message}</p>
-            {includeGitHub && error.code?.startsWith('GITHUB_') && <>
-              <p>Check the project's GitHub connection, or exclude GitHub and generate a task-only summary.</p>
+            {includeGitHub && error.github && <>
+              <p>{error.guidance}</p>
               <button type="button" onClick={() => changeGitHubSelection(false)} className="font-medium underline underline-offset-2">Use tasks only</button>
             </>}
           </div>}

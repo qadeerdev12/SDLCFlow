@@ -13,7 +13,7 @@ const summary = {
 const props = { board: { _id: 'board-1', name: 'Uptime Desk' }, token: 'token', onClose: vi.fn() }
 function show() { return render(<MemoryRouter><ProjectSummaryPanel {...props} /></MemoryRouter>) }
 beforeEach(() => { vi.resetAllMocks(); mocks.summarize.mockResolvedValue({ data: { summary } }) })
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.useRealTimers() })
 describe('project summary panel', () => {
   it('waits for explicit generation then displays scoped evidence links', async () => {
     show()
@@ -71,6 +71,39 @@ const github = {
   bullets: [{ text: 'Commit reports an API fix.', commits: [{ sha: 'abcdef123456', title: 'Fix API', htmlUrl: 'https://github.com/team/app/commit/abcdef123456' }] }],
 }
 describe('GitHub summary opt-in', () => {
+  it('waits for a rate-limit deadline without automatically retrying', async () => {
+    vi.useFakeTimers()
+    mocks.summarize.mockRejectedValue(Object.assign(new Error('Limited'), { code: 'GITHUB_RATE_LIMITED', retryAfter: 2, status: 429 }))
+    show()
+    fireEvent.click(screen.getByRole('checkbox'))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Generate summary' })))
+    expect(screen.getByRole('alert').textContent).toContain('Suggested retry time')
+    expect(screen.getByRole('button', { name: 'Generate summary' }).disabled).toBe(true)
+    await act(() => vi.advanceTimersByTimeAsync(2000))
+    expect(screen.getByRole('button', { name: 'Generate summary' }).disabled).toBe(false)
+    expect(mocks.summarize).toHaveBeenCalledTimes(1)
+  })
+  it('allows task-only fallback during a GitHub cooldown without making another request', async () => {
+    vi.useFakeTimers()
+    mocks.summarize.mockRejectedValue(Object.assign(new Error('Limited'), { code: 'GITHUB_RATE_LIMITED', retryAfter: 120, status: 429 }))
+    show()
+    fireEvent.click(screen.getByRole('checkbox'))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Generate summary' })))
+    fireEvent.click(screen.getByRole('button', { name: 'Use tasks only' }))
+    expect(screen.getByRole('button', { name: 'Generate summary' }).disabled).toBe(false)
+    expect(screen.getByRole('checkbox').checked).toBe(false)
+    expect(mocks.summarize).toHaveBeenCalledTimes(1)
+  })
+  it('shows timeout-specific guidance with an immediately available manual retry', async () => {
+    mocks.summarize.mockRejectedValue(Object.assign(new Error('Timeout'), { code: 'GITHUB_TIMEOUT', status: 504 }))
+    show()
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'Generate summary' }))
+    expect((await screen.findByRole('alert')).textContent).toContain('GitHub did not respond within 10 seconds')
+    expect(screen.getByRole('button', { name: 'Generate summary' }).disabled).toBe(false)
+    expect(screen.getByRole('button', { name: 'Use tasks only' })).toBeTruthy()
+    expect(mocks.summarize).toHaveBeenCalledTimes(1)
+  })
   it('starts unchecked and discloses the transfer without making a request', () => {
     show()
     expect(screen.getByRole('checkbox').checked).toBe(false)

@@ -31,9 +31,18 @@ export async function withProjectGitHubContext({ boardId, userId }, consume) {
       statusCode: 409, code: 'GITHUB_RECONNECT_REQUIRED',
     });
   }
-  const commits = await fetchGitHubCommits(account.getAccessToken(), integration.repoOwner, integration.repoName, {
-    limit: COMMIT_LIMIT, sha: integration.defaultBranch,
-  });
+  const accessToken = account.getAccessToken();
+  let commits;
+  try {
+    commits = await fetchGitHubCommits(accessToken, integration.repoOwner, integration.repoName, {
+      limit: COMMIT_LIMIT, sha: integration.defaultBranch,
+    });
+  } catch (err) {
+    if (err instanceof GitHubApiError) throw err;
+    // Network/body failures belong to GitHub, not OpenAI. Keep raw connection
+    // details server-side and preserve the client's explicit task-only fallback.
+    throw new GitHubApiError('Could not reach GitHub. Try again shortly.', { code: 'GITHUB_UNAVAILABLE' });
+  }
 
   // An external request can outlive membership, unlinking, or token rotation.
   // Discard that snapshot instead of returning data from an obsolete link.
