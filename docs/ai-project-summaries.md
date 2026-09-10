@@ -71,3 +71,35 @@ empty input, per-status limits, citations, revoked access, and quota errors.
 links, partial coverage, errors, duplicate clicks, stale responses, and keyboard
 focus. Provider calls are mocked; live summary quality remains a manual check.
 GitHub activity, scheduled reports, and persisted/shared summaries are deferred.
+
+## GitHub context preparation (backend only)
+
+`collectProjectGitHubContext({ boardId, userId })` in
+`server/src/services/projectSummaryGitHubService.js` prepares a read-only snapshot
+for a later iteration. No route, UI, or AI prompt calls it yet. Existing summaries
+still send only the task data described above to OpenAI.
+
+The collector checks project membership before reading the saved repository link
+and uses the linking account's encrypted credentials through the existing GitHub
+service. All project owner/admin/member roles can read, matching the project
+GitHub panel. Callers cannot choose an unrelated repository, token, or page size.
+The stored default branch is used, with GitHub's default when absent.
+
+The result contains repository identity, a sample timestamp, and at most 10 recent
+commits: SHA, first-line title (300 characters), date, and a server-built GitHub
+link. It excludes author identities, commit bodies, and raw API metadata. This is
+a recent sample, not a weekly report or complete commit history. Text can still
+contain sensitive information or malicious instructions; future AI integration
+must disclose the transfer and treat it as untrusted source data.
+
+No link returns `status: not_linked`; a successful fetch returns `status: ready`,
+including when its sample is empty. Missing credentials require reconnection.
+Provider failures retain their existing error and rate-limit details rather than
+being disguised as empty activity. Membership, link, and credentials are checked
+again after fetching; changes discard the result. This does not cancel an already
+running GitHub request. There are no writes, sync timestamp updates, activity
+entries, broadcasts, or OpenAI calls.
+
+`server/src/__tests__/projectSummaryGitHub.test.js` verifies permissions, sample
+bounds, output projection, disconnected accounts, stale requests, and throttling
+using a temporary database and mocked GitHub calls.
