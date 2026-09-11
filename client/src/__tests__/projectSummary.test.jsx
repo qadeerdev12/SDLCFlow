@@ -15,6 +15,18 @@ function show() { return render(<MemoryRouter><ProjectSummaryPanel {...props} />
 beforeEach(() => { vi.resetAllMocks(); mocks.summarize.mockResolvedValue({ data: { summary } }) })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 describe('project summary panel', () => {
+  it('renders long task sources as wrapping plain text without interpreting markup', async () => {
+    const title = '<img src=x onerror=alert(1)>' + 'LongTaskIdentifier'.repeat(12)
+    const text = 'LongGeneratedIdentifier'.repeat(15)
+    mocks.summarize.mockResolvedValue({ data: { summary: { ...summary, sections: { ...summary.sections,
+      completed: [{ text, cards: [{ id: 'card-1', title }] }],
+    } } } })
+    show()
+    fireEvent.click(screen.getByRole('button', { name: 'Generate summary' }))
+    expect((await screen.findByText(text)).className).toContain('[overflow-wrap:anywhere]')
+    expect(screen.getByRole('link', { name: title }).className).toContain('[overflow-wrap:anywhere]')
+    expect(document.querySelector('img')).toBeNull()
+  })
   it('contains programmatic focus, locks background scrolling, and restores both on close', () => {
     const trigger = document.createElement('button')
     document.body.append(trigger)

@@ -83,7 +83,7 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
     <div className="fixed inset-0 z-50 flex justify-end bg-zinc-950/35 backdrop-blur-sm sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <aside ref={dialog} role="dialog" aria-modal="true" aria-labelledby="summary-title" onKeyDown={onKeyDown} className="flex h-full w-full max-w-xl flex-col overflow-hidden border border-zinc-200 bg-white text-zinc-950 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 sm:rounded-lg">
         <div className="flex items-start justify-between gap-3 border-b border-zinc-200 p-5 dark:border-zinc-800">
-          <div className="min-w-0"><p className="text-xs font-semibold text-teal-700 dark:text-teal-300">AI summary</p><h2 id="summary-title" className="mt-1 break-words text-lg font-semibold">{board.name}</h2></div>
+          <div className="min-w-0"><p className="text-xs font-semibold text-teal-700 dark:text-teal-300">AI summary</p><h2 id="summary-title" className="mt-1 text-lg font-semibold [overflow-wrap:anywhere]">{board.name}</h2></div>
           <button type="button" onClick={onClose} aria-label="Close summary" title="Close summary" className="shrink-0 rounded-lg p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800"><X size={18} /></button>
         </div>
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
@@ -99,7 +99,7 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
           {pending && <p role="status" className="text-sm text-zinc-500">Preparing your project summary...</p>}
           {retryCoolingDown && !error?.retryAt && <p role="status" className="text-sm text-zinc-500">GitHub retry available after {new Date(githubRetryDeadline).toLocaleString()}. Task-only summaries remain available.</p>}
           {error && <div role="alert" className="space-y-2 text-sm text-red-600 dark:text-red-300">
-            <p className="break-words">{error.message}</p>
+            <p className="[overflow-wrap:anywhere]">{error.message}</p>
             {includeGitHub && error.github && <>
               <p>{error.guidance}</p>
               <button type="button" onClick={() => changeGitHubSelection(false)} className="font-medium underline underline-offset-2">Use tasks only</button>
@@ -115,7 +115,7 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
                   <p className="mt-1 text-xs text-zinc-500">{summary.scope[key].included} tasks included{summary.scope[key].truncated ? '; more tasks omitted' : ''}</p>
                   {summary.sections[key].length === 0 ? <p className="mt-2 text-sm text-zinc-500">No tasks in this status.</p> : (
                     <ul className="mt-3 space-y-4">{summary.sections[key].map((bullet, index) => (
-                      <li key={index} className="min-w-0"><p className="break-words text-sm leading-6">{bullet.text}</p><ul className="mt-1 space-y-1">{bullet.cards.map((card) => <li key={card.id}><Link className="break-words text-sm text-teal-700 underline underline-offset-2 dark:text-teal-300" to={`/boards/${board._id}?card=${encodeURIComponent(card.id)}`}>{card.title}</Link></li>)}</ul></li>
+                      <li key={index} className="min-w-0"><p className="text-sm leading-6 [overflow-wrap:anywhere]">{bullet.text}</p><ul className="mt-1 space-y-1">{bullet.cards.map((card) => <li key={card.id}><Link className="text-sm text-teal-700 underline underline-offset-2 [overflow-wrap:anywhere] dark:text-teal-300" to={`/boards/${board._id}?card=${encodeURIComponent(card.id)}`}>{card.title}</Link></li>)}</ul></li>
                     ))}</ul>
                   )}
                 </section>
