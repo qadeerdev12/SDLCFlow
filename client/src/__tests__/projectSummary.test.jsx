@@ -15,6 +15,25 @@ function show() { return render(<MemoryRouter><ProjectSummaryPanel {...props} />
 beforeEach(() => { vi.resetAllMocks(); mocks.summarize.mockResolvedValue({ data: { summary } }) })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 describe('project summary panel', () => {
+  it('contains programmatic focus, locks background scrolling, and restores both on close', () => {
+    const trigger = document.createElement('button')
+    document.body.append(trigger)
+    trigger.focus()
+    const oldOverflow = document.body.style.overflow
+    document.body.style.overflow = 'scroll'
+    try {
+      const view = show()
+      expect(document.body.style.overflow).toBe('hidden')
+      trigger.focus()
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close summary' }))
+      view.unmount()
+      expect(document.body.style.overflow).toBe('scroll')
+      expect(document.activeElement).toBe(trigger)
+    } finally {
+      trigger.remove()
+      document.body.style.overflow = oldOverflow
+    }
+  })
   it('waits for explicit generation then displays scoped evidence links', async () => {
     show()
     expect(mocks.summarize).not.toHaveBeenCalled()

@@ -24,8 +24,19 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
   const beginRead = useLatestRequest()
   useEffect(() => {
     const previous = document.activeElement
-    dialog.current.querySelector('button').focus()
-    return () => { if (previous?.isConnected) previous.focus() }
+    const panel = dialog.current
+    const previousOverflow = document.body.style.overflow
+    const focusFirst = () => panel.querySelector('button').focus()
+    // aria-modal alone does not prevent background focus or page scrolling.
+    const containFocus = (event) => { if (!panel.contains(event.target)) focusFirst() }
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('focusin', containFocus)
+    focusFirst()
+    return () => {
+      document.removeEventListener('focusin', containFocus)
+      document.body.style.overflow = previousOverflow
+      if (previous?.isConnected) previous.focus()
+    }
   }, [])
 
   async function generate() {
