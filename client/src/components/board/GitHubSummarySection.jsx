@@ -10,6 +10,7 @@ export default function GitHubSummarySection({ github }) {
       ) : (
         <>
           <a href={github.repository.htmlUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-sm text-teal-700 underline underline-offset-2 [overflow-wrap:anywhere] dark:text-teal-300">{github.repository.fullName}</a>
+          <p className="mt-1 text-xs leading-5 text-zinc-500 [overflow-wrap:anywhere]">Branch: {github.repository.defaultBranch || 'Repository default'}</p>
           <p className="mt-1 text-xs leading-5 text-zinc-500">{github.included} {github.included === 1 ? 'commit' : 'commits'} included; up to {github.limit} recent commits. Not complete repository history.</p>
           {github.sampledAt && <p className="text-xs leading-5 text-zinc-500">Commit snapshot from {new Date(github.sampledAt).toLocaleString()}.</p>}
           <p className="mt-1 text-xs leading-5 text-zinc-500">Commit titles are not verification of task completion or deployment.</p>

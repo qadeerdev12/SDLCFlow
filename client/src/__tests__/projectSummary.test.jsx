@@ -102,6 +102,13 @@ const github = {
   bullets: [{ text: 'Commit reports an API fix.', commits: [{ sha: 'abcdef123456', title: 'Fix API', htmlUrl: 'https://github.com/team/app/commit/abcdef123456' }] }],
 }
 describe('GitHub summary opt-in', () => {
+  it.each(['main', 'release/2026-09', null])('shows the sampled branch without inventing a default: %s', async (defaultBranch) => {
+    mocks.summarize.mockResolvedValue({ data: { summary: { ...summary, github: { ...github, repository: { ...github.repository, defaultBranch } } } } })
+    show()
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'Generate summary' }))
+    expect(await screen.findByText(`Branch: ${defaultBranch || 'Repository default'}`)).toBeTruthy()
+  })
   it('preserves the GitHub deadline when switching sources and generating task-only content', async () => {
     vi.useFakeTimers()
     mocks.summarize.mockRejectedValueOnce(Object.assign(new Error('Limited'), { code: 'GITHUB_RATE_LIMITED', retryAfter: 120, status: 429 }))
