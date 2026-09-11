@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:summary-browser": "node scripts/check-project-summary.mjs",
     "start": "node src/index.js",
     "dev": "nodemon --watch src src/index.js"
   },
@@ -24,6 +25,7 @@
   "devDependencies": {
     "mongodb-memory-server": "^11.2.0",
     "nodemon": "^3.1.14",
+    "playwright": "^1.63.0",
     "socket.io-client": "^4.8.3",
     "supertest": "^7.2.2",
     "vitest": "^4.1.11"
