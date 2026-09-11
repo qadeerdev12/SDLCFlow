@@ -2,6 +2,7 @@ import { getBoardIfRole } from '../utils/boardAccess.js';
 import { createDraftLimiter, draftError } from '../services/taskDraftService.js';
 import { summarizeProject } from '../services/projectSummaryService.js';
 import { withProjectGitHubContext } from '../services/projectSummaryGitHubService.js';
+import { summaryRetryAfter } from '../utils/summaryRetryAfter.js';
 
 const acquire = createDraftLimiter('summary');
 
@@ -28,7 +29,7 @@ export async function createProjectSummary(req, res) {
     return res.json({ data: { summary } });
   } catch (err) {
     const status = err.statusCode || 500;
-    if (status === 429) res.set('Retry-After', String(err.retryAfter || 60));
+    if (status === 429) res.set('Retry-After', String(summaryRetryAfter(err)));
     return res.status(status).json({ error: {
       code: err.code || 'SERVER', message: status === 500 ? 'Could not generate a project summary.' : err.message,
       // Preserve provider timing for manual retries without exposing raw errors.

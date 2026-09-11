@@ -168,12 +168,14 @@ describe('opt-in GitHub AI summaries', () => {
   it('preserves GitHub throttling and does not call OpenAI after a GitHub failure', async () => {
     const ctx = await fixture();
     await linkGitHub(ctx);
-    fetch.mockResolvedValue({ ok: false, status: 429, headers: { get: (key) => ({ 'retry-after': '120', 'x-ratelimit-reset': '2000000000' })[key] || null }, json: async () => ({ message: 'Limited' }) });
+    const reset = Math.ceil(Date.now() / 1000) + 180;
+    fetch.mockResolvedValue({ ok: false, status: 429, headers: { get: (key) => ({ 'retry-after': '120', 'x-ratelimit-reset': String(reset) })[key] || null }, json: async () => ({ message: 'Limited' }) });
     const res = await ctx.send().send({ includeGitHub: true }).expect(429);
     expect(res.body.error.code).toBe('GITHUB_RATE_LIMITED');
-    expect(res.headers['retry-after']).toBe('120');
+    expect(Number(res.headers['retry-after'])).toBeGreaterThanOrEqual(179);
+    expect(Number(res.headers['retry-after'])).toBeLessThanOrEqual(181);
     expect(res.body.error.retryAfter).toBe(120);
-    expect(res.body.error.resetAt).toBe(new Date(2000000000000).toISOString());
+    expect(res.body.error.resetAt).toBe(new Date(reset * 1000).toISOString());
     expect(fetch).toHaveBeenCalledTimes(1);
   });
   it('labels network failures as GitHub unavailable without exposing raw details', async () => {
