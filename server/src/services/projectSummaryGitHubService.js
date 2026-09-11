@@ -21,7 +21,13 @@ export async function collectProjectGitHubContext(options) {
 export async function withProjectGitHubContext({ boardId, userId }, consume) {
   await requireProjectAccess(boardId, userId);
   const integration = await BoardGitHubIntegration.findOne({ board: boardId }).lean();
-  if (!integration) return consume({ status: 'not_linked', repository: null, commits: [] });
+  if (!integration) {
+    const result = await consume({ status: 'not_linked', repository: null, commits: [] });
+    // The consumer can still be slow (for example, task-only AI generation).
+    // An absent repository does not remove the need to recheck project access.
+    await requireProjectAccess(boardId, userId);
+    return result;
+  }
 
   // Match project GitHub reads: members use the account that linked the repo,
   // never a caller-supplied token, repository, branch, or page size.

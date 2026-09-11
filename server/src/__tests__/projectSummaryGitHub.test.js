@@ -5,7 +5,7 @@ import Board from '../models/Board.js';
 import GitHubAccount from '../models/GitHubAccount.js';
 import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
 import { fetchGitHubCommits, GitHubApiError } from '../services/githubService.js';
-import { collectProjectGitHubContext } from '../services/projectSummaryGitHubService.js';
+import { collectProjectGitHubContext, withProjectGitHubContext } from '../services/projectSummaryGitHubService.js';
 
 vi.mock('../services/githubService.js', async (importOriginal) => ({
   ...await importOriginal(), fetchGitHubCommits: vi.fn(),
@@ -35,6 +35,18 @@ async function fixture(role = 'member') {
 }
 
 describe('project summary GitHub context preparation', () => {
+  it.each(['revoked', 'deleted'])('rechecks an unlinked project after consumption: %s', async (change) => {
+    const ctx = await fixture();
+    await BoardGitHubIntegration.deleteMany({});
+    const userId = ctx.board.members[0].user;
+    await expect(withProjectGitHubContext({ boardId: ctx.board._id, userId }, async (context) => {
+      expect(context.status).toBe('not_linked');
+      if (change === 'revoked') await Board.updateOne({ _id: ctx.board._id }, { members: [] });
+      else await Board.deleteOne({ _id: ctx.board._id });
+      return { private: 'summary' };
+    })).rejects.toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+    expect(fetchGitHubCommits).not.toHaveBeenCalled();
+  });
   it.each([
     null, {}, [null], [{ ...commit, sha: '../other' }], [{ ...commit, sha: { secret: 'value' } }],
     [{ ...commit, message: { unexpected: 'object' } }], [{ ...commit, committedAt: 'invalid' }],
