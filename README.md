@@ -38,6 +38,19 @@ the board — over WebSockets, in that order.
 
 ## Features
 
+### AI assistance with reviewable sources
+
+Draft task descriptions and checklists from a brief, then review the suggestions
+before saving. On-demand project summaries cover completed, in-progress, and
+blocked tasks across workflows, with links back to the cited cards.
+
+Optionally include up to ten recent commits from the project's linked GitHub
+repository in a separate, source-linked section. GitHub inclusion is off by
+default, with a disclosure before generation. Summaries are read-only snapshots,
+not status changes, deployment verification, or complete repository reports.
+Timeouts and rate limits offer manual recovery without automatic paid retries.
+See [AI project summaries](docs/ai-project-summaries.md).
+
 ### My Tasks
 
 A personal task view brings together cards assigned to you across your projects.
@@ -372,6 +385,13 @@ Client tests use Vitest, React Testing Library, and jsdom to exercise live inbox
 updates, reconnect recovery, overlapping requests, account cleanup, and task
 navigation with controlled API/socket responses.
 
+The summary browser check joins the real panel and API client to an authenticated
+Express server and temporary MongoDB. GitHub and OpenAI are mocked, so it requires
+no API keys, real account, or paid generation. From `server/`, run
+`npm run test:summary-browser` after installing Playwright Chromium. See the
+[verification guide](docs/project-summary-verification.md) for setup, coverage,
+screenshots, and the remaining live-quality checks.
+
 Board regression tests also cover drag/drop ordering and rollback, empty-list
 drops, workflow forms, filters, permission-gated header actions, and the GitHub
 repository panel.
@@ -432,7 +452,8 @@ server/src/
 | [Board page maintenance](docs/board-page-maintenance.md) | Component ownership, drag invariants, regression checks, and future extraction boundaries |
 | [Workspace activity](docs/workspace-activity.md) | Membership-scoped feed, cursor pagination, query behavior, and regression checks |
 | [AI task drafting](docs/ai-task-drafting.md) | OpenAI setup, editable previews, privacy boundaries, and testing |
-| [AI project summaries](docs/ai-project-summaries.md) | On-demand task snapshots, validated card citations, coverage, and privacy |
+| [AI project summaries](docs/ai-project-summaries.md) | Task and optional GitHub snapshots, source citations, consent, and recovery |
+| [Summary verification](docs/project-summary-verification.md) | Isolated browser/API checks, setup, covered scenarios, and manual quality review |
 
 ---
 

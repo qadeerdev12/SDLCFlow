@@ -83,7 +83,9 @@ disable Generate until then. Missing/invalid timing uses a suggested one-minute
 pause, not a guarantee of provider availability. The deadline is captured once
 when the request fails; expiry enables manual retry but never makes a request.
 Task-only fallback remains available during that pause. This is a panel-local
-UX guard, not a server rate limiter; reopening resets it. Non-GitHub AI errors
+UX guard, not a server rate limiter; reopening resets it. Changing sources or
+generating task-only content does not erase the GitHub deadline within that panel.
+Non-GitHub AI errors
 keep their existing messages and are not described as GitHub throttling.
 
 ## Verification
@@ -96,6 +98,8 @@ focus, GitHub consent, source links, empty states, connection changes, and manua
 task-only fallback. `projectSummaryApi.test.js` checks the serialized opt-in flag.
 Provider calls are mocked; live summary quality remains a manual check.
 Scheduled reports and persisted/shared summaries are deferred.
+For the repeatable real-panel-to-API check, see
+[project summary verification](project-summary-verification.md).
 
 ## Opt-in GitHub summaries
 
@@ -133,6 +137,12 @@ panel because both consumers use `fetchGitHubCommits`; other GitHub endpoints ar
 unchanged. The timer is cleared on success and on every failure. The summary UI's
 existing GitHub error handling offers an explicit task-only fallback.
 
+The shared GitHub response parser tolerates malformed timing headers without
+losing the rate-limit classification. It recognizes secondary-limit 403 responses
+with a valid Retry-After or an explicit secondary-limit message, while ordinary
+permission failures remain access errors. This follows
+[GitHub's rate-limit guidance](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+
 ## GitHub context collection
 
 `collectProjectGitHubContext({ boardId, userId })` in
@@ -154,6 +164,10 @@ link. It excludes author identities, commit bodies, and raw API metadata. This i
 a recent sample, not a weekly report or complete commit history. Text can still
 contain sensitive information or malicious instructions; the UI discloses the
 transfer and the AI instructions treat it as untrusted source data.
+Before building the snapshot, the collector requires a commit array, full
+hexadecimal SHA identifiers, string messages, and valid dates when supplied.
+Malformed samples return `GITHUB_UNAVAILABLE` rather than silently dropping rows
+or passing unusable source references to OpenAI. Both CR and LF terminate titles.
 
 No link returns `status: not_linked`; a successful fetch returns `status: ready`,
 including when its sample is empty. Missing credentials require reconnection.
