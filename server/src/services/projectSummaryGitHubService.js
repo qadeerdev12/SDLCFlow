@@ -43,6 +43,16 @@ export async function withProjectGitHubContext({ boardId, userId }, consume) {
     // details server-side and preserve the client's explicit task-only fallback.
     throw new GitHubApiError('Could not reach GitHub. Try again shortly.', { code: 'GITHUB_UNAVAILABLE' });
   }
+  // Only validated, bounded source records may enter the AI snapshot. Reject the
+  // sample rather than silently claiming complete coverage after dropping rows.
+  const sample = Array.isArray(commits) ? commits.slice(0, COMMIT_LIMIT) : null;
+  if (!sample || sample.some((commit) => !commit
+    || typeof commit.sha !== 'string' || !/^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(commit.sha)
+    || typeof commit.message !== 'string'
+    || (commit.committedAt != null && (typeof commit.committedAt !== 'string'
+      || !Number.isFinite(Date.parse(commit.committedAt)))))) {
+    throw new GitHubApiError('GitHub returned incomplete commit data. Try again shortly.', { code: 'GITHUB_UNAVAILABLE' });
+  }
 
   // An external request can outlive membership, unlinking, or token rotation.
   // Discard that snapshot instead of returning data from an obsolete link.
@@ -70,9 +80,9 @@ export async function withProjectGitHubContext({ boardId, userId }, consume) {
     },
     // Explicit projection excludes author identities and raw provider metadata.
     // Titles remain untrusted text; bounds do not make them safe instructions.
-    commits: commits.slice(0, COMMIT_LIMIT).map((commit) => ({
+    commits: sample.map((commit) => ({
       sha: commit.sha,
-      title: commit.message.split(/\r?\n/, 1)[0].slice(0, 300),
+      title: commit.message.split(/[\r\n]/, 1)[0].slice(0, 300),
       committedAt: commit.committedAt || null,
       htmlUrl: `${repositoryUrl}/commit/${encodeURIComponent(commit.sha)}`,
     })),

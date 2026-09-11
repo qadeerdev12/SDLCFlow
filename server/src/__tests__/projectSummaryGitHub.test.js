@@ -35,6 +35,21 @@ async function fixture(role = 'member') {
 }
 
 describe('project summary GitHub context preparation', () => {
+  it.each([
+    null, {}, [null], [{ ...commit, sha: '../other' }], [{ ...commit, sha: { secret: 'value' } }],
+    [{ ...commit, message: { unexpected: 'object' } }], [{ ...commit, committedAt: 'invalid' }],
+  ])('rejects malformed commit samples before consumption: %j', async (value) => {
+    const ctx = await fixture();
+    fetchGitHubCommits.mockResolvedValue(value);
+    await expect(ctx.collect()).rejects.toMatchObject({ code: 'GITHUB_UNAVAILABLE', statusCode: 502 });
+  });
+  it('omits carriage-return message bodies and accepts missing dates', async () => {
+    const ctx = await fixture();
+    fetchGitHubCommits.mockResolvedValue([{ ...commit, message: 'Title\rPRIVATE_BODY', committedAt: null }]);
+    const result = await ctx.collect();
+    expect(result.commits[0]).toMatchObject({ title: 'Title', committedAt: null });
+    expect(JSON.stringify(result)).not.toContain('PRIVATE_BODY');
+  });
   it.each(['owner', 'admin', 'member'])('allows %s using the linking account without changing stored data', async (role) => {
     const ctx = await fixture(role);
     const before = await BoardGitHubIntegration.findById(ctx.link._id).lean();
