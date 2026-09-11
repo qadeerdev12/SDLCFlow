@@ -40,6 +40,9 @@ The check covers:
 
 - Task-only default, explicit generation, and card source links.
 - Opted-in GitHub summaries and commit links at 1440px and 390px widths.
+- Sampled branch labels and long task/commit/branch text without horizontal overflow.
+- Dark-mode styling and HTML-like source text rendered without creating HTML elements.
+- Keyboard containment, Escape, restored trigger focus, and background scroll cleanup.
 - Unlinked projects and projects containing commits but no eligible tasks.
 - Disconnected GitHub accounts and explicit task-only fallback.
 - Secondary rate limits, cooldown expiry, and no automatic retry.

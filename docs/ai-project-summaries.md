@@ -13,6 +13,9 @@ to 10 recent commit titles, SHAs, and dates, excluding bodies, author details, a
 source code. Checking the box does not fetch or generate anything. Generating
 with it checked adds a separate **Recent GitHub activity** section with the
 repository, sample count/time, and external commit links opening in a new tab.
+The section also shows the sampled branch, or `Repository default` when the saved
+link does not specify one. Long project names, task text, branch names, and source
+titles wrap within the panel instead of widening the layout.
 
 The snapshot spans all project workflows, regardless of the current UI filters:
 
@@ -74,19 +77,26 @@ or fallback silently sends another paid request. The panel supports Escape,
 contained tab navigation (including the checkbox), restored
 focus on close, loading state, manual retry, empty sections, and partial-coverage
 labels. Provider text is rendered as plain text, never interpreted HTML.
+While the dialog is open, background page scrolling is locked and focus that
+escapes the panel is returned to its close button. Unmount removes the focus
+listener, restores the previous body overflow style, and returns focus to the
+trigger when it still exists.
 
 GitHub failures have specific guidance for throttling, timeouts, reconnection,
 repository access, connection changes, and temporary unavailability. Rate-limit
 responses preserve `retryAfter` seconds and `resetAt` in the JSON error. The UI
-reuses `githubRetryAt` and `useRetryCooldown` to choose the later deadline and
+and HTTP `Retry-After` header both honor the later of the relative wait and reset
+timestamp; the header rounds up to whole seconds. Invalid timing uses a finite
+60-second fallback rather than an invalid date or an early retry.
+The UI reuses `githubRetryAt` and `useRetryCooldown` to choose the later deadline and
 disable Generate until then. Missing/invalid timing uses a suggested one-minute
 pause, not a guarantee of provider availability. The deadline is captured once
 when the request fails; expiry enables manual retry but never makes a request.
 Task-only fallback remains available during that pause. This is a panel-local
 UX guard, not a server rate limiter; reopening resets it. Changing sources or
 generating task-only content does not erase the GitHub deadline within that panel.
-Non-GitHub AI errors
-keep their existing messages and are not described as GitHub throttling.
+Non-GitHub AI errors keep their existing messages and are not described as GitHub
+throttling.
 
 ## Verification
 
@@ -151,6 +161,8 @@ for read-only consumers. The summary controller uses `withProjectGitHubContext`
 to consume this snapshot and check membership/connection both before and after
 AI generation. Credentials remain inside that wrapper, never in its callback's
 input, the AI prompt, or the response. The client remains task-only by default.
+Even when no repository is linked, the wrapper rechecks project access after its
+consumer finishes. The controller retains its own final authorization check.
 
 The collector checks project membership before reading the saved repository link
 and uses the linking account's encrypted credentials through the existing GitHub

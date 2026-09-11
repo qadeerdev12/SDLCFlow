@@ -57,7 +57,13 @@ try {
               import Panel from '/src/components/board/ProjectSummaryPanel.jsx';
               import '/src/index.css';
               const props = await fetch('/__summary-fixture.json', {cache: 'no-store'}).then(response => response.json());
-              createRoot(document.getElementById('root')).render(React.createElement(MemoryRouter, null, React.createElement(Panel, {...props, onClose() {}})));
+              function Preview() {
+                const [open, setOpen] = React.useState(false);
+                return React.createElement(React.Fragment, null,
+                  React.createElement('button', {id: 'open-summary', onClick: () => setOpen(true)}, 'Open summary'),
+                  open && React.createElement(Panel, {...props, onClose: () => setOpen(false)}));
+              }
+              createRoot(document.getElementById('root')).render(React.createElement(MemoryRouter, null, React.createElement(Preview)));
             </script></body></html>`);
             res.setHeader('Content-Type', 'text/html');
             res.end(html);
@@ -86,6 +92,7 @@ try {
     fixture = await createFixture(mode);
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${origin}/__summary-check`);
+    await page.getByRole('button', { name: 'Open summary' }).click();
     await page.getByRole('checkbox').waitFor();
     assert.equal(await page.getByRole('checkbox').isChecked(), false);
     assert.deepEqual(fixture.calls, { github: 0, openai: 0 });
@@ -107,6 +114,21 @@ try {
   assert.equal(await page.getByRole('link', { name: 'API resilience' }).getAttribute('href'), `/boards/${fixture.board.id}?card=${fixture.card.id}`);
   console.log('PASS task-only default and task citation');
 
+  await open('keyboard');
+  assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden');
+  await page.locator('#open-summary').evaluate((el) => el.focus());
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Close summary');
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Generate summary');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Close summary');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'open-summary');
+  assert.equal(await page.evaluate(() => document.body.style.overflow), '');
+  assert.deepEqual(fixture.calls, { github: 0, openai: 0 });
+  console.log('PASS keyboard containment, Escape, focus restoration, and scroll cleanup');
+
   for (const width of [1440, 390]) {
     await open('linked', width);
     await generate(true);
@@ -114,10 +136,32 @@ try {
     assert.equal(await source.getAttribute('href'), `https://github.com/example/project/commit/${sha}`);
     assert.equal(await source.getAttribute('rel'), 'noopener noreferrer');
     assert.deepEqual(fixture.calls, { github: 1, openai: 1 });
+    await page.getByText('Branch: main', { exact: true }).waitFor();
     await source.scrollIntoViewIfNeeded();
     assert.equal(await page.locator('aside').evaluate((el) => el.scrollWidth > el.clientWidth), false);
     await page.screenshot({ path: join(screenshots, `github-${width}.png`) });
     console.log(`PASS linked GitHub summary at ${width}px`);
+  }
+  for (const width of [1440, 390]) {
+    await open('long-content', width);
+    const lightBackground = await page.locator('aside').evaluate((el) => getComputedStyle(el).backgroundColor);
+    await page.evaluate(() => document.documentElement.classList.add('dark'));
+    assert.notEqual(await page.locator('aside').evaluate((el) => getComputedStyle(el).backgroundColor), lightBackground);
+    await generate(true);
+    assert.equal(await page.locator('aside img').count(), 0);
+    assert.equal(await page.locator('aside').evaluate((el) => el.scrollWidth > el.clientWidth), false);
+    const source = page.getByRole('link', { name: /aaaaaaa LongCommitIdentifier/ });
+    await source.scrollIntoViewIfNeeded();
+    const outside = await page.locator('aside').evaluate((panel) => {
+      const bounds = panel.getBoundingClientRect();
+      return [...panel.querySelectorAll('h2, p, a')].some((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.left < bounds.left - 1 || rect.right > bounds.right + 1;
+      });
+    });
+    assert.equal(outside, false);
+    await page.screenshot({ path: join(screenshots, `long-dark-${width}.png`) });
+    console.log(`PASS long plain-text sources and dark mode at ${width}px`);
   }
   await open('unlinked');
   await generate(true);
