@@ -71,6 +71,23 @@ const github = {
   bullets: [{ text: 'Commit reports an API fix.', commits: [{ sha: 'abcdef123456', title: 'Fix API', htmlUrl: 'https://github.com/team/app/commit/abcdef123456' }] }],
 }
 describe('GitHub summary opt-in', () => {
+  it('preserves the GitHub deadline when switching sources and generating task-only content', async () => {
+    vi.useFakeTimers()
+    mocks.summarize.mockRejectedValueOnce(Object.assign(new Error('Limited'), { code: 'GITHUB_RATE_LIMITED', retryAfter: 120, status: 429 }))
+      .mockResolvedValue({ data: { summary } })
+    show()
+    fireEvent.click(screen.getByRole('checkbox'))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Generate summary' })))
+    fireEvent.click(screen.getByRole('button', { name: 'Use tasks only' }))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Generate summary' })))
+    expect(mocks.summarize).toHaveBeenLastCalledWith('board-1', 'token', { includeGitHub: false })
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(screen.getByRole('button', { name: 'Generate summary' }).disabled).toBe(true)
+    expect(screen.getByRole('status').textContent).toContain('GitHub retry available after')
+    await act(() => vi.advanceTimersByTimeAsync(120000))
+    expect(screen.getByRole('button', { name: 'Generate summary' }).disabled).toBe(false)
+    expect(mocks.summarize).toHaveBeenCalledTimes(2)
+  })
   it('waits for a rate-limit deadline without automatically retrying', async () => {
     vi.useFakeTimers()
     mocks.summarize.mockRejectedValue(Object.assign(new Error('Limited'), { code: 'GITHUB_RATE_LIMITED', retryAfter: 2, status: 429 }))

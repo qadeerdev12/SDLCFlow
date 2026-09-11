@@ -14,7 +14,11 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(null)
   const [includeGitHub, setIncludeGitHub] = useState(false)
-  const retryCoolingDown = useRetryCooldown(error?.retryAt || 0)
+  // Keep the provider deadline independent from the current source selection.
+  // Task-only reads are allowed, but toggling GitHub cannot erase its cooldown.
+  const [githubRetryDeadline, setGitHubRetryDeadline] = useState(0)
+  const githubCoolingDown = useRetryCooldown(githubRetryDeadline)
+  const retryCoolingDown = includeGitHub && githubCoolingDown
   const busy = useRef(false)
   const dialog = useRef(null)
   const beginRead = useLatestRequest()
@@ -38,7 +42,9 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
         // Drop the old snapshot on access failure instead of displaying private
         // history alongside a revoked-membership error.
         if ([401, 403, 404].includes(err.status) || ['GITHUB_CONTEXT_CHANGED', 'GITHUB_RECONNECT_REQUIRED'].includes(err.code)) setSummary(null)
-        setError(projectSummaryError(err))
+        const nextError = projectSummaryError(err)
+        if (nextError.retryAt) setGitHubRetryDeadline(nextError.retryAt)
+        setError(nextError)
       }
     } finally {
       if (isCurrent()) { setPending(false); busy.current = false }
@@ -80,6 +86,7 @@ export default function ProjectSummaryPanel({ board, token, onClose }) {
           </div>
           <button type="button" disabled={pending || retryCoolingDown} onClick={generate} className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"><Sparkles size={16} />{pending ? 'Summarizing...' : summary ? 'Regenerate summary' : 'Generate summary'}</button>
           {pending && <p role="status" className="text-sm text-zinc-500">Preparing your project summary...</p>}
+          {retryCoolingDown && !error?.retryAt && <p role="status" className="text-sm text-zinc-500">GitHub retry available after {new Date(githubRetryDeadline).toLocaleString()}. Task-only summaries remain available.</p>}
           {error && <div role="alert" className="space-y-2 text-sm text-red-600 dark:text-red-300">
             <p className="break-words">{error.message}</p>
             {includeGitHub && error.github && <>
