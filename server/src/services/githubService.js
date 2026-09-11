@@ -40,18 +40,25 @@ async function parseGitHubResponse(response) {
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const message = payload.message || 'GitHub request failed.';
+    const message = typeof payload?.message === 'string' ? payload.message : 'GitHub request failed.';
     const remaining = response.headers?.get?.('x-ratelimit-remaining');
     const reset = response.headers?.get?.('x-ratelimit-reset');
     const retryAfter = response.headers?.get?.('retry-after');
-    const isRateLimited = response.status === 429 || (response.status === 403 && remaining === '0');
+    const retrySeconds = Number(retryAfter);
+    const validRetry = Number.isFinite(retrySeconds) && retrySeconds > 0
+      && Number.isFinite(new Date(Date.now() + retrySeconds * 1000).getTime()) ? retrySeconds : null;
+    const resetDate = new Date(Number(reset) * 1000);
+    const validReset = Number(reset) > 0 && Number.isFinite(resetDate.getTime()) ? resetDate.toISOString() : null;
+    // Secondary limits may return 403 while the primary quota is still positive.
+    const isRateLimited = response.status === 429 || (response.status === 403
+      && (remaining === '0' || validRetry !== null || /secondary rate limit/i.test(message)));
 
     if (isRateLimited) {
       throw new GitHubApiError('GitHub rate limit reached. Please try again shortly.', {
         code: 'GITHUB_RATE_LIMITED',
         statusCode: 429,
-        retryAfter: retryAfter ? Number(retryAfter) : null,
-        resetAt: reset ? new Date(Number(reset) * 1000).toISOString() : null,
+        retryAfter: validRetry,
+        resetAt: validReset,
       });
     }
 
