@@ -2,7 +2,7 @@
 
 Status: target architecture, not enabled. The internal
 [refresh-session foundation](refresh-session-foundation.md) is implemented and
-tested in isolation. This does not change the current seven-day JWT, browser
+tested in isolation, including cookie/CSRF helpers. This does not change the current seven-day JWT, browser
 storage, or deployment configuration; endpoints and client integration remain pending.
 
 ## Current System
@@ -16,8 +16,8 @@ storage, or deployment configuration; endpoints and client integration remain pe
 - REST and sockets check account session versions. Password changes and log out
   everywhere invalidate old generations. Sockets also enforce token expiry.
 - Ordinary logout clears browser state but does not revoke the token server-side.
-- CORS permits configured browser origins with credentials, but cookie-specific
-  CSRF defenses and refresh coordination do not exist yet.
+- CORS permits configured browser origins with credentials. Cookie-specific
+  CSRF helpers are tested but not mounted; client refresh coordination is pending.
 - README names Vercel and Render as intended hosts. A production domain layout
   has not been selected in the repository configuration.
 
@@ -214,6 +214,6 @@ actual staging domain layout in Chrome, Firefox, and Safari. Document any
 unsupported coordination environments. No credentials should appear in browser
 storage, URLs, logs, or cross-tab messages.
 
-The refresh-session model and atomic rotation tests are now implemented in
-isolation. The next server slices add cookie/CSRF endpoints and family validation,
+The refresh-session model, atomic rotation, and cookie/CSRF helpers are now
+implemented in isolation. The next server slices add protected endpoints and family validation,
 not a full client/authentication rewrite in one iteration.

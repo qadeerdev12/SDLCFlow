@@ -266,7 +266,7 @@ limits described above still apply.
 1. Token storage, expiration, refresh, and associated CSRF/XSS protections.
    The [token lifecycle design review](token-lifecycle-design.md) proposes the
    next architecture. The [refresh-session foundation](refresh-session-foundation.md)
-   implements isolated storage and rotation; endpoints and client integration are
+   implements isolated storage, rotation, and cookie/CSRF helpers; endpoints and client integration are
    not enabled, so the active authentication flow remains unchanged.
 2. Password recovery, email verification, and reauthentication for email changes.
 
