@@ -1,4 +1,5 @@
-import jwt from 'jsonwebtoken';
+import { verifyAccessToken } from '../utils/accessTokens.js';
+import { getAccessSessionFamily } from './accessSessionService.js';
 import User from '../models/User.js';
 import { sessionVersion } from '../utils/sessionTokens.js';
 
@@ -26,6 +27,14 @@ async function loadSessionUser(socket) {
   if (!user) throw sessionError('USER_NOT_FOUND', 'User not found.');
   const version = sessionVersion(user.sessionVersion);
   if (version === null || version !== socket.data.session.version) throw sessionError('SESSION_INVALIDATED');
+  const session = socket.data.session;
+  if (session.familyId) {
+    const family = await getAccessSessionFamily({ sessionId: session.familyId, userId: session.userId, version });
+    // A logout may have evicted this pending socket while the query was waiting.
+    assertLive(socket);
+    if (!family || family.expiresAt.getTime() <= Date.now()) throw sessionError('SESSION_INVALIDATED');
+    session.expiresAt = Math.min(session.expiresAt, family.expiresAt.getTime());
+  }
   return user;
 }
 
@@ -48,6 +57,14 @@ export function revokeSocketSessions(io, userId, minimumVersion = Infinity, code
   }
 }
 
+/** Persist revocation first. Include pending handshakes as well as idle sockets. */
+export function revokeSocketFamily(io, familyId) {
+  if (!io) return;
+  for (const socket of sessions.get(io) || []) {
+    if (socket.data.session.familyId === String(familyId)) endSession(socket, 'SESSION_INVALIDATED');
+  }
+}
+
 export function configureSocketSessions(io) {
   const tracked = new Set();
   sessions.set(io, tracked);
@@ -58,14 +75,13 @@ export function configureSocketSessions(io) {
       if (!token) throw sessionError('NO_TOKEN_PROVIDED', 'Authentication token is required.');
       let claims;
       try {
-        claims = jwt.verify(token, process.env.JWT_SECRET);
-        if (!claims || typeof claims !== 'object' || typeof claims.id !== 'string'
-          || !/^[a-f\d]{24}$/i.test(claims.id) || sessionVersion(claims.sessionVersion) === null) throw new Error();
+        claims = verifyAccessToken(token);
       } catch (error) {
         throw sessionError(error.name === 'TokenExpiredError' ? 'SESSION_EXPIRED' : 'INVALID_TOKEN', 'Invalid authentication token.');
       }
       socket.data.session = {
         userId: claims.id.toLowerCase(), version: sessionVersion(claims.sessionVersion),
+        familyId: claims.sid || null,
         expiresAt: claims.exp === undefined ? null : claims.exp * 1000,
         revoked: null,
       };

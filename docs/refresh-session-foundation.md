@@ -1,8 +1,8 @@
 # Refresh Session Foundation
 
-Status: internal server foundation and unmounted refresh/logout router. Login, JWT lifetime, browser storage,
-REST authentication and Socket.IO behavior are unchanged. No endpoint imports
-this router yet, and no refresh cookies are issued by the live app.
+Status: REST/socket validation supports family-bound tokens; refresh/logout routes
+are still unmounted. Login continues issuing seven-day legacy tokens and browser
+storage is unchanged. No refresh cookies are issued by the live app.
 
 ## Code Map
 
@@ -53,9 +53,9 @@ never truncated. This lifetime cap is not a substitute for endpoint rate limits.
 - `REFRESH_EXHAUSTED` (401): a current credential reached the rotation cap.
 - Database failures propagate, rather than masquerading as authentication failure.
 
-Replay/exhaustion errors carry an internal `sessionId` for future socket eviction.
-They contain no credential. Existing sockets are not affected by this isolated
-service yet. A write committed before a lost response cannot safely be undone;
+Replay/exhaustion errors carry an internal `sessionId` for socket eviction by the
+refresh router. They contain no credential. The storage service remains separate
+from Socket.IO. A write committed before a lost response cannot safely be undone;
 do not blindly retry a consumed credential.
 
 If account-wide revocation races rotation, the result retains its old version.
@@ -65,8 +65,8 @@ version and family validity before this flow is enabled.
 
 ## Next Slice and Verification
 
-Next: family validation/socket eviction, split further as needed. Account deletion must clean
-up these records. Client refresh coordination and the intentional legacy-token
+Next: login/account-action integration, including refresh record cleanup on
+account deletion. Client refresh coordination and the intentional legacy-token
 cutover remain later steps. Do not connect issuance to live login prematurely.
 
 Run `npm test -- src/__tests__/refreshSessions.test.js` from `server` for focused
@@ -153,12 +153,12 @@ There is no environment switch to accidentally enable a half-migrated flow.
 issuer `sdlcflow`, audience `sdlcflow-api`, purpose `access`, user ID, family `sid`,
 and captured account version. Lifetime is at most 15 minutes and never exceeds
 the family's expiry. This helper does not replace the existing seven-day issuer.
-Future REST/socket validators must enforce these claims AND current family
-validity; signature validation alone is insufficient. Do not mount this router
-against the existing validators, which do not yet perform those family checks.
+REST/socket validators now enforce these claims AND current family validity;
+signature validation alone is insufficient. The router remains unmounted until
+login/account actions and client coordination are ready together.
 
-The logout service returns an internal session ID for later socket eviction.
-The router does not evict sockets yet. Cookie-changing requests, including
+The logout service returns an internal session ID; after persistence succeeds,
+the router evicts that family's connected and pending sockets. Cookie-changing requests, including
 logout and login, must eventually share the client's cross-tab lock: even a
 successful delayed logout response could otherwise clear a newer login cookie.
 A network failure after rotation may require sign-in; never blindly retry it.
@@ -170,11 +170,63 @@ new endpoints. Run it with `npm test -- src/__tests__/refreshRoutes.test.js`.
 
 ### Still Required Before Enabling
 
-1. Strict access claim/family checks in REST and Socket.IO, family-level live
-   eviction, and account-deletion cleanup of refresh records.
+1. Account-deletion cleanup of refresh records.
 2. Login/registration issuance and cookie handling for password/logout-all paths.
 3. Memory-only client tokens, cross-tab coordination, refresh bootstrap/retry,
    socket renewal, and a deliberate rejection of legacy access tokens at cutover.
 4. Real-browser testing on the selected same-site deployment and dependency fixes.
 
 This completes the endpoint-foundation slice, not the authentication migration.
+
+## REST and WebSocket Family Validation
+
+`verifyAccessToken` in `server/src/utils/accessTokens.js` is shared by REST and
+Socket.IO. It pins HS256, verifies signatures, and checks claim types before
+database queries. Any `sid`, `purpose`, `iss`, or `aud` marker requires the complete
+new access format. Missing/wrong scope or family claims cannot fall back to legacy
+authentication. New tokens require integer issued-at/expiry timestamps, no future
+issued-at time, and a lifetime of at most 900 seconds. Shape validation precedes
+expiry classification: malformed tokens are INVALID_TOKEN; otherwise expired
+tokens are SESSION_EXPIRED. Do not use unverified decoded claims for authorization.
+
+Marker-free legacy tokens remain accepted until client cutover, with the existing
+account-version checks. This compatibility path is intentional, not an option to
+exchange old credentials for a refresh family. The later cutover must remove it.
+The current client already treats SESSION_EXPIRED as terminal; renewal handling
+comes with its migration. Legacy login still works, but signatures are now pinned
+to HS256 and REST expiry has a distinct error code.
+
+`server/src/services/accessSessionService.js` queries the family by ID, user,
+captured account version, non-revoked state and future expiry. It never caches
+the result. `server/src/middleware/auth.js` performs this check on every new-token
+REST request after the existing account check; expiry is checked again after
+database work. Missing/revoked/expired/mismatched families produce 401
+SESSION_INVALIDATED. Storage failures return 503 AUTH_UNAVAILABLE rather than
+erasing a valid session or exposing database errors.
+
+`server/src/services/socketSessionService.js` performs the same family check at
+handshake and before dispatching each packet. Family IDs are registered before
+the first async lookup, so `revokeSocketFamily` can invalidate pending handshakes
+as well as idle connections. It rechecks the local revoked flag after each read,
+preventing a stale lookup from admitting a socket after logout. Expiry timers
+use the earlier of access expiry and family expiry. Database failures block the
+packet without disconnecting an established socket; rejected handshakes report
+AUTH_UNAVAILABLE so a client can retry.
+
+The refresh router invokes family eviction after persisted logout, replay or
+rotation exhaustion. Rotation alone does not invalidate existing access tokens.
+Account-wide password/logout-all invalidation remains intact. Family logout
+leaves other families and legacy sessions untouched, since legacy tokens have
+no family identity. Direct storage-service callers must explicitly arrange live
+eviction; the service itself has no socket dependency.
+
+Revocation is single-process for immediate push disconnection. Other processes
+would reject the next packet/request through database validation, but need a
+shared revocation channel to evict idle sockets. Operations already authorized
+before a revocation may finish; this does not cancel in-flight mutations.
+
+`server/src/__tests__/accessSessions.test.js` tests both real transports, including
+claim rejection, family ownership/version/expiry, REST revocation, room cleanup,
+pending-handshake races, replay/exhaustion eviction, account-wide logout, database
+outages, idle expiry and legacy compatibility. Run it alongside
+`sessionTokens.test.js` and `socketSessions.test.js`, then the full server suite.

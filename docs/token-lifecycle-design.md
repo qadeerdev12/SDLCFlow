@@ -2,7 +2,7 @@
 
 Status: target architecture, not enabled. The internal
 [refresh-session foundation](refresh-session-foundation.md) is implemented and
-tested in isolation, including cookie/CSRF helpers. This does not change the current seven-day JWT, browser
+tested, including cookie/CSRF helpers and REST/socket family validation. This does not change the current seven-day login JWT, browser
 storage, or deployment configuration; endpoints and client integration remain pending.
 
 ## Current System
@@ -214,6 +214,7 @@ actual staging domain layout in Chrome, Firefox, and Safari. Document any
 unsupported coordination environments. No credentials should appear in browser
 storage, URLs, logs, or cross-tab messages.
 
-The refresh-session model, atomic rotation, and cookie/CSRF helpers are now
-implemented in isolation. The next server slices add protected endpoints and family validation,
+The refresh-session model, atomic rotation, cookie/CSRF helpers, unmounted
+refresh/logout router, and REST/socket family validation are implemented.
+Next are login/account-action integration and then client coordination/cutover,
 not a full client/authentication rewrite in one iteration.

@@ -4,11 +4,12 @@ import { rateLimit } from 'express-rate-limit';
 import { createRefreshSecurity } from '../middleware/refreshSecurity.js';
 import { rotateRefreshSession, revokeRefreshSession } from '../services/refreshSessionService.js';
 import { createAccessToken } from '../utils/accessTokens.js';
+import { revokeSocketFamily } from '../services/socketSessionService.js';
 
 export const REFRESH_REQUEST_LIMIT = 60;
 
-// Intentionally not mounted by createApp. Do not enable before REST/socket
-// family validation and the coordinated client migration are implemented.
+// Intentionally not mounted by createApp. Do not enable before
+// login/account integration and the coordinated client migration are implemented.
 export default function createRefreshRoutes(options) {
     const security = createRefreshSecurity(options);
     const router = express.Router();
@@ -32,7 +33,8 @@ export default function createRefreshRoutes(options) {
     });
     router.post('/logout', limiter(), security.guard, express.json({ limit: '1kb' }), async (req, res, next) => {
         try {
-            await revokeRefreshSession(parse(req.headers.cookie || '')[security.cookieName]);
+            const session = await revokeRefreshSession(parse(req.headers.cookie || '')[security.cookieName]);
+            revokeSocketFamily(req.app.get('io'), session.sessionId);
             security.clearCookie(res);
             res.json({ data: { loggedOut: true } });
         } catch (error) { next(error); }
@@ -40,6 +42,8 @@ export default function createRefreshRoutes(options) {
     router.use((error, req, res, next) => {
         if (res.headersSent) return next(error);
         if (['REFRESH_INVALID', 'REFRESH_REUSED', 'REFRESH_EXHAUSTED'].includes(error.code)) {
+            // Only digest-matched, persisted revocations include this internal ID.
+            if (error.sessionId) revokeSocketFamily(req.app.get('io'), error.sessionId);
             // Do not clear cookies on delayed failures: they could overwrite a
             // newer login's cookie. The client will handle terminal auth state.
             return res.status(401).json({ error: { code: error.code, message: 'Please sign in again.' } });

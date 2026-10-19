@@ -1,10 +1,12 @@
-import jwt from 'jsonwebtoken';
+import { verifyAccessToken } from '../utils/accessTokens.js';
+import { getAccessSessionFamily } from '../services/accessSessionService.js';
 import User from '../models/User.js';
 import { sessionVersion } from '../utils/sessionTokens.js';
 
 /**
  * Authenticate REST requests: verify the JWT, load the account, then compare
- * session versions. Sets req.user only after all checks pass. Project/role
+ * session versions and (for new tokens) family validity. Sets req.user only
+ * after all checks pass. Project/role
  * authorization remains the responsibility of downstream guards.
  * Socket.IO has a separate authentication path; this guard does not protect it.
  */
@@ -24,14 +26,10 @@ export async function protect(req, res, next) {
         // the ID in a database query, including tokens signed by older code.
         let decoded;
         try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET);
-            if (!decoded || typeof decoded !== 'object' || typeof decoded.id !== 'string'
-                || !/^[a-f\d]{24}$/i.test(decoded.id) || sessionVersion(decoded.sessionVersion) === null) {
-                throw new Error('Invalid session claims');
-            }
+            decoded = verifyAccessToken(token);
         } catch (err) {
             return res.status(401).json({
-                error: {code: 'INVALID_TOKEN', message: 'Not Authorised - invalid token'},
+                error: {code: err.name === 'TokenExpiredError' ? 'SESSION_EXPIRED' : 'INVALID_TOKEN', message: 'Not Authorised - invalid or expired token'},
             });
         }
 
@@ -53,14 +51,28 @@ export async function protect(req, res, next) {
             });
         }
 
+        if (decoded.sid) {
+            const family = await getAccessSessionFamily({ sessionId: decoded.sid,
+                userId: decoded.id, version: decoded.sessionVersion });
+            if (!family || family.expiresAt.getTime() <= Date.now()) {
+                return res.status(401).json({ error: { code: 'SESSION_INVALIDATED', message: 'Your session is no longer valid. Please sign in again.' } });
+            }
+        }
+
+        // Database work may cross the expiry boundary; do not dispatch a request
+        // whose token expired while authorization was waiting for storage.
+        if (decoded.exp !== undefined && Date.now() >= decoded.exp * 1000) {
+            return res.status(401).json({ error: { code: 'SESSION_EXPIRED', message: 'Your session has expired.' } });
+        }
+
         // Controllers must serialize explicit public fields, not this full document.
         req.user = user;
 
         next();     
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            error: {code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while authorizing the user'},
+        console.error('Session authorization temporarily unavailable');
+        res.status(503).json({
+            error: {code: 'AUTH_UNAVAILABLE', message: 'Authentication is temporarily unavailable.'},
         });
     }
 }
