@@ -15,7 +15,7 @@ const refreshSessionSchema = new mongoose.Schema({
     expiresAt: { type: Date, required: true },
     lastRefreshedAt: { type: Date, default: null },
     revokedAt: { type: Date, default: null },
-    revocationReason: { type: String, enum: ['replay', 'rotation_limit'], default: null },
+    revocationReason: { type: String, enum: ['replay', 'rotation_limit', 'logout'], default: null },
 }, { timestamps: true });
 
 // TTL is housekeeping only. Authorization must check expiresAt explicitly.

@@ -1,8 +1,8 @@
 # Refresh Session Foundation
 
-Status: internal server foundation and cookie/CSRF helpers only. Login, JWT lifetime, browser storage,
+Status: internal server foundation and unmounted refresh/logout router. Login, JWT lifetime, browser storage,
 REST authentication and Socket.IO behavior are unchanged. No endpoint imports
-this service yet, and no refresh cookies are issued.
+this router yet, and no refresh cookies are issued by the live app.
 
 ## Code Map
 
@@ -65,8 +65,7 @@ version and family validity before this flow is enabled.
 
 ## Next Slice and Verification
 
-Next: refresh throttling, refresh/logout endpoints, and family
-validation/socket eviction, split further as needed. Account deletion must clean
+Next: family validation/socket eviction, split further as needed. Account deletion must clean
 up these records. Client refresh coordination and the intentional legacy-token
 cutover remain later steps. Do not connect issuance to live login prematurely.
 
@@ -123,3 +122,59 @@ Run `npm test -- src/__tests__/refreshSecurity.test.js` in `server` for this
 boundary. Tests verify real HTTP headers using a test-only router, not browser
 cookie acceptance; Chrome/Firefox/Safari checks on the actual deployment remain
 part of the later integration gate.
+
+## Chunk 4: Unmounted Refresh and Logout Router
+
+`server/src/routes/refreshRoutes.js` combines the storage and security helpers.
+It is intentionally not imported by `createApp`. Tests mount it under `/auth` in
+a disposable Express app; its future production prefix is `/api/v1/auth`.
+There is no environment switch to accidentally enable a half-migrated flow.
+
+- `POST /refresh` reads only the named HttpOnly cookie using the direct `cookie`
+  dependency. Body credentials and bearer tokens do not authorize renewal.
+  Success rotates the cookie and returns `{ data: { token, expiresAt } }`.
+  Neither the raw refresh credential nor the database document enters JSON.
+- `POST /logout` requires a matching current or consumed refresh credential,
+  revokes only that family, then clears its cookie. It needs no access JWT.
+  Matching consumed credentials lets logout win against a concurrent rotation.
+  Repeated logout with the same known credential is idempotent while its record
+  exists. Missing/unknown credentials return 401, not a false success.
+- Both routes require the chunk 3 origin/header/JSON contract. Each router has
+  separate per-IP refresh and logout budgets of 60 requests per 15 minutes;
+  successes and failures count, before CSRF/body parsing/database access. These
+  are in-memory counters, not a cluster-wide limit. Existing trusted-proxy rules
+  must apply when integrated. A 429 includes Retry-After and AUTH_RATE_LIMITED.
+- JSON bodies are limited to 1 KB. Parser failures return JSON 400/413 errors.
+  Unknown failures return 503 AUTH_UNAVAILABLE without logging secrets or
+  clearing cookies. Terminal refresh errors return 401 without Set-Cookie, so a
+  delayed failure cannot erase a newer login's cookie. All responses are no-store.
+
+`server/src/utils/accessTokens.js` defines the future access format: HS256,
+issuer `sdlcflow`, audience `sdlcflow-api`, purpose `access`, user ID, family `sid`,
+and captured account version. Lifetime is at most 15 minutes and never exceeds
+the family's expiry. This helper does not replace the existing seven-day issuer.
+Future REST/socket validators must enforce these claims AND current family
+validity; signature validation alone is insufficient. Do not mount this router
+against the existing validators, which do not yet perform those family checks.
+
+The logout service returns an internal session ID for later socket eviction.
+The router does not evict sockets yet. Cookie-changing requests, including
+logout and login, must eventually share the client's cross-tab lock: even a
+successful delayed logout response could otherwise clear a newer login cookie.
+A network failure after rotation may require sign-in; never blindly retry it.
+
+`server/src/__tests__/refreshRoutes.test.js` exercises real database and HTTP
+behavior, token claims, replay, logout isolation, throttling, CSRF, parser errors,
+and database outages. It also asserts the live app still returns 404 for the two
+new endpoints. Run it with `npm test -- src/__tests__/refreshRoutes.test.js`.
+
+### Still Required Before Enabling
+
+1. Strict access claim/family checks in REST and Socket.IO, family-level live
+   eviction, and account-deletion cleanup of refresh records.
+2. Login/registration issuance and cookie handling for password/logout-all paths.
+3. Memory-only client tokens, cross-tab coordination, refresh bootstrap/retry,
+   socket renewal, and a deliberate rejection of legacy access tokens at cutover.
+4. Real-browser testing on the selected same-site deployment and dependency fixes.
+
+This completes the endpoint-foundation slice, not the authentication migration.

@@ -38,7 +38,7 @@ export async function createRefreshSession(user) {
 }
 
 /** Single-use rotation. Callers must serialize refreshes, not retry old secrets.
- * Endpoint rate limiting, cookie/CSRF policy and socket eviction are later slices.
+ * HTTP policy lives in the unmounted refresh router; socket eviction is pending.
  */
 export async function rotateRefreshSession(credential) {
     if (typeof credential !== 'string' || !/^[a-f0-9]{24}\.[A-Za-z0-9_-]{43}$/.test(credential)) reject();
@@ -71,4 +71,21 @@ export async function rotateRefreshSession(credential) {
     }, { $set: { revokedAt: now, revocationReason: 'rotation_limit' } }, { returnDocument: 'after' }).lean();
     if (exhausted) reject('REFRESH_EXHAUSTED', id);
     reject();
+}
+
+/** A known current OR consumed secret can end only its own family. This lets
+ * logout win against a racing rotation, without trusting a client-supplied ID.
+ * Return the matched ID even on repeated logout for idempotent future eviction.
+ */
+export async function revokeRefreshSession(credential) {
+    if (typeof credential !== 'string' || !/^[a-f0-9]{24}\.[A-Za-z0-9_-]{43}$/.test(credential)) reject();
+    const filter = { _id: credential.slice(0, 24), $or: [
+        { currentDigest: digest(credential) }, { consumedDigests: digest(credential) },
+    ] };
+    const updated = await RefreshSession.findOneAndUpdate({ ...filter, revokedAt: null },
+        { $set: { revokedAt: new Date(), revocationReason: 'logout' } },
+        { returnDocument: 'after', runValidators: true }).lean();
+    const matched = updated || await RefreshSession.findOne(filter).lean();
+    if (!matched) reject();
+    return { sessionId: String(matched._id) };
 }
