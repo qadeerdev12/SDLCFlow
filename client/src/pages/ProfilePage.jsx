@@ -185,8 +185,11 @@ export default function ProfilePage() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      setPasswordMessage('Password updated.')
-      toast.success('Password updated', 'Use your new password the next time you sign in.')
+      // The successful change invalidates this token too. Clear local auth now
+      // instead of leaving the profile open with unusable API credentials.
+      logout()
+      navigate('/login', { replace: true })
+      toast.success('Password updated', 'Sign in again using your new password.')
     } catch (err) {
       setPasswordError(err.message)
       toast.error('Could not update password', err.message)
@@ -353,6 +356,9 @@ export default function ProfilePage() {
               <h2 className="mt-2 text-lg font-semibold">Change password</h2>
               <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
                 {PASSWORD_HELP}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                After changing your password, sign in again with your new password.
               </p>
             </div>
 

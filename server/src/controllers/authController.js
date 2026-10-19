@@ -1,4 +1,4 @@
-import { createSessionToken } from '../utils/sessionTokens.js';
+import { createSessionToken, sessionVersion } from '../utils/sessionTokens.js';
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import Board from "../models/Board.js";
@@ -193,19 +193,29 @@ export async function updateProfile(req, res) {
 }
 
 // PATCH /api/v1/auth/password
-// Requires the current password before replacing the stored hash.
+// Requires the current password and revokes existing REST sessions on success.
 export async function updatePassword(req, res) {
     try {
         const body = authBody(req.body);
         const currentPassword = credentialPassword(body.currentPassword);
         const newPassword = newAccountPassword(body.newPassword);
 
-        const user = await User.findById(req.user._id).select('+passwordHash');
+        const user = await User.findById(req.user._id).select('+passwordHash +sessionVersion');
         if (!user) {
             return res.status(404).json({
                 error: { code: 'NOT_FOUND', message: 'User not found.' },
             });
         }
+
+        const version = sessionVersion(user.sessionVersion);
+        // A revocation may have happened after protect loaded req.user.
+        if (version === null || version !== sessionVersion(req.user.sessionVersion)) {
+            return res.status(401).json({
+                error: { code: 'SESSION_INVALIDATED', message: 'Your session is no longer valid. Please sign in again.' },
+            });
+        }
+        // $inc does not run Mongoose's numeric validators; prevent overflow here.
+        if (version === Number.MAX_SAFE_INTEGER) throw new Error('Session version exhausted');
 
         const passwordMatches = await user.comparePassword(currentPassword);
         if (!passwordMatches) {
@@ -214,9 +224,25 @@ export async function updatePassword(req, res) {
             });
         }
 
-        user.passwordHash = await bcrypt.hash(newPassword, 10);
-        await user.save();
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        // Compare-and-swap prevents concurrent password changes from overwriting
+        // one another. Hash replacement and revocation succeed or fail together.
+        // Missing legacy counters match zero; $inc creates them with value one.
+        const versionFilter = version === 0
+            ? { $or: [{ sessionVersion: 0 }, { sessionVersion: { $exists: false } }] }
+            : { sessionVersion: version };
+        const updated = await User.findOneAndUpdate(
+            { _id: user._id, passwordHash: user.passwordHash, ...versionFilter },
+            { $set: { passwordHash }, $inc: { sessionVersion: 1 } },
+            { returnDocument: 'after', runValidators: true }
+        );
+        if (!updated) {
+            return res.status(409).json({
+                error: { code: 'PASSWORD_CHANGE_CONFLICT', message: 'Your account changed during this request. Please sign in again before changing your password.' },
+            });
+        }
 
+        // No replacement token: require a fresh login, including in this tab.
         return res.status(200).json({ data: { updated: true } });
     } catch (error) {
         return sendAuthError(res, error, 'An error occurred while updating the password');

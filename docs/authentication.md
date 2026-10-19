@@ -133,25 +133,55 @@ should update it, using an atomic increment.
 
 ### Deliberate Boundaries
 
-No production action increments the version yet. Password changes and logout
-retain their current behavior. Socket authentication and already-connected
-sockets do not yet check session versions. Do not advertise full session
-revocation or rely on manually incrementing versions for end-to-end security
-until those follow-up chunks are complete. An already-authorized REST operation
-can still finish if revocation happens after its middleware check.
+Chunk 1 introduced the comparison mechanism only. Chunk 2 below adds the first
+production increment. Socket authentication and already-connected sockets do not
+yet check session versions. Do not advertise full session revocation until those
+follow-up chunks are complete. An already-authorized REST operation can still
+finish if revocation happens after its middleware check.
 
-Next chunks: increment on password changes; enforce invalidation for socket
-connections and client handling; then expose a log-out-everywhere action.
+## Slice 3, Chunk 2: Password-Change Revocation
+
+`PATCH /api/v1/auth/password` still requires a valid session, the current password,
+and a new password meeting the policy. It now replaces the hash and increments
+`sessionVersion` in one atomic database update. Once committed, previously issued
+tokens fail subsequent protected REST requests, including the caller's token.
+Login with the new password issues a token at the new version.
+
+The update matches both the verified password hash and version. This
+compare-and-swap prevents an overlapping password change or revocation from
+being overwritten after the initial read. Only one competing change can commit;
+a request whose snapshot no longer matches returns 409 `PASSWORD_CHANGE_CONFLICT`.
+See [Mongoose's atomic update documentation](https://mongoosejs.com/docs/tutorials/findoneandupdate.html#atomic-updates).
+The hash and version are never written separately. Legacy documents without a
+counter match version zero, and `$inc` creates their counter at one. The safe
+integer boundary is checked explicitly because update validators do not validate
+`$inc`. Do not replace this operation with a read/modify/save sequence.
+
+Validation errors and incorrect current passwords do not mutate either field.
+A failed database write does not partially update the document. If a response is
+lost after a successful write, the client may see an error despite the change
+having committed; retrying the old token fails, and the user should sign in with
+the new password. The response stays `{ data: { updated: true } }` and does not
+include a replacement token.
+
+`ProfilePage.jsx` clears local authentication and redirects the changing tab to
+login after success. Failures keep the form open and show the server error.
+Other tabs are not proactively signed out in this chunk: their old REST tokens
+are rejected, but general invalid-session handling and socket disconnection are
+still pending. Ordinary logout remains local-only.
+
+Next: enforce invalidation for socket connections and client handling, then
+expose a log-out-everywhere action.
 
 ## Remaining Slices
 
-1. Finish session invalidation: password changes, sockets/client handling, and log out everywhere.
+1. Finish session invalidation: sockets/client handling and log out everywhere.
 2. Token storage, expiration, refresh, and associated CSRF/XSS protections.
 3. Password recovery, email verification, and reauthentication for email changes.
 
 JWTs currently still last seven days and the browser still stores them in
-localStorage. Changing a password does not yet invalidate previously issued
-tokens. This slice is not sufficient for unrestricted public signup.
+localStorage. Password changes revoke old tokens for REST but not yet for
+WebSockets. This slice is not sufficient for unrestricted public signup.
 
 ## Verification
 
@@ -169,8 +199,19 @@ controllers, not real accounts, for quota exhaustion.
 documents/tokens, invalid claims, expired/tampered tokens, deleted users, and
 protection against client-written session state. It simulates a version increment
 only in a disposable database; no real account needs manual modification.
+`passwordSessions.test.js` checks real password-change revocation, legacy counters,
+fresh login, rejected changes, database-write failure, and concurrent updates.
+`profilePassword.test.jsx` checks redirect/local logout on success and preservation
+of the form/session on failure.
 
 Manual review: register with a short password, then a valid passphrase; check that
 an existing account still signs in; change its password in Profile; verify old
 credentials fail and the new password succeeds. Check that registration does not
 print the response or token in browser developer tools.
+
+For chunk 2, sign in to a test account in two browser sessions. Change the password
+in one: it should return to login with a success notice. Old credentials must fail
+and the new password must work. A protected REST request with the other session's
+old token should return 401 `SESSION_INVALIDATED`. Do not use live socket events
+to judge this chunk; socket enforcement follows in chunk 3. Also try an incorrect
+current password: the error should leave the current session usable.
