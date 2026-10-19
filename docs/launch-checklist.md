@@ -47,7 +47,10 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   registration response/token log. Object email selectors are rejected before
   database access. Legacy short passwords remain usable for verification.
   Slice 2 adds per-IP login/signup throttling and explicit proxy configuration.
-  Still required: session invalidation, token lifecycle
+  Session chunk 1 adds user/token versions and checks them on protected REST
+  requests, with legacy-zero compatibility. No production action increments the
+  version yet, and sockets do not enforce it yet.
+  Still required: complete session invalidation, token lifecycle
   and storage review, recovery, and email verification. Previously issued JWTs
   still work after password changes, so this blocker remains open. See
   [Authentication Hardening](authentication.md) for policy and slice details.
@@ -124,7 +127,7 @@ scaling, and a GitHub App migration are not required for this portfolio launch.
 Self-managed JWT authentication is the chosen path; Supabase is no longer a
 planned launch dependency.
 
-**Next implementation slice:** session invalidation. Review and commit the
-login/signup-throttling slice first. Token lifecycle changes follow separately.
-The throttling slice adds express-rate-limit but does not remediate the existing
-dependency advisories or change the live deployment configuration.
+**Next implementation slice:** increment the session version on password changes.
+Review and commit the session-version foundation first. Socket enforcement and
+client handling follow, then log out everywhere. Token lifecycle changes remain
+separate. Existing dependency advisories and deployment configuration are unchanged.

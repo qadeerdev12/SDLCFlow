@@ -94,9 +94,58 @@ network share a budget. Account-aware risk controls and threshold tuning need
 deployment review without introducing easy account-lockout attacks. Password
 changes and other authenticated mutations are outside this slice.
 
+## Slice 3, Chunk 1: Session-Version Foundation
+
+Users now have an internal `sessionVersion`, initially zero. Registration and
+login issue a signed JWT containing the user's ID and the current version.
+`protect` loads that version from MongoDB on every protected REST request and
+compares it with the token. A mismatch returns HTTP 401 with `SESSION_INVALIDATED`.
+This provides a revocation mechanism without keeping a list of individual tokens.
+
+The version must be a non-negative safe integer. Malformed token versions and
+IDs return `INVALID_TOKEN`; malformed stored versions fail closed. Expiration,
+signature verification, and missing-account checks still apply. New token
+issuance lives in `server/src/utils/sessionTokens.js` so future authentication
+flows can use the same claims and compatibility rules.
+
+### Compatibility and Ownership
+
+Reading order for maintainers: `models/User.js` defines the counter;
+`utils/sessionTokens.js` defines normalization and token issuance;
+`controllers/authController.js` calls issuance after credential verification;
+`middleware/auth.js` checks the counter on each protected REST request.
+`__tests__/sessionTokens.test.js` demonstrates compatibility and rejection cases.
+
+Existing database documents without the field are read as version zero, without
+a bulk migration. Existing signed tokens without the claim are also treated as
+zero, but only match an account still at zero. Once a future revocation action
+increments the stored version, both legacy and versioned zero tokens stop passing
+REST authentication. Never reset the counter to zero or decrease it: that could
+make an old token usable again.
+
+The field is excluded from ordinary user queries and public auth response data.
+Login and REST middleware explicitly select it. Any future flow signing tokens
+from a queried user must also select `+sessionVersion`; token issuance throws
+when that value is absent. Mongoose supplies the zero default for legacy documents
+when the field is selected. Registration and profile updates
+ignore client-supplied session versions. Only server-owned revocation operations
+should update it, using an atomic increment.
+
+### Deliberate Boundaries
+
+No production action increments the version yet. Password changes and logout
+retain their current behavior. Socket authentication and already-connected
+sockets do not yet check session versions. Do not advertise full session
+revocation or rely on manually incrementing versions for end-to-end security
+until those follow-up chunks are complete. An already-authorized REST operation
+can still finish if revocation happens after its middleware check.
+
+Next chunks: increment on password changes; enforce invalidation for socket
+connections and client handling; then expose a log-out-everywhere action.
+
 ## Remaining Slices
 
-1. Session invalidation for password changes and logout across REST and sockets.
+1. Finish session invalidation: password changes, sockets/client handling, and log out everywhere.
 2. Token storage, expiration, refresh, and associated CSRF/XSS protections.
 3. Password recovery, email verification, and reauthentication for email changes.
 
@@ -116,6 +165,10 @@ controller bypass, separate route budgets, forged forwarding headers, proxy trus
 and IPv6 grouping. Client `authRateLimit.test.js` verifies retry metadata reaches
 the UI without automatic retries. Tests use real middleware with mocked auth
 controllers, not real accounts, for quota exhaustion.
+`sessionTokens.test.js` covers token issuance, current-version checks, legacy
+documents/tokens, invalid claims, expired/tampered tokens, deleted users, and
+protection against client-written session state. It simulates a version increment
+only in a disposable database; no real account needs manual modification.
 
 Manual review: register with a short password, then a valid passphrase; check that
 an existing account still signs in; change its password in Profile; verify old

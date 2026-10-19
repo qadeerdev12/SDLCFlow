@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import { createSessionToken } from '../utils/sessionTokens.js';
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import Board from "../models/Board.js";
@@ -12,14 +12,6 @@ import GitHubAccount from "../models/GitHubAccount.js";
 import BoardGitHubIntegration from "../models/BoardGitHubIntegration.js";
 import { disconnectUserSockets, revokeBoardAccess } from '../socket.js';
 import { authBody, accountName, accountEmail, credentialPassword, newAccountPassword, sendAuthError } from '../utils/authValidation.js';
-
-//Helper: create a signed JWT carrying the user's id.
-// The token is signed with our secret so it can't be forged.
-function generateToken(userId) {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-        expiresIn: '7d', //token expires in 7 days
-    });
-}
 
 //POST /api/v1/auth/register
 
@@ -41,15 +33,15 @@ export async function register(req, res) {
         //3. hash the plaintext password (salt + hash in one call).
         const passwordHash = await bcrypt.hash(password, 10);
 
-        //4. Create the user in the database.
+        // Explicit fields prevent clients from supplying internal session state.
         const user = await User.create({
             name,
             email,
             passwordHash
         });
 
-        //5. Generate a JWT for the new user.
-        const token = generateToken(user._id);
+        // Newly created documents include the schema's sessionVersion default.
+        const token = createSessionToken(user);
 
         //6. Send the token and user data in the response.
         res.status(201).json({
@@ -68,8 +60,9 @@ export async function login(req, res)  {
         const body = authBody(req.body);
         const email = accountEmail(body.email);
         const password = credentialPassword(body.password);
-        //2. Find the user by email and include the passwordHash field.
-        const user = await User.findOne({email}).select('+passwordHash');
+        // Both fields are hidden by default: one verifies credentials, the other
+        // ensures the new token matches current account state rather than zero.
+        const user = await User.findOne({email}).select('+passwordHash +sessionVersion');
 
         // 3. If user not found, or password doesn't match, return error.
         if (!user) {
@@ -91,7 +84,7 @@ export async function login(req, res)  {
             });
         }
         //6. Success! Generate a JWT and send it back with user data.
-        const token = generateToken(user._id);
+        const token = createSessionToken(user);
         return res.status(200).json({
             data: {
                 token,
@@ -106,7 +99,7 @@ export async function login(req, res)  {
 // GET /api/v1/auth/me
 // (This route is protected by the auth middleware, so req.user will be set if the token is valid)
 export async function getMe(req, res) {
-    // if we reach here, 'Proteect' already verififed the token and set req.user
+    // protect has verified both the JWT and its current account session version.
     return res.status(200).json({
         data: {
             id: req.user._id,

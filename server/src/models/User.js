@@ -20,6 +20,16 @@ const userSchema = new mongoose.Schema(
             required: true,
             select: false, // never return this field in queries by default
         },
+        // Account-wide session generation. Future revocation must atomically
+        // increment it, never reset it (which could revalidate older tokens).
+        // Zero also keeps pre-field accounts compatible without a bulk migration.
+        sessionVersion: {
+            type: Number,
+            default: 0,
+            min: 0,
+            validate: Number.isSafeInteger,
+            select: false, // Internal revocation state, not part of public user data.
+        },
     },
         {timestamps: true} //automatically add createdAt and updatedAt fields
 );

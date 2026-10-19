@@ -1,9 +1,15 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { sessionVersion } from '../utils/sessionTokens.js';
 
+/**
+ * Authenticate REST requests: verify the JWT, load the account, then compare
+ * session versions. Sets req.user only after all checks pass. Project/role
+ * authorization remains the responsibility of downstream guards.
+ * Socket.IO has a separate authentication path; this guard does not protect it.
+ */
 export async function protect(req, res, next) {
     try {
-        //1. Read the Authorization header: "Bearer <token>"
         const authHeader = req.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -12,32 +18,44 @@ export async function protect(req, res, next) {
             });
         }
 
-        // 2. Extract the token from the header
         const token = authHeader.split(' ')[1];
 
-        // 3. Verify the token and extract the user ID
+        // A valid signature alone is insufficient: validate claims before using
+        // the ID in a database query, including tokens signed by older code.
         let decoded;
         try {
             decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (!decoded || typeof decoded !== 'object' || typeof decoded.id !== 'string'
+                || !/^[a-f\d]{24}$/i.test(decoded.id) || sessionVersion(decoded.sessionVersion) === null) {
+                throw new Error('Invalid session claims');
+            }
         } catch (err) {
             return res.status(401).json({
                 error: {code: 'INVALID_TOKEN', message: 'Not Authorised - invalid token'},
             });
         }
 
-        //4. decoded.id is the user id we signed in. Look the user up,
-        // (No passwordHash needed here, so the default select: false is fine.)
-        const user = await User.findById(decoded.id);
+        // sessionVersion is hidden by default, so explicitly load it here.
+        // Never cache this account lookup across requests: revocation needs fresh state.
+        const user = await User.findById(decoded.id).select('+sessionVersion');
         if (!user) {
             return res.status(401).json({
                 error: {code: 'USER_NOT_FOUND', message: 'Not Authorised - user not found'},
             });
         }
 
-        //5. Attach the user to the request object for use in later middleware/routes
+        // Check the current database version on every request, not just at login.
+        // Future revocation increments this value; older signed tokens then fail.
+        const currentVersion = sessionVersion(user.sessionVersion);
+        if (currentVersion === null || sessionVersion(decoded.sessionVersion) !== currentVersion) {
+            return res.status(401).json({
+                error: { code: 'SESSION_INVALIDATED', message: 'Your session is no longer valid. Please sign in again.' },
+            });
+        }
+
+        // Controllers must serialize explicit public fields, not this full document.
         req.user = user;
 
-        //6. Call next() to pass control to the next middleware/route handler
         next();     
     } catch (error) {
         console.error(error);
@@ -45,4 +63,4 @@ export async function protect(req, res, next) {
             error: {code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while authorizing the user'},
         });
     }
-}   
+}
