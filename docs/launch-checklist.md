@@ -133,7 +133,9 @@ scaling, and a GitHub App migration are not required for this portfolio launch.
 Self-managed JWT authentication is the chosen path; Supabase is no longer a
 planned launch dependency.
 
-**Next implementation slice:** review token storage, expiration, and refresh strategy.
-Review and commit log out everywhere first. Session-invalidation chunks 1-4 are
-complete; broader authentication and launch blockers remain open. Existing
-dependency advisories and deployment configuration are unchanged.
+**Next review gate:** approve the [token lifecycle proposal](token-lifecycle-design.md),
+including the same-site deployment requirement, before implementation. The next
+code slice would be refresh-session storage and atomic rotation tests, with the
+new flow disabled until client/server cutover. Session-invalidation chunks 1-4 are
+complete; broader authentication and launch blockers remain open. No runtime,
+dependency, or deployment configuration changed in the design-review slice.

@@ -479,7 +479,11 @@ the same gap will eventually exhaust float precision. Thousands of moves away, b
 real.
 
 **JWTs last seven days with no refresh token.** Logging out clears the token
-client-side; it stays valid server-side until it expires.
+client-side; ordinary logout does not revoke it server-side. Password changes
+and **Log out everywhere** revoke old sessions across REST and live sockets on
+the current server. A [token lifecycle proposal](docs/token-lifecycle-design.md)
+reviews memory-only access tokens and HttpOnly refresh cookies; it is not yet
+implemented.
 
 **Not deployed yet.** It runs locally against Atlas; Vercel and Render are the
 intended hosts and the environment variables above are already wired for them.
