@@ -133,11 +133,10 @@ should update it, using an atomic increment.
 
 ### Deliberate Boundaries
 
-Chunk 1 introduced the comparison mechanism only. Chunk 2 below adds the first
-production increment. Socket authentication and already-connected sockets do not
-yet check session versions. Do not advertise full session revocation until those
-follow-up chunks are complete. An already-authorized REST operation can still
-finish if revocation happens after its middleware check.
+Chunk 1 introduced the comparison mechanism only. Chunk 2 adds the first
+production increment, and chunk 3 enforces it for live connections. An
+already-authorized operation can still finish if revocation happens after its
+authorization check; revocation does not cancel in-flight database writes.
 
 ## Slice 3, Chunk 2: Password-Change Revocation
 
@@ -166,22 +165,79 @@ include a replacement token.
 
 `ProfilePage.jsx` clears local authentication and redirects the changing tab to
 login after success. Failures keep the form open and show the server error.
-Other tabs are not proactively signed out in this chunk: their old REST tokens
-are rejected, but general invalid-session handling and socket disconnection are
-still pending. Ordinary logout remains local-only.
+Chunk 3 below adds proactive socket disconnection and invalid-session handling
+for other tabs. Ordinary logout still does not increment the server counter.
 
-Next: enforce invalidation for socket connections and client handling, then
-expose a log-out-everywhere action.
+## Slice 3, Chunk 3: Live Sessions and Client Invalidation
+
+`services/socketSessionService.js` owns the socket authentication lifecycle.
+`socket.js` delegates to it before joining user/project rooms or registering
+application handlers. Handshakes verify the JWT, validate its ID/version claims,
+and compare the version with MongoDB. Every incoming application packet repeats
+the account/version check before dispatch. Legacy version-zero compatibility
+matches REST.
+
+[Socket.IO connection middleware runs once per connection](https://socket.io/docs/v4/middlewares/),
+so a successful handshake alone cannot enforce future revocation. The service
+also tracks pending handshakes and connected sockets in a per-server registry.
+Password changes call `revokeSocketSessions` after committing the version bump.
+Only older versions for that account are ended; unrelated users and fresh logins
+at the new version survive. Pending reads are marked revoked, then checked again
+before authentication completes. Account deletion uses the same lifecycle with
+`USER_NOT_FOUND` and no version cutoff.
+
+Terminal sessions receive `session:invalidated` with a code, then the server
+disconnects them. Disconnect removes user/project rooms and runs existing
+presence/typing cleanup. This does not rely on the client honoring the notice.
+An expiry timer also disconnects idle sockets at their JWT's `exp`, including
+read-only viewers. Timers and registry entries are cleaned up on disconnect or
+transport close. Legacy signed tokens without `exp` retain their existing
+behavior; all tokens issued by the app have the seven-day expiration.
+
+Database failures return `AUTH_UNAVAILABLE`, not a false claim of invalid
+credentials. An affected packet is not dispatched. A refused handshake gets a
+bounded-backoff client retry (3 seconds initially, at most 30 seconds); network
+reconnect behavior otherwise remains Socket.IO's responsibility.
+
+### Client Flow
+
+`lib/sessionEvents.js` is the in-memory bridge from REST/socket errors to
+`AuthContext`. Only explicit terminal session codes clear authentication, not
+wrong-password errors, permissions, throttling, or temporary failures. Each signal
+includes the token used by the failed request. The provider compares it with the
+current token before clearing state, preventing a late response from ending a
+newer login. Never log or persist these events because they contain credentials.
+
+The provider clears both user and token, and protected routes return to login
+with a session-ended message. Late `/me` responses cannot restore a signed-out
+user. Cross-tab storage events clear old state or validate a new token. Initial
+session-validation outages retain the token and show a retry action instead of
+silently discarding credentials. `useSocket` stops invalid-token reconnects,
+cleans up listeners/retry timers, and reports terminal acknowledgement errors.
+The password-change page targets its original token when clearing local state,
+so a delayed success response cannot erase a newer login.
+
+### Deployment Limits
+
+Immediate eviction and pending-handshake protection cover this single server
+process. Multiple servers require coordinated revocation and a shared adapter;
+per-packet database checks alone do not evict idle viewers on another instance.
+Out-of-band database edits also do not proactively evict idle sockets: server
+revocation actions must call the lifecycle helper after persistence. Already
+delivered data cannot be retracted, and operations authorized before revocation
+may finish. No token-storage/refresh migration is included here.
+
+Next: expose a log-out-everywhere action using this lifecycle.
 
 ## Remaining Slices
 
-1. Finish session invalidation: sockets/client handling and log out everywhere.
+1. Finish session invalidation: log out everywhere.
 2. Token storage, expiration, refresh, and associated CSRF/XSS protections.
 3. Password recovery, email verification, and reauthentication for email changes.
 
 JWTs currently still last seven days and the browser still stores them in
-localStorage. Password changes revoke old tokens for REST but not yet for
-WebSockets. This slice is not sufficient for unrestricted public signup.
+localStorage. Password changes revoke old tokens for REST and live sockets on
+the current server. Remaining launch blockers still prevent unrestricted public signup.
 
 ## Verification
 
@@ -203,6 +259,11 @@ only in a disposable database; no real account needs manual modification.
 fresh login, rejected changes, database-write failure, and concurrent updates.
 `profilePassword.test.jsx` checks redirect/local logout on success and preservation
 of the form/session on failure.
+`socketSessions.test.js` covers stale/malformed handshakes, multi-tab disconnection,
+room cleanup, fresh-login survival, idle expiry, packet validation, pending
+handshake races, and database outages. Client `authSession.test.jsx` and
+`socketSession.test.jsx` cover terminal errors, network failures, stale responses,
+cross-tab storage changes, listener cleanup, and retry cancellation.
 
 Manual review: register with a short password, then a valid passphrase; check that
 an existing account still signs in; change its password in Profile; verify old
@@ -212,6 +273,8 @@ print the response or token in browser developer tools.
 For chunk 2, sign in to a test account in two browser sessions. Change the password
 in one: it should return to login with a success notice. Old credentials must fail
 and the new password must work. A protected REST request with the other session's
-old token should return 401 `SESSION_INVALIDATED`. Do not use live socket events
-to judge this chunk; socket enforcement follows in chunk 3. Also try an incorrect
-current password: the error should leave the current session usable.
+old token should return 401 `SESSION_INVALIDATED`. The other session's connected
+socket should now be disconnected and its UI should return to login. Try a
+reconnect with the old token: the handshake should fail. Also try an incorrect
+current password: the error should leave the current session usable. Briefly
+stop the backend or go offline: network failures should not erase the token.

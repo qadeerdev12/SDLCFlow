@@ -1,4 +1,5 @@
 import { createSessionToken, sessionVersion } from '../utils/sessionTokens.js';
+import { revokeSocketSessions } from '../services/socketSessionService.js';
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import Board from "../models/Board.js";
@@ -193,7 +194,7 @@ export async function updateProfile(req, res) {
 }
 
 // PATCH /api/v1/auth/password
-// Requires the current password and revokes existing REST sessions on success.
+// Requires the current password and revokes existing REST and socket sessions.
 export async function updatePassword(req, res) {
     try {
         const body = authBody(req.body);
@@ -242,6 +243,8 @@ export async function updatePassword(req, res) {
             });
         }
 
+        // Revoke live and in-flight socket sessions only after the atomic write.
+        revokeSocketSessions(req.app.get('io'), user._id, version + 1);
         // No replacement token: require a fresh login, including in this tab.
         return res.status(200).json({ data: { updated: true } });
     } catch (error) {

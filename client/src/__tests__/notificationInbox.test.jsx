@@ -50,6 +50,7 @@ beforeEach(() => {
         return socket
       }),
       off: vi.fn((name, handler) => { listeners.get(name)?.delete(handler); return socket }),
+      removeAllListeners: vi.fn(() => { listeners.clear(); return socket }),
       disconnect: vi.fn(() => { socket.connected = false }),
       receive(name, payload = {}) {
         if (name === 'connect') socket.connected = true

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
+import { isSessionError, reportSessionFailure } from '../lib/sessionEvents'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5050'
 
@@ -21,8 +22,20 @@ export function useSocket(token) {
     })
 
     socketRef.current = socket
+    let active = true
+    let retryTimer
+    let retryDelay = 3000
+    const endSession = (code) => {
+      if (!active || !isSessionError(code)) return
+      clearTimeout(retryTimer)
+      socket.disconnect() // Stop reconnect attempts with credentials known to be invalid.
+      reportSessionFailure(token, code)
+    }
+    socket.on('session:invalidated', ({ code } = {}) => endSession(code))
 
     socket.on('connect', () => {
+      clearTimeout(retryTimer)
+      retryDelay = 3000
       setConnected(true)
       setConnectionError('')
     })
@@ -34,10 +47,21 @@ export function useSocket(token) {
     socket.on('connect_error', (err) => {
       setConnected(false)
       setConnectionError(err.message || 'Could not connect to realtime server.')
+      endSession(err.data?.code)
+      if (err.data?.code === 'AUTH_UNAVAILABLE') {
+        // Server-denied handshakes are not automatically retried by Socket.IO.
+        clearTimeout(retryTimer)
+        retryTimer = setTimeout(() => { if (active) socket.connect() }, retryDelay)
+        retryDelay = Math.min(retryDelay * 2, 30000)
+      }
     })
 
     return () => {
+      active = false
+      clearTimeout(retryTimer)
+      socket.removeAllListeners()
       socket.disconnect()
+      setConnected(false)
       socketRef.current = null
     }
   }, [token])
@@ -57,6 +81,8 @@ export function useSocket(token) {
           return
         }
         if (!response?.ok) {
+          if (isSessionError(response?.error?.code)) socket.disconnect()
+          reportSessionFailure(socket.auth?.token, response?.error?.code)
           reject(new Error(response?.error?.message || 'Realtime request failed.'))
           return
         }

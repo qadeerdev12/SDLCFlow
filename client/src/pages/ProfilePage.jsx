@@ -187,7 +187,7 @@ export default function ProfilePage() {
       setConfirmPassword('')
       // The successful change invalidates this token too. Clear local auth now
       // instead of leaving the profile open with unusable API credentials.
-      logout()
+      logout(token)
       navigate('/login', { replace: true })
       toast.success('Password updated', 'Sign in again using your new password.')
     } catch (err) {

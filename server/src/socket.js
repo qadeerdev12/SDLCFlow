@@ -1,5 +1,4 @@
-import jwt from 'jsonwebtoken';
-import User from './models/User.js';
+import { configureSocketSessions, startSocketSession, revokeSocketSessions } from './services/socketSessionService.js';
 import Card from './models/Card.js';
 import List from './models/List.js';
 import Comment from './models/Comment.js';
@@ -159,10 +158,7 @@ export async function revokeBoardAccess(io, boardId, userId) {
 }
 
 export function disconnectUserSockets(io, userId) {
-  if (!io) return;
-  for (const socket of io.of('/').sockets.values()) {
-    if (socket.data.user._id.toString() === userId.toString()) socket.disconnect(true);
-  }
+  revokeSocketSessions(io, userId, Infinity, 'USER_NOT_FOUND');
 }
 
 // Every board event starts here. Returning 404 for non-members avoids revealing
@@ -219,36 +215,10 @@ function registerMutation(socket, eventName, handler) {
 }
 
 export function configureSockets(io) {
-  // Socket.IO handshake auth. This happens before `connection`, so invalid
-  // clients never get a chance to join rooms or emit board events.
-  io.use(async (socket, next) => {
-    try {
-      const token = socket.handshake.auth?.token;
-      if (!token) {
-        const err = new Error('Authentication token is required.');
-        err.data = { code: 'NO_TOKEN_PROVIDED' };
-        return next(err);
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id);
-      if (!user) {
-        const err = new Error('User not found.');
-        err.data = { code: 'USER_NOT_FOUND' };
-        return next(err);
-      }
-
-      socket.data.user = user;
-      socket.data.boardIds = new Set();
-      return next();
-    } catch {
-      const err = new Error('Invalid authentication token.');
-      err.data = { code: 'INVALID_TOKEN' };
-      return next(err);
-    }
-  });
+  configureSocketSessions(io);
 
   io.on('connection', (socket) => {
+    if (!startSocketSession(socket)) return;
     // Identity comes from the verified JWT, never a client-selected room/user ID.
     // All of this user's tabs join automatically, even outside a project page.
     socket.join(userRoomName(socket.data.user._id));

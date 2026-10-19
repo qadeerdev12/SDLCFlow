@@ -24,7 +24,8 @@ This document explains how SDLCFlow's Socket.IO layer works today. It is meant f
 | File | Responsibility |
 |---|---|
 | `server/src/index.js` | Creates Express + HTTP server, attaches Socket.IO, configures CORS, calls `configureSockets(io)` |
-| `server/src/socket.js` | JWT socket auth, `board:join`, presence tracking, card/list realtime events |
+| `server/src/socket.js` | Session lifecycle wiring, `board:join`, presence tracking, card/list realtime events |
+| `server/src/services/socketSessionService.js` | Handshake/packet authentication, pending sessions, token expiry, account-wide live revocation |
 | `server/src/services/boardMutationService.js` | Shared card/list write logic used by both REST controllers and socket handlers |
 | `server/src/services/activityService.js` | Shared board activity logging and realtime activity broadcast |
 | `server/src/services/chatService.js` | Shared board chat validation, persistence, deletion, and clearing |
@@ -38,6 +39,21 @@ This document explains how SDLCFlow's Socket.IO layer works today. It is meant f
 ---
 
 ## Connection Flow
+
+### Session Validity
+
+The socket session service validates JWT claims and the user's current session
+version before room access, then rechecks account/version state on each incoming
+application packet. Password changes revoke older connected and pending sessions
+after the database update. A timer closes idle sockets when their JWT expires.
+`session:invalidated` informs the client before disconnection; disconnect handles
+room eviction, presence removal, and typing cleanup. Authentication outages are
+reported separately and do not clear client credentials.
+
+See [Authentication Hardening](authentication.md#slice-3-chunk-3-live-sessions-and-client-invalidation)
+for race handling, client behavior, and single-process limitations. Project-access
+revocation below remains a separate authorization concern: losing membership in
+one project should not sign a user out of their entire account.
 
 ### Revoking Live Access
 

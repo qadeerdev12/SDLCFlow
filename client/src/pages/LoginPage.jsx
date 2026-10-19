@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const { login } = useAuth()
+  const { login, sessionMessage } = useAuth()
   const { dark, toggle } = useTheme()
   const navigate = useNavigate()
 
@@ -40,6 +40,7 @@ export default function LoginPage() {
           <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">Return to your projects and keep the work moving.</p>
         </div>
 
+        {sessionMessage && <p role="status" className="mt-5 text-sm text-zinc-600 dark:text-zinc-300">{sessionMessage}</p>}
         {error && (
           <p className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">{error}</p>
         )}

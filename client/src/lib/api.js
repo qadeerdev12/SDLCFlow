@@ -1,3 +1,5 @@
+import { reportSessionFailure } from './sessionEvents';
+
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api/v1';
 
 // A single wrapper around fetch that:
@@ -35,6 +37,8 @@ async function request(endpoint, {method = 'GET', body, token } = {}) {
         error.code = data?.error?.code;
         error.retryAfter = data?.error?.retryAfter;
         error.resetAt = data?.error?.resetAt;
+        // Wrong passwords, permission failures, and outages are not revocation.
+        if (res.status === 401) reportSessionFailure(token, error.code);
         throw error;
     }
 
