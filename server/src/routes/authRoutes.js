@@ -1,5 +1,5 @@
 import express from 'express';
-import {register, login, getMe, getProfile, updateProfile, updatePassword, deleteAccount} from '../controllers/authController.js';
+import {register, login, getMe, getProfile, updateProfile, updatePassword, deleteAccount, logoutEverywhere} from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 import { createAuthRateLimit } from '../middleware/authRateLimit.js';
 
@@ -18,6 +18,7 @@ export default function createAuthRoutes() {
   router.get('/profile', protect, getProfile);
   router.patch('/profile', protect, updateProfile);
   router.patch('/password', protect, updatePassword);
+  router.post('/logout-all', protect, logoutEverywhere);
   router.delete('/me', protect, deleteAccount);
 
   return router;

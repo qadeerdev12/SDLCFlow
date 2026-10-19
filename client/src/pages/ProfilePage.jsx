@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { LogOut } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppHeader from '../components/AppHeader'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -55,6 +56,10 @@ export default function ProfilePage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
+  const [loggingOutEverywhere, setLoggingOutEverywhere] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
+  const logoutPending = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -195,6 +200,29 @@ export default function ProfilePage() {
       toast.error('Could not update password', err.message)
     } finally {
       setSavingPassword(false)
+    }
+  }
+
+  async function handleLogoutEverywhere() {
+    // Guard immediately, including a second click before React rerenders.
+    if (logoutPending.current) return
+    logoutPending.current = true
+    setLoggingOutEverywhere(true)
+    setLogoutError('')
+    try {
+      await authApi.logoutEverywhere(token)
+      // The socket event may already have cleared this session. Target the
+      // original token so a late response cannot erase a newer login.
+      logout(token)
+      navigate('/login', { replace: true })
+      toast.success('Logged out everywhere', 'Sign in again to continue.')
+    } catch (err) {
+      setLogoutError(err.message)
+      toast.error('Could not log out everywhere', err.message)
+    } finally {
+      logoutPending.current = false
+      setLoggingOutEverywhere(false)
+      setLogoutConfirmOpen(false)
     }
   }
 
@@ -423,6 +451,22 @@ export default function ProfilePage() {
                 {savingPassword ? 'Saving...' : 'Update password'}
               </button>
             </div>
+            <div className="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold">Sessions</h3>
+              <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                End all signed-in sessions, including this browser. Your password and projects stay unchanged.
+              </p>
+              <button
+                type="button"
+                disabled={loggingOutEverywhere || savingPassword}
+                onClick={() => { setLogoutError(''); setLogoutConfirmOpen(true) }}
+                className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              >
+                <LogOut size={16} aria-hidden="true" />
+                Log out everywhere
+              </button>
+              {logoutError && <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-300">{logoutError}</p>}
+            </div>
           </form>
         </section>
 
@@ -474,6 +518,17 @@ export default function ProfilePage() {
           )}
         </section>
       </main>
+
+      {logoutConfirmOpen && (
+        <ConfirmDialog
+          title="Log out everywhere?"
+          description="This ends every current session for your account, including this browser. You will need to sign in again. Your password and projects will not change."
+          confirmLabel="Log out everywhere"
+          pending={loggingOutEverywhere}
+          onCancel={() => setLogoutConfirmOpen(false)}
+          onConfirm={handleLogoutEverywhere}
+        />
+      )}
 
       {deleteConfirmOpen && (
         <ConfirmDialog

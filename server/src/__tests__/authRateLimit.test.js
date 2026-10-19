@@ -11,7 +11,7 @@ vi.mock('../controllers/authController.js', () => ({
   login: vi.fn((req, res) => res.status(401).json({ error: { code: 'INVALID_CREDENTIALS' } })),
   register: vi.fn((req, res) => res.status(201).json({ data: { created: true } })),
   getMe: vi.fn(), getProfile: vi.fn(), updateProfile: vi.fn(),
-  updatePassword: vi.fn(), deleteAccount: vi.fn(),
+  updatePassword: vi.fn(), deleteAccount: vi.fn(), logoutEverywhere: vi.fn(),
 }));
 
 beforeEach(() => {

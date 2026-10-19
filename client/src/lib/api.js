@@ -82,6 +82,8 @@ export const authApi = {
             token
         }),
 
+    logoutEverywhere: (token) => request('/auth/logout-all', { method: 'POST', token }),
+
     deleteAccount: (password, token) =>
         request('/auth/me', {
             method: 'DELETE',

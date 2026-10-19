@@ -52,7 +52,10 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   version with password changes and signs the changing tab out. Chunk 3 enforces
   live-session versions/expiry, evicts older sockets after password changes, and
   handles invalid sessions across REST, sockets, and browser tabs.
-  Still required: log out everywhere, token lifecycle
+  Chunk 4 adds confirmed log out everywhere, with atomic generation revocation
+  and protection against stale/repeated requests. The four session-invalidation
+  chunks are complete for the current single-process deployment.
+  Still required: token lifecycle
   and storage review, recovery, and email verification. Previously issued JWTs
   now fail REST/socket checks after password changes; multi-instance revocation
   remains outside the current single-process implementation. See
@@ -130,7 +133,7 @@ scaling, and a GitHub App migration are not required for this portfolio launch.
 Self-managed JWT authentication is the chosen path; Supabase is no longer a
 planned launch dependency.
 
-**Next implementation slice:** log out everywhere (chunk 4).
-Review and commit live-session revocation and client handling first.
-Token lifecycle changes remain
-separate. Existing dependency advisories and deployment configuration are unchanged.
+**Next implementation slice:** review token storage, expiration, and refresh strategy.
+Review and commit log out everywhere first. Session-invalidation chunks 1-4 are
+complete; broader authentication and launch blockers remain open. Existing
+dependency advisories and deployment configuration are unchanged.

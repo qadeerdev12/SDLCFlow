@@ -151,4 +151,80 @@ describe('socket session lifecycle', () => {
     expect(socket.connected).toBe(true);
     expect((await socket.timeout(2000).emitWithAck('test:mutation', {})).ok).toBe(true);
   });
+
+  it('logs out only the authenticated account across REST and sockets without changing its password', async () => {
+    const ctx = await fixture();
+    const first = await ctx.connect();
+    const second = await ctx.connect();
+    const other = await User.create({ name: 'Other', email: 'other@example.com', passwordHash: 'unused' });
+    const otherToken = createSessionToken(other);
+    const otherSocket = await ctx.connect(otherToken);
+    const endedFirst = ended(first);
+    const endedSecond = ended(second);
+    const response = await request(ctx.app).post('/api/v1/auth/logout-all')
+      .set('Authorization', `Bearer ${ctx.token}`).send({ userId: other.id, sessionVersion: 99 }).expect(200);
+    expect(response.body).toEqual({ data: { loggedOut: true } });
+    expect(await endedFirst).toEqual(['SESSION_INVALIDATED']);
+    expect(await endedSecond).toEqual(['SESSION_INVALIDATED']);
+    const stored = await User.findById(ctx.user._id).select('+sessionVersion +passwordHash');
+    expect(stored.sessionVersion).toBe(1);
+    expect(stored.passwordHash).toBe(ctx.user.passwordHash);
+    expect(io.sockets.sockets.has(otherSocket.id)).toBe(true);
+    await request(ctx.app).get('/api/v1/auth/me').set('Authorization', `Bearer ${otherToken}`).expect(200);
+    await request(ctx.app).get('/api/v1/auth/me').set('Authorization', `Bearer ${ctx.token}`).expect(401);
+    await expect(ctx.connect()).rejects.toMatchObject({ data: { code: 'SESSION_INVALIDATED' } });
+    const login = await request(ctx.app).post('/api/v1/auth/login').send({ email: ctx.user.email, password }).expect(200);
+    const fresh = await ctx.connect(login.body.data.token);
+    // A replay from the old generation must not affect this new login.
+    await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', `Bearer ${ctx.token}`).expect(401);
+    expect((await User.findById(ctx.user._id).select('+sessionVersion')).sessionVersion).toBe(1);
+    await request(ctx.app).get('/api/v1/auth/me').set('Authorization', `Bearer ${login.body.data.token}`).expect(200);
+    expect(io.sockets.sockets.has(fresh.id)).toBe(true);
+  });
+
+  it('requires authentication and supports legacy counters without touching other account fields', async () => {
+    const ctx = await fixture();
+    await request(ctx.app).post('/api/v1/auth/logout-all').expect(401);
+    await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', 'Bearer invalid').expect(401);
+    await User.collection.updateOne({ _id: ctx.user._id }, { $unset: { sessionVersion: '' } });
+    const legacy = jwt.sign({ id: ctx.user.id }, process.env.JWT_SECRET);
+    await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', `Bearer ${legacy}`).expect(200);
+    const stored = await User.findById(ctx.user._id).select('+sessionVersion +passwordHash');
+    expect(stored.sessionVersion).toBe(1);
+    expect(stored.email).toBe(ctx.user.email);
+    expect(stored.passwordHash).toBe(ctx.user.passwordHash);
+    await request(ctx.app).get('/api/v1/auth/me').set('Authorization', `Bearer ${legacy}`).expect(401);
+  });
+
+  it('preserves sessions if the logout-all database write fails', async () => {
+    const ctx = await fixture();
+    const socket = await ctx.connect();
+    vi.spyOn(User, 'findOneAndUpdate').mockRejectedValueOnce(new Error('Database unavailable'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', `Bearer ${ctx.token}`).expect(500);
+    expect((await User.findById(ctx.user._id).select('+sessionVersion')).sessionVersion).toBe(0);
+    expect(io.sockets.sockets.has(socket.id)).toBe(true);
+    await request(ctx.app).get('/api/v1/auth/me').set('Authorization', `Bearer ${ctx.token}`).expect(200);
+  });
+
+  it('increments only once for two overlapping logout-all requests', async () => {
+    const ctx = await fixture();
+    const originalUpdate = User.findOneAndUpdate.bind(User);
+    let arrivals = 0, release;
+    const barrier = new Promise((resolve) => { release = resolve; });
+    vi.spyOn(User, 'findOneAndUpdate').mockImplementation((...args) => {
+      const query = originalUpdate(...args);
+      const exec = query.exec.bind(query);
+      query.exec = async () => {
+        if (++arrivals === 2) release();
+        await barrier;
+        return exec();
+      };
+      return query;
+    });
+    const attempt = () => request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', `Bearer ${ctx.token}`);
+    const responses = await Promise.all([attempt(), attempt()]);
+    expect(responses.map((result) => result.status).sort()).toEqual([200, 401]);
+    expect((await User.findById(ctx.user._id).select('+sessionVersion')).sessionVersion).toBe(1);
+  });
 });

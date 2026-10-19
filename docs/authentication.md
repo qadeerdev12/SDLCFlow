@@ -227,16 +227,47 @@ revocation actions must call the lifecycle helper after persistence. Already
 delivered data cannot be retracted, and operations authorized before revocation
 may finish. No token-storage/refresh migration is included here.
 
-Next: expose a log-out-everywhere action using this lifecycle.
+## Slice 3, Chunk 4: Log Out Everywhere
+
+The profile page's Security section now offers **Log out everywhere**, using the
+existing confirmation dialog. It explains that the current browser is included
+and that passwords/projects are unchanged. Cancel makes no request; while the
+request is pending, confirmation and cancellation are disabled. A synchronous
+guard prevents duplicate submissions before React rerenders.
+
+`POST /api/v1/auth/logout-all` requires a valid bearer token through `protect`.
+The account ID and expected session version come exclusively from `req.user`;
+submitted account IDs or versions are ignored. No additional password is required:
+this is self-service revocation by an already authenticated account, not an admin
+endpoint or a credential change.
+
+The controller atomically increments only the caller's current version, including
+the missing-field legacy-zero case. Its compare-and-swap condition means two
+overlapping requests cannot increment twice, and an old request cannot invalidate
+a fresh login created after the first revocation. A stale request receives 401
+`SESSION_INVALIDATED`. On success, older live/pending sockets are revoked and the
+response is `{ data: { loggedOut: true } }`. No replacement token is issued.
+
+The client clears its original local session and returns to login on success;
+socket notices may sign it out before the HTTP response arrives. A failed write
+does not revoke sessions. Other nonterminal errors leave the profile usable with
+an error and retry option. If the write committed but the response was lost,
+the old token is still revoked; the user can sign in with their unchanged password.
+
+This completes the four session-invalidation chunks for the current single-server
+deployment. The ordinary navigation logout still clears browser-local state
+(synchronized to same-origin tabs); only this action and password changes revoke
+server-side session generations. This is account-wide revocation, not a device
+list or a way to revoke one selected device. Single-process and in-flight-operation
+limits described above still apply.
 
 ## Remaining Slices
 
-1. Finish session invalidation: log out everywhere.
-2. Token storage, expiration, refresh, and associated CSRF/XSS protections.
-3. Password recovery, email verification, and reauthentication for email changes.
+1. Token storage, expiration, refresh, and associated CSRF/XSS protections.
+2. Password recovery, email verification, and reauthentication for email changes.
 
 JWTs currently still last seven days and the browser still stores them in
-localStorage. Password changes revoke old tokens for REST and live sockets on
+localStorage. Password changes and log out everywhere revoke old tokens for REST and live sockets on
 the current server. Remaining launch blockers still prevent unrestricted public signup.
 
 ## Verification
@@ -264,6 +295,10 @@ room cleanup, fresh-login survival, idle expiry, packet validation, pending
 handshake races, and database outages. Client `authSession.test.jsx` and
 `socketSession.test.jsx` cover terminal errors, network failures, stale responses,
 cross-tab storage changes, listener cleanup, and retry cancellation.
+`socketSessions.test.js` also verifies logout-all authentication, account isolation,
+legacy counters, replay/concurrency protection, unchanged passwords, database-write
+failure, fresh login, and live disconnection. `profileSessions.test.jsx` covers
+confirmation/cancellation, duplicate-submit prevention, successful logout, and retry.
 
 Manual review: register with a short password, then a valid passphrase; check that
 an existing account still signs in; change its password in Profile; verify old
@@ -278,3 +313,10 @@ socket should now be disconnected and its UI should return to login. Try a
 reconnect with the old token: the handshake should fail. Also try an incorrect
 current password: the error should leave the current session usable. Briefly
 stop the backend or go offline: network failures should not erase the token.
+
+For chunk 4, sign into the same test account in two browsers, with a project or
+notification connection open in each. In Profile, choose **Log out everywhere**.
+Cancel first and confirm both sessions remain usable. Repeat and confirm: both
+old sessions should end, while a different account remains signed in. Sign back
+in with the same password and verify your projects are unchanged. Old-token REST
+requests and socket reconnects must fail, without affecting that fresh login.

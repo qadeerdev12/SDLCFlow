@@ -252,6 +252,37 @@ export async function updatePassword(req, res) {
     }
 }
 
+// POST /api/v1/auth/logout-all
+// Revoke only the authenticated account's current session generation. Matching
+// the caller's version prevents delayed/repeated requests from revoking a fresh login.
+export async function logoutEverywhere(req, res) {
+    try {
+        const version = sessionVersion(req.user.sessionVersion);
+        if (version === null || version === Number.MAX_SAFE_INTEGER) {
+            throw new Error('Invalid session version for revocation');
+        }
+        const versionFilter = version === 0
+            ? { $or: [{ sessionVersion: 0 }, { sessionVersion: { $exists: false } }] }
+            : { sessionVersion: version };
+        // Identity and counter come from protect, never from request fields.
+        // No password/profile data is modified, and legacy counters start at one.
+        const updated = await User.findOneAndUpdate(
+            { _id: req.user._id, ...versionFilter },
+            { $inc: { sessionVersion: 1 } },
+            { returnDocument: 'after', runValidators: true }
+        );
+        if (!updated) {
+            return res.status(401).json({
+                error: { code: 'SESSION_INVALIDATED', message: 'Your session is no longer valid. Please sign in again.' },
+            });
+        }
+        revokeSocketSessions(req.app.get('io'), req.user._id, version + 1);
+        return res.status(200).json({ data: { loggedOut: true } });
+    } catch (error) {
+        return sendAuthError(res, error, 'An error occurred while logging out all sessions');
+    }
+}
+
 // DELETE /api/v1/auth/me
 // Deletes the signed-in user and removes their personal footprint from boards.
 export async function deleteAccount(req, res) {
