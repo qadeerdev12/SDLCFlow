@@ -265,7 +265,9 @@ limits described above still apply.
 
 1. Token storage, expiration, refresh, and associated CSRF/XSS protections.
    The [token lifecycle design review](token-lifecycle-design.md) proposes the
-   next architecture; it is not implemented and awaits review.
+   next architecture. The [refresh-session foundation](refresh-session-foundation.md)
+   implements isolated storage and rotation; endpoints and client integration are
+   not enabled, so the active authentication flow remains unchanged.
 2. Password recovery, email verification, and reauthentication for email changes.
 
 JWTs currently still last seven days and the browser still stores them in

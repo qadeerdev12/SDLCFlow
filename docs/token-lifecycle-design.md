@@ -1,12 +1,15 @@
 # Token Lifecycle Design Review
 
-Status: proposed for review, not implemented. This document does not change the
-current seven-day JWT, browser storage, or deployment configuration.
+Status: target architecture, not enabled. The internal
+[refresh-session foundation](refresh-session-foundation.md) is implemented and
+tested in isolation. This does not change the current seven-day JWT, browser
+storage, or deployment configuration; endpoints and client integration remain pending.
 
 ## Current System
 
 - `server/src/utils/sessionTokens.js` issues seven-day JWTs containing user ID and
-  session version. There is no refresh endpoint or refresh-session model.
+  session version. There is no refresh endpoint; the refresh-session model/service
+  are not connected to the active authentication flow.
 - `client/src/context/AuthContext.jsx` persists tokens in localStorage and uses
   storage events to synchronize tabs. `api.js` sends bearer Authorization headers;
   it does not currently include cross-origin cookies.
@@ -211,5 +214,6 @@ actual staging domain layout in Chrome, Firefox, and Safari. Document any
 unsupported coordination environments. No credentials should appear in browser
 storage, URLs, logs, or cross-tab messages.
 
-The next concrete implementation deliverable is the refresh-session model and
-atomic rotation tests, not a full client/authentication rewrite in one iteration.
+The refresh-session model and atomic rotation tests are now implemented in
+isolation. The next server slices add cookie/CSRF endpoints and family validation,
+not a full client/authentication rewrite in one iteration.
