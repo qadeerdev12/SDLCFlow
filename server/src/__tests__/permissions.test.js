@@ -301,14 +301,14 @@ afterAll(async () => {
 async function register(app, name, email) {
   const res = await request(app)
     .post('/api/v1/auth/register')
-    .send({ name, email, password: 'password123' })
+    .send({ name, email, password: 'test-password-123' })
     .expect(201);
 
   return res.body.data;
 }
 
 async function createUser(name, email) {
-  const passwordHash = await bcrypt.hash('password123', 4);
+  const passwordHash = await bcrypt.hash('test-password-123', 4);
   return User.create({ name, email, passwordHash });
 }
 
@@ -455,7 +455,7 @@ describe('live access revocation', () => {
         .set('Authorization', `Bearer ${owner.token}`).send({ password: 'wrong' }).expect(401);
       expect(ids.every((id) => server.app.get('io').of('/').sockets.has(id))).toBe(true);
       await request(server.app).delete('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${owner.token}`).send({ password: 'password123' }).expect(200);
+        .set('Authorization', `Bearer ${owner.token}`).send({ password: 'test-password-123' }).expect(200);
       const peers = server.app.get('io').of('/').sockets;
       expect(peers.has(ids[0])).toBe(false);
       expect(peers.has(ids[1])).toBe(false);
@@ -1880,7 +1880,7 @@ describe.sequential('REST board permissions', () => {
     await request(app)
       .delete('/api/v1/auth/me')
       .set('Authorization', `Bearer ${user.token}`)
-      .send({ password: 'password123' })
+      .send({ password: 'test-password-123' })
       .expect(200);
 
     await expect(User.exists({ _id: user.user.id })).resolves.toBeNull();
@@ -1926,12 +1926,12 @@ describe.sequential('REST board permissions', () => {
     await request(app)
       .patch('/api/v1/auth/password')
       .set('Authorization', `Bearer ${user.token}`)
-      .send({ currentPassword: 'password123', newPassword: 'new-password-123' })
+      .send({ currentPassword: 'test-password-123', newPassword: 'new-password-123' })
       .expect(200);
 
     await request(app)
       .post('/api/v1/auth/login')
-      .send({ email: 'new@example.com', password: 'password123' })
+      .send({ email: 'new@example.com', password: 'test-password-123' })
       .expect(401);
 
     await request(app)

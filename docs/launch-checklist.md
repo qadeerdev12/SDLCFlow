@@ -40,16 +40,16 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   [Realtime Architecture](06-realtime-architecture.md#revoking-live-access) for
   the single-process scope and in-flight operation limitations.
 
-- [ ] **2. Resolve authentication before public signup.** Choose Supabase Auth
-  or harden the current JWT implementation; do not run two competing identity
-  systems. Reproduced against `authController.js`: one-character passwords are
-  accepted at registration (201); an object email selector is interpreted as a
-  database query at login (200 with the fixture's matching password); an old JWT
-  still works after changing the password (200). The selector finding is not a
-  password-check bypass. Require typed, bounded inputs, consistent password
-  policy, login/signup throttling, and session invalidation. Decide recovery and
-  verification behavior before accepting real accounts. Remove the registration
-  response/token console log at `client/src/context/AuthContext.jsx:42`.
+- [ ] **2. Harden self-managed JWT authentication before public signup.**
+  Decision: retain the existing identity system; no Supabase Auth migration.
+  Slice 1 implements typed, bounded input validation, a consistent new-password
+  policy, normalized email lookups, safe duplicate handling, and removal of the
+  registration response/token log. Object email selectors are rejected before
+  database access. Legacy short passwords remain usable for verification.
+  Still required: login/signup throttling, session invalidation, token lifecycle
+  and storage review, recovery, and email verification. Previously issued JWTs
+  still work after password changes, so this blocker remains open. See
+  [Authentication Hardening](authentication.md) for policy and slice details.
 
 - [ ] **3. Remediate dependency advisories and rerun checks.** Current audit
   results differ from September's clean result. Server: 7 affected packages
@@ -118,9 +118,9 @@ than claiming every advisory is reachable. Re-run `npm audit --json` and
 
 New product features, direct-message chat, an autonomous task agent, multi-instance
 scaling, and a GitHub App migration are not required for this portfolio launch.
-Supabase is an authentication decision, not a prerequisite to running the existing
-tests or publishing a case study.
+Self-managed JWT authentication is the chosen path; Supabase is no longer a
+planned launch dependency.
 
-**Next implementation slice:** settle the authentication choice before implementing
-the remaining auth work. Socket revocation is complete; no dependency upgrades or
-deployment changes are included in that fix.
+**Next implementation slice:** add login/signup throttling. Review and commit the
+input-validation slice first. Session invalidation and token lifecycle changes
+follow separately; no dependency upgrades or deployment changes are included.

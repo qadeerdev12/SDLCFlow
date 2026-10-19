@@ -11,6 +11,7 @@ import Workflow from "../models/Workflow.js";
 import GitHubAccount from "../models/GitHubAccount.js";
 import BoardGitHubIntegration from "../models/BoardGitHubIntegration.js";
 import { disconnectUserSockets, revokeBoardAccess } from '../socket.js';
+import { authBody, accountName, accountEmail, credentialPassword, newAccountPassword, sendAuthError } from '../utils/authValidation.js';
 
 //Helper: create a signed JWT carrying the user's id.
 // The token is signed with our secret so it can't be forged.
@@ -24,13 +25,10 @@ function generateToken(userId) {
 
 export async function register(req, res) {
     try{
-        const  {name, email, password } = req.body;
-        //1.Basic validation - never the client to send complete data.
-        if (!name || !email || !password) {
-            return res.status(400).json({
-                error: {code: 'VALIDATION', message: 'Name, email and password are required'},
-            });
-        }
+        const body = authBody(req.body);
+        const name = accountName(body.name);
+        const email = accountEmail(body.email);
+        const password = newAccountPassword(body.password);
 
         //2. Is this email already taken?
         const existing = await User.findOne({email});
@@ -61,23 +59,15 @@ export async function register(req, res) {
             }
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            error: {code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while registering the user'}
-        });
+        return sendAuthError(res, error, 'An error occurred while registering the user');
     }
 }
 
 export async function login(req, res)  {
     try {
-        const {email, password } = req.body;
-        
-        //1. Basic validation
-        if (!email || !password) {
-            return res.status(400).json({
-                error: {code: 'VALIDATION', message: 'Email and password are required'},
-            });
-        }
+        const body = authBody(req.body);
+        const email = accountEmail(body.email);
+        const password = credentialPassword(body.password);
         //2. Find the user by email and include the passwordHash field.
         const user = await User.findOne({email}).select('+passwordHash');
 
@@ -109,10 +99,7 @@ export async function login(req, res)  {
             }
          });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            error: {code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while logging in'},
-        });
+        return sendAuthError(res, error, 'An error occurred while logging in');
     }
 }
 
@@ -171,26 +158,15 @@ export async function getProfile(req, res) {
 // so the client can present them as a separate, higher-friction action.
 export async function updateProfile(req, res) {
     try {
-        const { name, email } = req.body;
+        const { name, email } = authBody(req.body);
         const updates = {};
 
         if (name !== undefined) {
-            const safeName = typeof name === 'string' ? name.trim() : '';
-            if (!safeName) {
-                return res.status(400).json({
-                    error: { code: 'VALIDATION', message: 'Name is required.' },
-                });
-            }
-            updates.name = safeName;
+            updates.name = accountName(name);
         }
 
         if (email !== undefined) {
-            const safeEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
-            if (!safeEmail) {
-                return res.status(400).json({
-                    error: { code: 'VALIDATION', message: 'Email is required.' },
-                });
-            }
+            const safeEmail = accountEmail(email);
 
             const existing = await User.findOne({ email: safeEmail, _id: { $ne: req.user._id } });
             if (existing) {
@@ -219,10 +195,7 @@ export async function updateProfile(req, res) {
             },
         });
     } catch (error) {
-        console.error('Update profile error:', error);
-        return res.status(500).json({
-            error: { code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while updating the profile' },
-        });
+        return sendAuthError(res, error, 'An error occurred while updating the profile');
     }
 }
 
@@ -230,18 +203,9 @@ export async function updateProfile(req, res) {
 // Requires the current password before replacing the stored hash.
 export async function updatePassword(req, res) {
     try {
-        const { currentPassword, newPassword } = req.body;
-        if (!currentPassword || !newPassword) {
-            return res.status(400).json({
-                error: { code: 'VALIDATION', message: 'Current password and new password are required.' },
-            });
-        }
-
-        if (newPassword.length < 8) {
-            return res.status(400).json({
-                error: { code: 'VALIDATION', message: 'New password must be at least 8 characters.' },
-            });
-        }
+        const body = authBody(req.body);
+        const currentPassword = credentialPassword(body.currentPassword);
+        const newPassword = newAccountPassword(body.newPassword);
 
         const user = await User.findById(req.user._id).select('+passwordHash');
         if (!user) {
@@ -262,10 +226,7 @@ export async function updatePassword(req, res) {
 
         return res.status(200).json({ data: { updated: true } });
     } catch (error) {
-        console.error('Update password error:', error);
-        return res.status(500).json({
-            error: { code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while updating the password' },
-        });
+        return sendAuthError(res, error, 'An error occurred while updating the password');
     }
 }
 
@@ -273,12 +234,7 @@ export async function updatePassword(req, res) {
 // Deletes the signed-in user and removes their personal footprint from boards.
 export async function deleteAccount(req, res) {
     try {
-        const { password } = req.body;
-        if (!password) {
-            return res.status(400).json({
-                error: { code: 'VALIDATION', message: 'Password is required to delete your account.' },
-            });
-        }
+        const password = credentialPassword(authBody(req.body).password);
 
         const user = await User.findById(req.user._id).select('+passwordHash');
         if (!user) {
@@ -334,9 +290,6 @@ export async function deleteAccount(req, res) {
 
         return res.status(200).json({ data: { deleted: true } });
     } catch (error) {
-        console.error('Delete account error:', error);
-        return res.status(500).json({
-            error: { code: 'INTERNAL_SERVER_ERROR', message: 'An error occurred while deleting the account' },
-        });
+        return sendAuthError(res, error, 'An error occurred while deleting the account');
     }
 }

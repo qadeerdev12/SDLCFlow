@@ -5,6 +5,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
 import { authApi, integrationApi } from '../lib/api'
+import { newPasswordError, PASSWORD_HELP } from '../lib/passwordPolicy'
 
 function formatDate(value) {
   const date = new Date(value)
@@ -170,6 +171,11 @@ export default function ProfilePage() {
   async function handleSavePassword(e) {
     e.preventDefault()
     if (!canSavePassword) return
+    const validationError = newPasswordError(newPassword)
+    if (validationError) {
+      setPasswordError(validationError)
+      return
+    }
 
     setSavingPassword(true)
     setPasswordMessage('')
@@ -346,7 +352,7 @@ export default function ProfilePage() {
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Security</p>
               <h2 className="mt-2 text-lg font-semibold">Change password</h2>
               <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                Enter your current password before choosing a new one.
+                {PASSWORD_HELP}
               </p>
             </div>
 
@@ -356,6 +362,7 @@ export default function ProfilePage() {
                 <input
                   type="password"
                   value={currentPassword}
+                  autoComplete="current-password"
                   onChange={(e) => {
                     setCurrentPassword(e.target.value)
                     setPasswordMessage('')
@@ -371,6 +378,7 @@ export default function ProfilePage() {
                   <input
                     type="password"
                     value={newPassword}
+                    autoComplete="new-password"
                     onChange={(e) => {
                       setNewPassword(e.target.value)
                       setPasswordMessage('')
@@ -385,6 +393,7 @@ export default function ProfilePage() {
                   <input
                     type="password"
                     value={confirmPassword}
+                    autoComplete="new-password"
                     onChange={(e) => {
                       setConfirmPassword(e.target.value)
                       setPasswordMessage('')

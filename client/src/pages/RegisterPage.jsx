@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useTheme } from '../context/useTheme'
 import Logo from '../components/Logo'
+import { newPasswordError, PASSWORD_HELP } from '../lib/passwordPolicy'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -17,6 +18,11 @@ export default function RegisterPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    const validationError = newPasswordError(password)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
     setError('')
     setSubmitting(true)
     try {
@@ -46,9 +52,10 @@ export default function RegisterPage() {
         )}
 
         <div className="mt-6 space-y-4">
-          <Field label="Name" type="text" value={name} onChange={setName} />
-          <Field label="Email" type="email" value={email} onChange={setEmail} />
-          <Field label="Password" type="password" value={password} onChange={setPassword} />
+          <Field label="Name" type="text" value={name} onChange={setName} maxLength={100} autoComplete="name" />
+          <Field label="Email" type="email" value={email} onChange={setEmail} maxLength={254} autoComplete="email" />
+          <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="new-password" aria-describedby="password-help" />
+          <p id="password-help" className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">{PASSWORD_HELP}</p>
         </div>
 
         <button
@@ -96,11 +103,12 @@ function AuthShell({ children, dark, toggle }) {
   )
 }
 
-function Field({ label, type, value, onChange }) {
+function Field({ label, type, value, onChange, ...inputProps }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-semibold text-zinc-500 dark:text-zinc-400">{label}</span>
       <input
+        {...inputProps}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}

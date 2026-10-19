@@ -39,7 +39,6 @@ export function AuthProvider({children}) {
     //5. The register function: call the API, set the user and token.
     async function register(name, email, password) {
         const res = await authApi.register(name, email, password);
-        console.log('register response:', res);  
         const { token: newToken, user: newUser } = res.data;
         localStorage.setItem('token', newToken);
         setToken(newToken);
