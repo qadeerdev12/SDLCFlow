@@ -394,6 +394,158 @@ function waitForConnectError(socket) {
   });
 }
 
+describe('live access revocation', () => {
+  it.each(['membership read', 'adapter join'])('rejects an in-flight %s that predates removal', async (phase) => {
+    const server = await startSocketServer();
+    let socket, release;
+    try {
+      const owner = await register(server.app, 'Owner', 'race-owner@example.com');
+      const member = await register(server.app, 'Member', 'race-member@example.com');
+      const board = await createBoardWithOwner(server.app, owner.token);
+      await addMember(server.app, owner.token, board._id, member.user.email);
+      socket = connectSocket(server.url, member.token);
+      await waitForConnect(socket);
+      const stale = await Board.findById(board._id);
+      let readStarted;
+      const started = new Promise((resolve) => { readStarted = resolve; });
+      if (phase === 'membership read') {
+        const pending = new Promise((resolve) => { release = () => resolve(stale); });
+        // Hold only the joining socket's read; the REST removal uses the real DB.
+        vi.spyOn(Board, 'findById').mockImplementationOnce(() => { readStarted(); return pending; });
+      } else {
+        const peer = server.app.get('io').of('/').sockets.get(socket.id);
+        const join = peer.join.bind(peer);
+        const pending = new Promise((resolve) => { release = () => resolve(join(`board:${board._id}`)); });
+        vi.spyOn(peer, 'join').mockImplementationOnce(() => { readStarted(); return pending; });
+      }
+      const joined = emitWithAck(socket, 'board:join', { boardId: board._id });
+      await started;
+      await request(server.app).delete(`/api/v1/boards/${board._id}/members/${member.user.id}`)
+        .set('Authorization', `Bearer ${owner.token}`).expect(200);
+      release();
+      release = undefined;
+      expect(await joined).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } });
+      expect(server.app.get('io').of('/').sockets.get(socket.id).rooms.has(`board:${board._id}`)).toBe(false);
+    } finally {
+      release?.();
+      vi.restoreAllMocks();
+      socket?.disconnect();
+      await server.close();
+    }
+  });
+
+  it('disconnects deleted accounts and evicts collaborators from their deleted projects', async () => {
+    const server = await startSocketServer();
+    const sockets = [];
+    try {
+      const owner = await register(server.app, 'Owner', 'delete-owner@example.com');
+      const member = await register(server.app, 'Member', 'delete-member@example.com');
+      const owned = await createBoardWithOwner(server.app, owner.token);
+      const shared = await createBoardWithOwner(server.app, member.token);
+      await addMember(server.app, owner.token, owned._id, member.user.email);
+      await addMember(server.app, member.token, shared._id, owner.user.email);
+      for (const token of [owner.token, owner.token, member.token]) {
+        const socket = connectSocket(server.url, token);
+        sockets.push(socket);
+        await waitForConnect(socket);
+        for (const board of [owned, shared]) await emitWithAck(socket, 'board:join', { boardId: board._id });
+      }
+      const ids = sockets.map((socket) => socket.id);
+      await request(server.app).delete('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${owner.token}`).send({ password: 'wrong' }).expect(401);
+      expect(ids.every((id) => server.app.get('io').of('/').sockets.has(id))).toBe(true);
+      await request(server.app).delete('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${owner.token}`).send({ password: 'password123' }).expect(200);
+      const peers = server.app.get('io').of('/').sockets;
+      expect(peers.has(ids[0])).toBe(false);
+      expect(peers.has(ids[1])).toBe(false);
+      expect(peers.get(ids[2]).rooms.has(`board:${owned._id}`)).toBe(false);
+      expect(peers.get(ids[2]).rooms.has(`board:${shared._id}`)).toBe(true);
+      const joined = await emitWithAck(sockets[2], 'board:join', { boardId: shared._id });
+      expect(joined.data.presence.map((entry) => entry.user.id)).toEqual([member.user.id]);
+      const reconnect = connectSocket(server.url, owner.token);
+      sockets.push(reconnect);
+      expect((await waitForConnectError(reconnect)).data.code).toBe('USER_NOT_FOUND');
+    } finally {
+      sockets.forEach((socket) => socket.disconnect());
+      await server.close();
+    }
+  });
+
+  it('evicts every removed-member tab without removing access to other projects', async () => {
+    const server = await startSocketServer();
+    const sockets = [];
+    try {
+      const owner = await register(server.app, 'Owner', 'revoke-owner@example.com');
+      const member = await register(server.app, 'Member', 'revoke-member@example.com');
+      const board = await createBoardWithOwner(server.app, owner.token);
+      const other = await createBoardWithOwner(server.app, owner.token);
+      for (const project of [board, other]) await addMember(server.app, owner.token, project._id, member.user.email);
+      for (let i = 0; i < 2; i++) {
+        const socket = connectSocket(server.url, member.token);
+        sockets.push(socket);
+        await waitForConnect(socket);
+        for (const project of [board, other]) expect((await emitWithAck(socket, 'board:join', { boardId: project._id })).ok).toBe(true);
+      }
+      const io = server.app.get('io');
+      const observer = connectSocket(server.url, owner.token);
+      await waitForConnect(observer);
+      await emitWithAck(observer, 'board:join', { boardId: board._id });
+      // Add the observer after installing the removed tabs' listeners below.
+      const revoked = sockets.map(() => vi.fn());
+      const leaked = sockets.map(() => vi.fn());
+      sockets.forEach((socket, i) => {
+        socket.on('board:access-revoked', revoked[i]);
+        socket.on('activity:created', leaked[i]);
+      });
+      const stoppedTyping = vi.fn();
+      const retainedActivity = vi.fn();
+      observer.on('chat:typing', stoppedTyping);
+      observer.on('activity:created', retainedActivity);
+      const memberTabs = [...sockets];
+      sockets.push(observer);
+      // A forbidden removal must not affect any live subscriptions.
+      await request(server.app).delete(`/api/v1/boards/${board._id}/members/${owner.user.id}`)
+        .set('Authorization', `Bearer ${member.token}`).expect(403);
+      expect(sockets.every((socket) => io.of('/').sockets.get(socket.id).rooms.has(`board:${board._id}`))).toBe(true);
+      await request(server.app).delete(`/api/v1/boards/${board._id}/members/${member.user.id}`)
+        .set('Authorization', `Bearer ${owner.token}`).expect(200);
+      await createListForBoard(server.app, owner.token, board._id, 'Private after removal');
+      for (const socket of memberTabs) {
+        const peer = io.of('/').sockets.get(socket.id);
+        expect(peer.rooms.has(`board:${board._id}`)).toBe(false);
+        expect(peer.rooms.has(`board:${other._id}`)).toBe(true);
+        expect(peer.rooms.has(`user:${member.user.id}`)).toBe(true);
+        expect(peer.data.boardIds.has(board._id)).toBe(false);
+        expect((await emitWithAck(socket, 'board:join', { boardId: board._id })).ok).toBe(false);
+      }
+      expect(revoked.every((spy) => spy.mock.calls.length === 1)).toBe(true);
+      expect(leaked.every((spy) => spy.mock.calls.length === 0)).toBe(true);
+      // A board join acknowledgement drains earlier packets on the observer's
+      // connection before inspecting typing cleanup and the current presence.
+      const presence = await emitWithAck(observer, 'board:join', { boardId: board._id });
+      expect(presence.data.presence.map((entry) => entry.user.id)).not.toContain(member.user.id);
+      expect(stoppedTyping).toHaveBeenCalledWith(expect.objectContaining({ boardId: board._id, typing: false }));
+      expect(retainedActivity).toHaveBeenCalledWith(expect.objectContaining({
+        activity: expect.objectContaining({ targetTitle: 'Private after removal' }),
+      }));
+      const reconnect = connectSocket(server.url, member.token);
+      sockets.push(reconnect);
+      await waitForConnect(reconnect);
+      expect((await emitWithAck(reconnect, 'board:join', { boardId: board._id })).ok).toBe(false);
+      await addMember(server.app, owner.token, board._id, member.user.email);
+      expect((await emitWithAck(sockets[0], 'board:join', { boardId: board._id })).ok).toBe(true);
+      expect((await emitWithAck(sockets[1], 'board:join', { boardId: board._id.toUpperCase() })).ok).toBe(true);
+      await request(server.app).delete(`/api/v1/boards/${board._id}`)
+        .set('Authorization', `Bearer ${owner.token}`).expect(200);
+      expect(io.of('/').adapter.rooms.has(`board:${board._id}`)).toBe(false);
+    } finally {
+      sockets.forEach((socket) => socket.disconnect());
+      await server.close();
+    }
+  });
+});
+
 describe.sequential('REST board permissions', () => {
   it('protects GitHub integration endpoints before an account is connected', async () => {
     const app = createApp();

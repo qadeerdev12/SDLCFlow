@@ -102,12 +102,12 @@ function addPresence(io, socket, boardId) {
 
 // Clean up every board room this socket joined. This is why board ids are kept
 // on socket.data instead of only relying on Socket.IO's internal room list.
-function removePresence(io, socket) {
-  const boardIds = socket.data.boardIds || new Set();
+function removePresence(io, socket, boardIds = socket.data.boardIds || new Set()) {
   const userId = socket.data.user?._id?.toString();
   if (!userId) return;
 
   for (const boardId of boardIds) {
+    socket.data.boardIds.delete(boardId);
     const boardPresence = presenceByBoard.get(boardId);
     if (!boardPresence) continue;
 
@@ -120,6 +120,48 @@ function removePresence(io, socket) {
     if (entry.sockets.size === 0) boardPresence.delete(userId);
     if (boardPresence.size === 0) presenceByBoard.delete(boardId);
     schedulePresence(io, boardId);
+  }
+}
+
+function accessVersion(socket, boardId) {
+  return socket.data.accessVersions?.get(boardId) || 0;
+}
+
+// Call after membership/deletion persists and before broadcasting private data.
+// Include sockets not yet in the room: they may have a membership lookup in flight.
+// This uses the current single-process adapter; a multi-node deployment needs
+// cluster-wide eviction and shared join invalidation, not just local sockets.
+export async function revokeBoardAccess(io, boardId, userId) {
+  if (!io) return;
+  const id = boardId.toString();
+  const affected = [...io.of('/').sockets.values()].filter((socket) =>
+    !userId || socket.data.user._id.toString() === userId.toString());
+  for (const socket of affected) {
+    socket.data.accessVersions ??= new Map();
+    socket.data.accessVersions.set(id, accessVersion(socket, id) + 1);
+  }
+  await Promise.all(affected.map(async (socket) => {
+    const joined = socket.data.boardIds.has(id);
+    try {
+      await socket.leave(roomName(id));
+    } catch {
+      // Failing closed is preferable to leaving a private subscription alive.
+      socket.disconnect(true);
+    }
+    if (joined) {
+      removePresence(io, socket, [id]);
+      emitTypingStatus(socket, id, false);
+    }
+    // Whole-project deletion invalidates pending joins for everyone, but must
+    // not disclose the private project id to unrelated connected users.
+    if (joined || userId) socket.emit('board:access-revoked', { boardId: id });
+  }));
+}
+
+export function disconnectUserSockets(io, userId) {
+  if (!io) return;
+  for (const socket of io.of('/').sockets.values()) {
+    if (socket.data.user._id.toString() === userId.toString()) socket.disconnect(true);
   }
 }
 
@@ -215,9 +257,21 @@ export function configureSockets(io) {
     // board room still needs membership verification for that specific board.
     socket.on('board:join', async ({ boardId } = {}, callback) => {
       try {
+        // MongoDB accepts uppercase ObjectId hex too; version keys must match
+        // the canonical lowercase id used by revocation and room membership.
+        const version = accessVersion(socket, String(boardId).toLowerCase());
         const board = await requireBoardMember(socket, boardId);
         const normalizedBoardId = board._id.toString();
-        socket.join(roomName(normalizedBoardId));
+        const stillAllowed = () => socket.connected && accessVersion(socket, normalizedBoardId) === version;
+        const denied = () => Object.assign(new Error('Board not found.'), { code: 'NOT_FOUND', statusCode: 404 });
+        // A stale membership read must not undo a removal that happened while
+        // awaiting MongoDB (or an asynchronous Socket.IO adapter join).
+        if (!stillAllowed()) throw denied();
+        await socket.join(roomName(normalizedBoardId));
+        if (!stillAllowed()) {
+          await socket.leave(roomName(normalizedBoardId));
+          throw denied();
+        }
         socket.data.boardIds.add(normalizedBoardId);
         addPresence(io, socket, normalizedBoardId);
 

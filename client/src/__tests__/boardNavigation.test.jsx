@@ -48,7 +48,7 @@ function tree(panel = 'github') {
     <Link to={`/boards/alpha?panel=${panel}`}>Go alpha</Link>
     <Link to={`/boards/beta?panel=${panel}`}>Go beta</Link>
     <Link to="/boards/alpha?panel=chat">Open chat</Link>
-    <Routes><Route path="/boards/:boardId" element={<BoardPage />} /></Routes>
+    <Routes><Route path="/boards/:boardId" element={<BoardPage />} /><Route path="/dashboard" element={<h1>Dashboard</h1>} /></Routes>
   </MemoryRouter></StrictMode>
 }
 const panelState = () => JSON.parse(screen.getByTestId('panel').textContent)
@@ -114,6 +114,25 @@ describe('REST create response and socket echo', () => {
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe('project request isolation', () => {
+  it('unmounts a revoked project but ignores revocation for another project', async () => {
+    mocks.socket.connected = true
+    const handlers = new Map()
+    mocks.socket.onSocketEvent.mockImplementation((event, handler) => {
+      handlers.set(event, handler)
+      return () => handlers.delete(event)
+    })
+    render(tree('chat'))
+    await settle()
+    await act(async () => handlers.get('board:access-revoked')({ boardId: 'beta' }))
+    expect(screen.getByTestId('project-name').textContent).toBe('alpha')
+    await act(async () => handlers.get('board:access-revoked')({ boardId: 'alpha' }))
+    await settle()
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeTruthy()
+    expect(screen.queryByTestId('project-name')).toBeNull()
+    expect(screen.queryByTestId('panel')).toBeNull()
+    expect(handlers.size).toBe(0)
+  })
+
   it.each(['resolve', 'reject'])('ignores an old project snapshot that later %ss', async (outcome) => {
     const old = deferred()
     mocks.boardApi.getOne.mockImplementation((id) => id === 'alpha' ? old.promise : Promise.resolve(snapshot(id)))

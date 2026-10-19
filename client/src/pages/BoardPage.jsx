@@ -594,6 +594,12 @@ function BoardSession({ boardId, user, token }) {
       setBoard((current) => current ? { ...current, members: payload.members || [] } : current)
     }
 
+    function onAccessRevoked(payload) {
+      // The server has already evicted this socket. Unmount the project session
+      // so cached cards, chat, and pending reads cannot keep the private UI open.
+      if (payload.boardId === boardId) navigate('/dashboard', { replace: true })
+    }
+
     function onActivityCreated(payload) {
       if (payload.boardId !== boardId) return
       prependActivity(payload.activity)
@@ -634,6 +640,7 @@ function BoardSession({ boardId, user, token }) {
       onSocketEvent('list:deleted', onListDeleted),
       onSocketEvent('workflow:created', onWorkflowCreated),
       onSocketEvent('members:updated', onMembersUpdated),
+      onSocketEvent('board:access-revoked', onAccessRevoked),
       onSocketEvent('activity:created', onActivityCreated),
       onSocketEvent('message:created', onMessageCreated),
       onSocketEvent('message:deleted', onMessageDeleted),

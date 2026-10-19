@@ -25,14 +25,20 @@ unverified. Existing passing tests do not cover all findings below.
 
 ## Launch blockers, in order
 
-- [ ] **1. Revoke live project access when membership changes.** Reproduced:
-  after an owner removed a member, removal returned 200 and REST project reads
-  returned 404, but the removed member's connected socket still received a new
-  persisted `activity:created` event. `memberController.js:144` removes the DB
-  membership without evicting sockets from the room joined in `socket.js:220`.
-  Evict all affected tabs and update presence before subsequent broadcasts.
-  Cover removal, account deletion, and reconnect in regression tests. Do not rely
-  on a cooperative frontend leaving the room.
+Revocation fix reviewed and verified on 2026-10-19: 280 server tests and 154 client
+tests passed; client lint, production build, and `git diff --check` passed. Join
+version keys also normalize uppercase ObjectId input so re-added members can join
+with either valid hexadecimal representation. Verification used temporary test
+databases, not live accounts; hosted two-account testing remains a staging gate.
+
+- [x] **1. Revoke live project access when membership changes.** Fixed after a
+  failing regression reproduced stale room membership. Removal now evicts every
+  affected tab before removal broadcasts, cleans presence/typing, and invalidates
+  pending joins. Account deletion disconnects the deleted user's sockets;
+  project deletion evicts its viewers. Tests cover reconnect denial, unrelated
+  subscriptions, re-addition, and client navigation. See
+  [Realtime Architecture](06-realtime-architecture.md#revoking-live-access) for
+  the single-process scope and in-flight operation limitations.
 
 - [ ] **2. Resolve authentication before public signup.** Choose Supabase Auth
   or harden the current JWT implementation; do not run two competing identity
@@ -115,7 +121,6 @@ scaling, and a GitHub App migration are not required for this portfolio launch.
 Supabase is an authentication decision, not a prerequisite to running the existing
 tests or publishing a case study.
 
-**Next implementation slice:** fix removed-member socket delivery with a failing
-regression test first. Then settle the authentication choice before implementing
-the remaining auth work. This audit intentionally changes no application behavior
-and does not upgrade dependencies or deploy services.
+**Next implementation slice:** settle the authentication choice before implementing
+the remaining auth work. Socket revocation is complete; no dependency upgrades or
+deployment changes are included in that fix.

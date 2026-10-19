@@ -1,5 +1,6 @@
 // server/src/controllers/boardController.js
 import Board from '../models/Board.js';
+import { revokeBoardAccess } from '../socket.js';
 import List from '../models/List.js';
 import Card from '../models/Card.js';
 import Comment from '../models/Comment.js';
@@ -194,6 +195,7 @@ export async function deleteBoard(req, res) {
     await Activity.deleteMany({ board: board._id });
     await Notification.deleteMany({ board: board._id });
     await Board.deleteOne({ _id: board._id });
+    await revokeBoardAccess(req.app.get('io'), board._id);
 
     return res.status(200).json({ data: { deleted: true } });
   } catch (err) {

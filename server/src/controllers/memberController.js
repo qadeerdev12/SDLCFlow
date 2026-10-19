@@ -1,4 +1,5 @@
 import Board from '../models/Board.js';
+import { revokeBoardAccess } from '../socket.js';
 import User from '../models/User.js';
 import { getBoardIfRole, getMemberRole } from '../utils/boardAccess.js';
 import { recordActivity } from '../services/activityService.js';
@@ -163,6 +164,7 @@ export async function removeMember(req, res) {
     const targetUser = await User.findById(req.params.userId);
     board.members = board.members.filter((m) => m.user.toString() !== req.params.userId);
     await board.save();
+    await revokeBoardAccess(req.app.get('io'), board._id, req.params.userId);
 
     const members = await serializeBoardMembers(board._id);
     const activity = await recordActivity({

@@ -10,6 +10,7 @@ import Message from "../models/Message.js";
 import Workflow from "../models/Workflow.js";
 import GitHubAccount from "../models/GitHubAccount.js";
 import BoardGitHubIntegration from "../models/BoardGitHubIntegration.js";
+import { disconnectUserSockets, revokeBoardAccess } from '../socket.js';
 
 //Helper: create a signed JWT carrying the user's id.
 // The token is signed with our secret so it can't be forged.
@@ -308,6 +309,9 @@ export async function deleteAccount(req, res) {
             Activity.deleteMany({ board: { $in: ownedBoardIds } }),
             Board.deleteMany({ _id: { $in: ownedBoardIds } }),
         ]);
+        // Collaborators must also leave rooms for projects deleted with the owner.
+        const io = req.app.get('io');
+        await Promise.all(ownedBoardIds.map((boardId) => revokeBoardAccess(io, boardId)));
 
         // For boards this user only joined, remove membership and clear task ownership.
         await Promise.all([
@@ -326,6 +330,7 @@ export async function deleteAccount(req, res) {
             BoardGitHubIntegration.deleteMany({ connectedBy: user._id }),
             User.deleteOne({ _id: user._id }),
         ]);
+        disconnectUserSockets(io, user._id);
 
         return res.status(200).json({ data: { deleted: true } });
     } catch (error) {

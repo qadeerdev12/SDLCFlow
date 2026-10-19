@@ -39,6 +39,38 @@ This document explains how SDLCFlow's Socket.IO layer works today. It is meant f
 
 ## Connection Flow
 
+### Revoking Live Access
+
+JWT authentication identifies a user; it does not grant permanent project access.
+After persisting member removal, `removeMember` awaits `revokeBoardAccess` before
+publishing the removal activity or updated members. Every connected tab belonging
+to that user leaves the project room, loses its presence entry, and broadcasts
+typing stopped. Other project subscriptions and the private notification room
+remain intact. A failed room leave disconnects the socket instead.
+
+The server sends `board:access-revoked` with `{ boardId }` to affected clients.
+`BoardPage` returns to the dashboard, unmounting the private project session.
+This UI behavior is not the security boundary: ignoring the event does not restore
+the room subscription. Fresh joins and mutations still check database membership.
+
+Each socket tracks a per-project access version. A join captures that version
+before its membership lookup and checks it before and after joining the room.
+Revocation increments versions even for sockets that have not joined yet, so a
+delayed lookup or adapter operation cannot restore a revoked subscription.
+Re-adding a member allows a new, freshly authorized join.
+
+Project deletion evicts all viewers. Account deletion evicts collaborators from
+deleted owned projects and disconnects all of the deleted user's sockets after
+account cleanup succeeds. Reconnecting with that account's old JWT fails the user
+lookup. These guarantees apply to the current single-process Socket.IO deployment;
+multiple server instances require coordinated eviction and join invalidation.
+Already delivered data cannot be retracted, and this does not cancel mutations
+that passed authorization before removal or make database cleanup transactional.
+
+Regression coverage lives in `permissions.test.js` (all tabs, unrelated rooms,
+presence/typing, pending joins, reconnects, re-addition and deletion) and
+`boardNavigation.test.jsx` (revoked project session unmount).
+
 ```mermaid
 sequenceDiagram
     participant Client
