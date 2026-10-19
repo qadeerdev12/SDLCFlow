@@ -46,7 +46,8 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   policy, normalized email lookups, safe duplicate handling, and removal of the
   registration response/token log. Object email selectors are rejected before
   database access. Legacy short passwords remain usable for verification.
-  Still required: login/signup throttling, session invalidation, token lifecycle
+  Slice 2 adds per-IP login/signup throttling and explicit proxy configuration.
+  Still required: session invalidation, token lifecycle
   and storage review, recovery, and email verification. Previously issued JWTs
   still work after password changes, so this blocker remains open. See
   [Authentication Hardening](authentication.md) for policy and slice details.
@@ -60,7 +61,8 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   review. Keep runtime changes separate from tooling changes.
 
 - [ ] **4. Bound public-demo abuse and cost.** Public registration is open;
-  auth routes have no application-level throttling. The AI limiter in
+  login/signup now have per-process IP throttling, not distributed abuse controls.
+  The AI limiter in
   `taskDraftService.js:17` is per-user, per-process, and resets with the process;
   it is not a global spending cap and new accounts get fresh allowances. Decide
   restricted demo access versus open signup. Add appropriate admission, resource,
@@ -84,8 +86,9 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   also needs clear permission copy; use a separate production OAuth application.
 
 Dependency counts are package advisories, not counts of confirmed exploitable
-application paths. `trust proxy` is currently unset, so applicability of the
-proxy-addr advisory depends on deployment configuration. Several client findings
+application paths. `trust proxy` defaults to false and is only enabled by explicit
+`TRUSTED_PROXY_CIDRS`; resolve the proxy-addr advisory before enabling that setting
+in public deployment. Several client findings
 concern build tools or SSR/RSC paths; this app is a browser SPA, and `--omit=dev`
 does not itself identify browser-bundled attack surface. Triage and update rather
 than claiming every advisory is reachable. Re-run `npm audit --json` and
@@ -121,6 +124,7 @@ scaling, and a GitHub App migration are not required for this portfolio launch.
 Self-managed JWT authentication is the chosen path; Supabase is no longer a
 planned launch dependency.
 
-**Next implementation slice:** add login/signup throttling. Review and commit the
-input-validation slice first. Session invalidation and token lifecycle changes
-follow separately; no dependency upgrades or deployment changes are included.
+**Next implementation slice:** session invalidation. Review and commit the
+login/signup-throttling slice first. Token lifecycle changes follow separately.
+The throttling slice adds express-rate-limit but does not remediate the existing
+dependency advisories or change the live deployment configuration.

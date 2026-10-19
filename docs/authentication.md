@@ -49,12 +49,56 @@ for UTF-8 byte validation.
 Registration no longer logs its response/token. Mutation and login errors log
 only fixed operation descriptions, not raw database errors or submitted values.
 
+## Slice 2: Login and Signup Throttling
+
+`server/src/middleware/authRateLimit.js` uses
+[express-rate-limit](https://express-rate-limit.mintlify.app/reference/configuration)
+with independent IP budgets: 20 login requests per 15 minutes and 10 registration
+requests per hour. Successful and failed requests both count. The auth router
+runs these guards before JSON parsing, database queries, and bcrypt. Each app
+instance owns its limiters; unrelated routes do not consume these budgets.
+
+The library's default key groups IPv6 addresses by /56 to resist trivial address
+rotation. Changing the submitted email does not reset an IP's budget. A blocked
+request returns HTTP 429, `AUTH_RATE_LIMITED`, a user-facing message, `retryAfter`
+seconds, and `resetAt`. Responses include rate-limit headers and `Retry-After`.
+The existing client API wrapper preserves the metadata and the auth forms show
+the message. There are no automatic retries or account-existence hints.
+
+### Deployment and Proxy Trust
+
+Direct/local access defaults to `trust proxy: false`. Leave
+`TRUSTED_PROXY_CIDRS` empty unless the server actually sits behind a proxy.
+For deployment, set a comma-separated list of verified proxy IP addresses/CIDRs.
+The configuration rejects blanket `true`, hop counts, invalid addresses, and
+zero-prefix networks. Only include networks controlled by your infrastructure;
+a valid but overly broad CIDR is still unsafe. Do not guess a hosting provider's
+proxy range or trust every private network automatically.
+
+[Express resolves the nearest untrusted address](https://expressjs.com/en/guide/behind-proxies/)
+from the socket and forwarding chain. Untrusted direct callers cannot rotate
+`X-Forwarded-For` to get new quotas. Confirm in staging that different real clients
+get separate budgets, same clients share a budget, and forged headers are ignored.
+The proxy must sanitize forwarding headers, and direct origin access should be
+restricted. Until configured correctly, all visitors behind an untrusted proxy
+may share one quota. Resolve the existing proxy dependency advisory before
+enabling trusted proxies for public deployment.
+
+### Limitations
+
+Counters are in memory, expire automatically, and reset on server restart.
+Multiple server processes do not share quotas. Use a shared store and edge
+controls before scaling; this is not distributed brute-force or DDoS protection.
+IP-only limits do not stop attacks from many different IPs, and users sharing a
+network share a budget. Account-aware risk controls and threshold tuning need
+deployment review without introducing easy account-lockout attacks. Password
+changes and other authenticated mutations are outside this slice.
+
 ## Remaining Slices
 
-1. Login/signup throttling with deployment-aware client IP handling.
-2. Session invalidation for password changes and logout across REST and sockets.
-3. Token storage, expiration, refresh, and associated CSRF/XSS protections.
-4. Password recovery, email verification, and reauthentication for email changes.
+1. Session invalidation for password changes and logout across REST and sockets.
+2. Token storage, expiration, refresh, and associated CSRF/XSS protections.
+3. Password recovery, email verification, and reauthentication for email changes.
 
 JWTs currently still last seven days and the browser still stores them in
 localStorage. Changing a password does not yet invalidate previously issued
@@ -67,6 +111,11 @@ Run `npm test` in both `server` and `client`, then `npm run lint` and
 `authValidation.test.js` covers malformed fields, selector rejection, normalization,
 duplicate races, password boundaries, legacy login, and password changes.
 `passwordPolicy.test.js` covers matching browser policy boundaries.
+Server `authRateLimit.test.js` covers quota boundaries, expiration, retry metadata,
+controller bypass, separate route budgets, forged forwarding headers, proxy trust,
+and IPv6 grouping. Client `authRateLimit.test.js` verifies retry metadata reaches
+the UI without automatic retries. Tests use real middleware with mocked auth
+controllers, not real accounts, for quota exhaustion.
 
 Manual review: register with a short password, then a valid passphrase; check that
 an existing account still signs in; change its password in Profile; verify old

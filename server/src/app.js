@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import authRoutes from './routes/authRoutes.js';
+import createAuthRoutes from './routes/authRoutes.js';
+import { trustedProxies } from './utils/trustedProxies.js';
 import boardRoutes from './routes/boardRoutes.js';
 import boardTemplateRoutes from './routes/boardTemplateRoutes.js';
 import workflowTemplateRoutes from './routes/workflowTemplateRoutes.js';
@@ -18,6 +19,7 @@ export function allowedClientOrigins() {
 
 export function createApp({ io } = {}) {
   const app = express();
+  app.set('trust proxy', trustedProxies());
   const clientOrigins = allowedClientOrigins();
 
   app.use(cors({
@@ -27,8 +29,8 @@ export function createApp({ io } = {}) {
 
   if (io) app.set('io', io);
 
+  app.use('/api/v1/auth', createAuthRoutes());
   app.use(express.json());
-  app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/integrations', githubIntegrationRoutes);
   app.use('/api/v1/workflow-templates', workflowTemplateRoutes);
   app.use('/api/v1/board-templates', boardTemplateRoutes);
