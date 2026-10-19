@@ -215,6 +215,6 @@ unsupported coordination environments. No credentials should appear in browser
 storage, URLs, logs, or cross-tab messages.
 
 The refresh-session model, atomic rotation, cookie/CSRF helpers, unmounted
-refresh/logout router, and REST/socket family validation are implemented.
-Next are login/account-action integration and then client coordination/cutover,
+refresh/logout router, REST/socket family validation, and opt-in login/account
+integration are implemented. Next are client coordination and deliberate cutover,
 not a full client/authentication rewrite in one iteration.

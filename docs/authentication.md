@@ -267,7 +267,7 @@ limits described above still apply.
    The [token lifecycle design review](token-lifecycle-design.md) proposes the
    next architecture. The [refresh-session foundation](refresh-session-foundation.md)
    implements storage, rotation, cookie/CSRF helpers, and REST/socket family
-   validation. Refresh endpoints and client integration are not enabled; existing
+   validation, plus opt-in login/account-action integration. Refresh endpoints and client integration are not enabled in the live app; existing
    login still issues legacy tokens. See the foundation guide for compatibility
    behavior and the remaining cutover requirements.
 2. Password recovery, email verification, and reauthentication for email changes.

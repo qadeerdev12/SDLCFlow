@@ -1,8 +1,9 @@
 # Refresh Session Foundation
 
-Status: REST/socket validation supports family-bound tokens; refresh/logout routes
-are still unmounted. Login continues issuing seven-day legacy tokens and browser
-storage is unchanged. No refresh cookies are issued by the live app.
+Status: the opt-in auth router supports issuance, account actions, refresh/logout,
+and REST/socket family validation. Live `createApp` still uses the legacy default:
+seven-day login tokens and unchanged browser storage. No refresh cookies are
+issued by the live app until the coordinated client cutover.
 
 ## Code Map
 
@@ -65,9 +66,8 @@ version and family validity before this flow is enabled.
 
 ## Next Slice and Verification
 
-Next: login/account-action integration, including refresh record cleanup on
-account deletion. Client refresh coordination and the intentional legacy-token
-cutover remain later steps. Do not connect issuance to live login prematurely.
+Next: client refresh coordination and the intentional legacy-token cutover.
+Do not connect issuance to live login prematurely.
 
 Run `npm test -- src/__tests__/refreshSessions.test.js` from `server` for focused
 coverage, or `npm test` for all server tests. No browser UI changes are expected
@@ -154,8 +154,8 @@ issuer `sdlcflow`, audience `sdlcflow-api`, purpose `access`, user ID, family `s
 and captured account version. Lifetime is at most 15 minutes and never exceeds
 the family's expiry. This helper does not replace the existing seven-day issuer.
 REST/socket validators now enforce these claims AND current family validity;
-signature validation alone is insufficient. The router remains unmounted until
-login/account actions and client coordination are ready together.
+signature validation alone is insufficient. The opt-in router now connects login
+and account actions; live activation still waits for client coordination.
 
 The logout service returns an internal session ID; after persistence succeeds,
 the router evicts that family's connected and pending sockets. Cookie-changing requests, including
@@ -170,11 +170,9 @@ new endpoints. Run it with `npm test -- src/__tests__/refreshRoutes.test.js`.
 
 ### Still Required Before Enabling
 
-1. Account-deletion cleanup of refresh records.
-2. Login/registration issuance and cookie handling for password/logout-all paths.
-3. Memory-only client tokens, cross-tab coordination, refresh bootstrap/retry,
+1. Memory-only client tokens, cross-tab coordination, refresh bootstrap/retry,
    socket renewal, and a deliberate rejection of legacy access tokens at cutover.
-4. Real-browser testing on the selected same-site deployment and dependency fixes.
+2. Real-browser testing on the selected same-site deployment and dependency fixes.
 
 This completes the endpoint-foundation slice, not the authentication migration.
 
@@ -230,3 +228,55 @@ claim rejection, family ownership/version/expiry, REST revocation, room cleanup,
 pending-handshake races, replay/exhaustion eviction, account-wide logout, database
 outages, idle expiry and legacy compatibility. Run it alongside
 `sessionTokens.test.js` and `socketSessions.test.js`, then the full server suite.
+
+## Login and Account-Action Integration
+
+`createAuthRoutes({ refresh: { origins, localHttp, environment } })` is the explicit
+server-construction option for the complete cookie-auth router. The default
+`createAuthRoutes()` retains legacy behavior, and `createApp` still uses that
+default. No request field or environment flag enables the new flow. Integration
+tests compose this router directly; users do not need to change their local env.
+
+The router owns `res.locals.refreshSecurity`. It applies the cookie/CSRF guard
+to login, signup, password changes, logout-all, and account deletion before body
+parsing. Refresh/logout retain their separate throttles and 1 KB parsing limit.
+Login/signup keep the existing throttles ahead of the guard and parser. All auth
+responses, including legacy responses and failures, now use no-store.
+
+`server/src/services/authSessionService.js` centralizes session issuance after
+credentials have been verified or registration succeeded. In legacy mode it
+returns the existing seven-day token. In opt-in mode it persists a refresh family,
+signs a short-lived access token using that family's captured account version,
+and sets its HttpOnly cookie. Login/signup JSON contains only token, access expiry,
+and explicit public user fields. Raw refresh credentials never enter JSON.
+
+If signing or cookie preparation fails, the unissued family is deleted. A storage
+failure does not clear existing cookies or revoke another session. Registration
+and family creation are not one transaction: if the account was created before
+session issuance failed, it remains available for a later login. Do not delete
+that account to roll back issuance. A lost success response can also leave a
+family until its seven-day expiry; no unsafe retry of a consumed token is added.
+
+Successful password changes and logout-all increment the account version using
+the existing atomic updates, disconnect old sockets, then clear the browser
+cookie in opt-in mode. Older families remain stored until TTL cleanup but cannot
+refresh because their captured version differs. No replacement session is issued.
+Failed verification/writes do not clear cookies; fresh login uses the new version.
+
+Account deletion cleans up that user's refresh records in both modes, after
+account removal and socket disconnection. It does not touch other users' records.
+The existing multi-collection deletion remains nontransactional: a cleanup failure
+may return an error after the account is already gone, but its credentials are
+unusable because account existence is checked. A concurrent login using an earlier
+account snapshot can leave an unusable record until TTL cleanup. This slice does
+not claim transactional deletion across all project data.
+
+The client must eventually serialize every cookie-changing action across tabs,
+including login, password changes, and logout-all, to prevent delayed successful
+responses from clearing/replacing a newer session's cookie. That coordination is
+still required before enabling this router in the live app.
+
+`server/src/__tests__/authSessionIntegration.test.js` exercises the opt-in router
+with disposable MongoDB and real Socket.IO connections. Coverage includes signup,
+login/refresh/logout, CSRF and throttling order, issuance failures, password and
+logout-all revocation, deletion isolation, and unchanged default legacy behavior.

@@ -8,8 +8,8 @@ import { revokeSocketFamily } from '../services/socketSessionService.js';
 
 export const REFRESH_REQUEST_LIMIT = 60;
 
-// Intentionally not mounted by createApp. Do not enable before
-// login/account integration and the coordinated client migration are implemented.
+// Composed by the opt-in auth router, but not enabled by createApp. Keep the
+// live default unchanged until the coordinated client migration is ready.
 export default function createRefreshRoutes(options) {
     const security = createRefreshSecurity(options);
     const router = express.Router();

@@ -1,4 +1,4 @@
-// Infrastructure for the future cookie-auth routes; deliberately not mounted yet.
+// Infrastructure for opt-in cookie-auth routes; live createApp stays legacy.
 // Keep these origins identical to the credentialed CORS allowlist at integration.
 export const REFRESH_CSRF_HEADER = 'X-SDLCFlow-CSRF';
 

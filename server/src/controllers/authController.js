@@ -1,4 +1,6 @@
-import { createSessionToken, sessionVersion } from '../utils/sessionTokens.js';
+import { sessionVersion } from '../utils/sessionTokens.js';
+import { issueAuthSession } from '../services/authSessionService.js';
+import RefreshSession from '../models/RefreshSession.js';
 import { revokeSocketSessions } from '../services/socketSessionService.js';
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
@@ -42,12 +44,12 @@ export async function register(req, res) {
         });
 
         // Newly created documents include the schema's sessionVersion default.
-        const token = createSessionToken(user);
+        const session = await issueAuthSession(user, res);
 
         //6. Send the token and user data in the response.
         res.status(201).json({
             data: {
-                token,
+                ...session,
                 user: { id: user._id, name: user.name, email: user.email }
             }
         });
@@ -85,10 +87,10 @@ export async function login(req, res)  {
             });
         }
         //6. Success! Generate a JWT and send it back with user data.
-        const token = createSessionToken(user);
+        const session = await issueAuthSession(user, res);
         return res.status(200).json({
             data: {
-                token,
+                ...session,
                 user: { id: user._id, name: user.name, email: user.email}
             }
          });
@@ -245,6 +247,7 @@ export async function updatePassword(req, res) {
 
         // Revoke live and in-flight socket sessions only after the atomic write.
         revokeSocketSessions(req.app.get('io'), user._id, version + 1);
+        res.locals.refreshSecurity?.clearCookie(res);
         // No replacement token: require a fresh login, including in this tab.
         return res.status(200).json({ data: { updated: true } });
     } catch (error) {
@@ -277,6 +280,7 @@ export async function logoutEverywhere(req, res) {
             });
         }
         revokeSocketSessions(req.app.get('io'), req.user._id, version + 1);
+        res.locals.refreshSecurity?.clearCookie(res);
         return res.status(200).json({ data: { loggedOut: true } });
     } catch (error) {
         return sendAuthError(res, error, 'An error occurred while logging out all sessions');
@@ -340,6 +344,11 @@ export async function deleteAccount(req, res) {
             User.deleteOne({ _id: user._id }),
         ]);
         disconnectUserSockets(io, user._id);
+
+        // Delete refresh records after the account is gone. Even if cleanup
+        // fails, account-existence checks already reject all its credentials.
+        await RefreshSession.deleteMany({ user: user._id });
+        res.locals.refreshSecurity?.clearCookie(res);
 
         return res.status(200).json({ data: { deleted: true } });
     } catch (error) {
