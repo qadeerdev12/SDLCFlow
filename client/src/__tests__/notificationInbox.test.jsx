@@ -241,6 +241,30 @@ function LocationProbe() {
 const bell = () => <MemoryRouter><NotificationBell /><LocationProbe /></MemoryRouter>
 
 describe('live notification bell', () => {
+  it('keeps the inbox open and rows visible during renewal, then resets on a new session', async () => {
+    useAuth.mockReturnValue({ token: 'old-token', sessionKey: 'same-session' })
+    notificationApi.list.mockResolvedValue(snapshot([item()]))
+    const view = render(bell())
+    await advance(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }))
+    await advance(0)
+    const region = screen.getByRole('region', { name: 'Notifications' })
+    const pending = deferred()
+    notificationApi.list.mockReturnValueOnce(pending.promise)
+    useAuth.mockReturnValue({ token: 'renewed-token', sessionKey: 'same-session' })
+    view.rerender(bell())
+    await advance(0)
+    expect(screen.getByRole('region', { name: 'Notifications' })).toBe(region)
+    expect(screen.getByRole('button', { name: 'Open Task task' })).toBeTruthy()
+    expect(notificationApi.list).toHaveBeenLastCalledWith('renewed-token')
+    useAuth.mockReturnValue({ token: 'other-token', sessionKey: 'new-session' })
+    view.rerender(bell())
+    await advance(0)
+    expect(screen.queryByRole('region', { name: 'Notifications' })).toBeNull()
+    await act(async () => pending.resolve(snapshot([item('stale')], 99)))
+    expect(screen.queryByRole('button', { name: 'Notifications, 99 unread' })).toBeNull()
+  })
+
   it('updates while closed, stays open on live updates, and does not create sockets when toggled', async () => {
     render(bell())
     await advance(0)

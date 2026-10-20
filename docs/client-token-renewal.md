@@ -66,10 +66,8 @@ Before enabling memory mode:
 
 - Account actions now use coordinated mutations and await logout completion;
   see [Account Action Integration](account-action-integration.md).
-- Replace token-based React keys with a stable session identity. BoardPage,
-  ActivityPage, NotificationBell and the TaskDraftPanel mount currently use token
-  keys, so rotation would reset their local state. Preserve reset-on-account-change
-  behavior while retaining drafts and panels during same-account renewal.
+- Stable session keys now preserve UI during renewal while resetting on sign-in;
+  see [Session UI Lifetime](session-ui-lifetime.md) for component boundaries and tests.
 - Complete coordinated server/client cutover, including legacy credential removal.
 - Verify real-browser multi-tab rotation, open drafts, reconnect/rejoin and
   notification recovery against a running refresh-enabled server.

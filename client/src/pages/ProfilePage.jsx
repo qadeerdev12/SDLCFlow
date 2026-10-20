@@ -29,6 +29,11 @@ function initials(name) {
 }
 
 export default function ProfilePage() {
+  const { sessionKey, token } = useAuth()
+  return <ProfileSession key={sessionKey ?? token} />
+}
+
+function ProfileSession() {
   const { user, token, updatePassword, logoutEverywhere, deleteAccount, updateUser } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
@@ -62,13 +67,14 @@ export default function ProfilePage() {
   const logoutPending = useRef(false)
   const passwordPending = useRef(false)
   const deletePending = useRef(false)
+  const profileLoaded = useRef(false)
 
   useEffect(() => {
     let cancelled = false
 
     async function loadAccount() {
       try {
-        setLoading(true)
+        if (!profileLoaded.current) setLoading(true)
         setGithubLoading(true)
         setError('')
         setGithubError('')
@@ -79,8 +85,12 @@ export default function ProfilePage() {
         if (!cancelled) {
           setProfile(profileRes.data)
           setGithubAccount(githubRes.data.account)
-          setName(profileRes.data.user.name || '')
-          setEmail(profileRes.data.user.email || '')
+          // Renewal may reload account details, but must not overwrite edits.
+          if (!profileLoaded.current) {
+            setName(profileRes.data.user.name || '')
+            setEmail(profileRes.data.user.email || '')
+            profileLoaded.current = true
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err.message)

@@ -17,10 +17,10 @@ function timeLabel(value) {
 }
 
 export default function NotificationBell({ onOpen }) {
-  const { token } = useAuth()
+  const { token, sessionKey } = useAuth()
   const { pathname } = useLocation()
   // Remount on account or page changes, discarding private cached inbox state.
-  return token ? <InboxBell key={`${token}:${pathname}`} token={token} onOpen={onOpen} /> : null
+  return token ? <InboxBell key={`${sessionKey ?? token}:${pathname}`} token={token} onOpen={onOpen} /> : null
 }
 
 function InboxBell({ token, onOpen }) {

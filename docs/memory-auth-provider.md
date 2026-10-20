@@ -2,8 +2,8 @@
 
 Status: implemented behind `AuthProvider mode="memory"`, with provider and
 coordinator tests. The application's default is still `legacy`. Do not switch
-the live application until token-keyed UI lifetimes are migrated together with
-the server. Account-action UI integration and API/socket renewal are implemented for
+the live application until coordinated server/client cutover and browser checks.
+Stable UI session keys, account-action UI integration and API/socket renewal are implemented for
 memory mode; see [Client Token Renewal](client-token-renewal.md).
 
 ## Responsibilities and Design Decisions
@@ -103,7 +103,7 @@ network recovery, rate-limit delay, login/signup, logout failures, late response
 cross-tab messages and migration compatibility. These are unit/integration tests,
 not a claim of real-browser multi-tab verification.
 
-Next: stable session keys, then the coordinated
-server/client cutover and real-browser checks. Memory-mode transports intercept
+See [Session UI Lifetime](session-ui-lifetime.md) for stable React keys.
+Next: coordinated server/client cutover and real-browser checks. Memory-mode transports intercept
 the first explicit expiry rejection for renewal; legacy mode retains its terminal
 session-failure behavior.

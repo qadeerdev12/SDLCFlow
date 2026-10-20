@@ -67,6 +67,7 @@ The local epoch is a client race guard, not the server's `sessionVersion`.
   confirmation, pending, failure and navigation behavior.
 
 Tests use simulated coordination, fetch and sockets; real-browser verification is
-still required. Next, replace token-based React keys with stable session identity
-before coordinated server/client cutover. This preserves drafts during renewal
-while still resetting private UI on an account change.
+still required. Stable session identity is now implemented; see
+[Session UI Lifetime](session-ui-lifetime.md). Next is coordinated server/client
+cutover. UI keys preserve drafts during renewal while still resetting private UI
+on an account change.

@@ -31,14 +31,15 @@ import ProjectSummaryPanel from '../components/board/ProjectSummaryPanel'
 
 export default function BoardPage() {
   const { boardId } = useParams()
-  const { user, token } = useAuth()
+  const { user, token, sessionKey } = useAuth()
   // React otherwise reuses this route's state across project navigation. A fresh
   // session also isolates drafts, modals, permissions, and socket subscriptions.
   // Query-only changes (chat/GitHub/card deep links) keep the existing session.
-  return <BoardSession key={`${boardId}:${token}`} boardId={boardId} user={user} token={token} />
+  const identity = sessionKey ?? token
+  return <BoardSession key={`${boardId}:${identity}`} boardId={boardId} user={user} token={token} sessionKey={identity} />
 }
 
-function BoardSession({ boardId, user, token }) {
+function BoardSession({ boardId, user, token, sessionKey }) {
   const beginRead = useLatestRequest()
   const toast = useToast()
   const navigate = useNavigate()
@@ -357,7 +358,8 @@ function BoardSession({ boardId, user, token }) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadBoard()
+      // Initial state already shows loading. Renewal must not unmount editors.
+      loadBoard({ keepLoading: true })
     }, 0)
     return () => clearTimeout(timer)
   }, [loadBoard])
@@ -1325,6 +1327,7 @@ function BoardSession({ boardId, user, token }) {
           lists={activeLists}
           members={members}
           token={token}
+          sessionKey={sessionKey}
           connected={connected}
           emitWithAck={emitWithAck}
           onSocketEvent={onSocketEvent}

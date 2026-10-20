@@ -14,6 +14,7 @@ export function useNotificationInbox(token) {
   const [pendingRead, setPendingRead] = useState(null)
   const [actionError, setActionError] = useState('')
   const session = useRef(null)
+  const hasSnapshot = useRef(false)
   // This connection belongs to the inbox, not a board room. It stays active even
   // when the popover is closed, and useSocket disconnects it on account/unmount.
   const { onSocketEvent } = useSocket(token)
@@ -26,7 +27,7 @@ export function useNotificationInbox(token) {
     let writing = false
     let paging = false
     let dirty = false
-    let loaded = false
+    let loaded = hasSnapshot.current
     let cursor = null
     let refreshTimer = null
 
@@ -64,6 +65,7 @@ export function useNotificationInbox(token) {
         if (!active || id !== generation) return
         cursor = data.nextCursor
         loaded = true
+        hasSnapshot.current = true
         setNotifications(data.notifications)
         setUnreadCount(data.unreadCount)
         setNextCursor(cursor)
@@ -73,6 +75,7 @@ export function useNotificationInbox(token) {
         // Failed authorization/network refreshes must not leave a confidently
         // stale badge or potentially inaccessible project details in the inbox.
         cursor = null
+        hasSnapshot.current = false
         setNotifications([])
         setNextCursor(null)
         setUnreadCount(null)
@@ -152,7 +155,12 @@ export function useNotificationInbox(token) {
     ]
     // REST also works when the socket cannot connect. Subscribe before fetching
     // so a signal arriving during this initial request is queued, not missed.
-    const initialTimer = setTimeout(() => refresh({ background: false }), 0)
+    const initialTimer = setTimeout(() => {
+      // A renewed token replaces transport work, not the open inbox UI. Drop
+      // stale pending indicators whose old effect can no longer settle them.
+      setPendingRead(null)
+      refresh({ background: loaded })
+    }, 0)
     return () => {
       active = false
       ++generation

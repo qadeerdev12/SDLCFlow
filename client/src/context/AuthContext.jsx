@@ -132,7 +132,8 @@ function LegacyAuthProvider({children}) {
         setValidationAttempt((attempt) => attempt + 1);
     }
 
-    const value = {user, token, loading, login, register, logout, updateUser, sessionMessage, authError, retrySession,
+    // Legacy credentials do not rotate; retain its existing token-keyed lifetime.
+    const value = {user, token, sessionKey: token, loading, login, register, logout, updateUser, sessionMessage, authError, retrySession,
         updatePassword, logoutEverywhere, deleteAccount};
     
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

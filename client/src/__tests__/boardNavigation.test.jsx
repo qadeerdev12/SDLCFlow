@@ -57,6 +57,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.resetAllMocks()
   mocks.auth.token = 'token'
+  delete mocks.auth.sessionKey
   mocks.socket.connected = false
   mocks.socket.emitWithAck.mockResolvedValue({ presence: [] })
   mocks.socket.onSocketEvent.mockImplementation(() => () => {})
@@ -114,6 +115,33 @@ describe('REST create response and socket echo', () => {
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe('project request isolation', () => {
+  it('preserves a draft through token renewal, but resets it for a new sign-in', async () => {
+    mocks.auth.sessionKey = 'session-one'
+    const populated = () => ({ data: { ...snapshot('alpha').data,
+      lists: [{ _id: 'list', workflow: 'alpha-workflow', title: 'Todo', position: 1000 }] } })
+    mocks.boardApi.getOne.mockImplementation(async () => populated())
+    const view = render(tree())
+    await settle()
+    const input = screen.getByLabelText('Add list to active workflow')
+    fireEvent.change(input, { target: { value: 'Unfinished list' } })
+    const pending = deferred()
+    mocks.boardApi.getOne.mockReturnValueOnce(pending.promise)
+    mocks.auth.token = 'renewed-token'
+    view.rerender(tree())
+    await settle()
+    expect(screen.getByLabelText('Add list to active workflow')).toBe(input)
+    expect(input.value).toBe('Unfinished list')
+    expect(mocks.boardApi.getOne).toHaveBeenLastCalledWith('alpha', 'renewed-token')
+    await act(async () => pending.resolve(populated()))
+    await settle()
+    expect(input.value).toBe('Unfinished list')
+    mocks.auth.sessionKey = 'session-two'
+    view.rerender(tree())
+    await settle()
+    expect(screen.getByLabelText('Add list to active workflow')).not.toBe(input)
+    expect(screen.getByLabelText('Add list to active workflow').value).toBe('')
+  })
+
   it('unmounts a revoked project but ignores revocation for another project', async () => {
     mocks.socket.connected = true
     const handlers = new Map()

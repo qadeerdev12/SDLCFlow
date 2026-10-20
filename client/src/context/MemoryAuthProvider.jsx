@@ -5,7 +5,7 @@ import { createRefreshCoordinator } from '../lib/refreshCoordinator'
 import { isSessionError, onSessionFailure } from '../lib/sessionEvents'
 import { registerSessionRenewal } from '../lib/sessionRenewal'
 
-const emptySession = { user: null, token: null, expiresAt: null, loading: true,
+const emptySession = { user: null, token: null, sessionKey: null, expiresAt: null, loading: true,
   authError: '', sessionMessage: '', needsSignIn: false }
 const validUser = (user) => user && typeof user.id === 'string' && typeof user.name === 'string'
 
@@ -23,6 +23,7 @@ export function MemoryAuthProvider({ children }) {
     let retryAt = 0
     let familyEpoch = 0, transitioning = false, expiresAt = null
     let endingMutation = null
+    let sessionKey = null
     const issuedTokens = new Set()
     const update = (patch) => {
       if (!active) return
@@ -30,6 +31,7 @@ export function MemoryAuthProvider({ children }) {
       if ('user' in patch) user = patch.user
       if ('needsSignIn' in patch) needsSignIn = patch.needsSignIn
       if ('expiresAt' in patch) expiresAt = patch.expiresAt
+      if ('sessionKey' in patch) sessionKey = patch.sessionKey
       setSession((current) => ({ ...current, ...patch }))
     }
     const current = (expected) => active && version === expected
@@ -71,7 +73,10 @@ export function MemoryAuthProvider({ children }) {
         const nextUser = validUser(data.user) ? data.user : action === 'refresh' ? user : null
         // Commit the token synchronously while the cookie lock is held. /me is
         // read-only and runs outside the cookie lifecycle, guarded by version.
-        update({ token: data.token, expiresAt: data.expiresAt, user: nextUser,
+        // This non-secret UI identity outlives token rotation, not a sign-in.
+        // Even signing into the same account again must discard old drafts.
+        const nextSessionKey = action === 'refresh' && sessionKey ? sessionKey : crypto.randomUUID()
+        update({ token: data.token, sessionKey: nextSessionKey, expiresAt: data.expiresAt, user: nextUser,
           loading: !nextUser, authError: '', sessionMessage: '', needsSignIn: false })
         if (!nextUser) void loadUser(data.token, nextVersion)
       },

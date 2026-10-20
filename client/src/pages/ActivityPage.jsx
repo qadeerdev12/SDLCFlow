@@ -8,8 +8,8 @@ import { useLatestRequest } from '../hooks/useLatestRequest'
 
 export default function ActivityPage() {
   const { boardId } = useParams()
-  const { token } = useAuth()
-  return <ActivitySession key={`${boardId || 'all'}:${token}`} boardId={boardId} token={token} />
+  const { token, sessionKey } = useAuth()
+  return <ActivitySession key={`${boardId || 'all'}:${sessionKey ?? token}`} boardId={boardId} token={token} />
 }
 
 function ActivitySession({ boardId, token }) {

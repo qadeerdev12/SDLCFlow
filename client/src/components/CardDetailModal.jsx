@@ -71,6 +71,7 @@ export default function CardDetailModal({
   lists,
   members = [],
   token,
+  sessionKey,
   connected,
   emitWithAck,
   onSocketEvent,
@@ -370,7 +371,7 @@ export default function CardDetailModal({
             />
           </label>
 
-          <TaskDraftPanel key={`${card._id}:${token}`} boardId={boardId} card={card} token={token} title={title}
+          <TaskDraftPanel key={`${card._id}:${sessionKey ?? token}`} boardId={boardId} card={card} token={token} title={title}
             disabled={saving || deleting} onSave={onSave} onApplying={setAiApplying}
             onUse={(draft) => { setDescription(draft.description); setTag(draft.tag) }} />
 

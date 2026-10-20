@@ -45,6 +45,23 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('opt-in memory authentication provider', () => {
+  it('keeps a non-secret UI identity through renewal but replaces it on every sign-in', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    const initialKey = result.current.sessionKey
+    expect(initialKey).toBeTruthy()
+    expect(initialKey).not.toBe(result.current.token)
+    fetchMock.mockResolvedValueOnce(response({ data: access('renewed-token') }))
+    await act(async () => renewExpiredSession('memory-token'))
+    expect(result.current.sessionKey).toBe(initialKey)
+    fetchMock.mockResolvedValueOnce(response({ data: access('login-token', user) }))
+    await act(async () => result.current.login(user.email, 'password'))
+    expect(result.current.sessionKey).not.toBe(initialKey)
+    expect(JSON.stringify(localStorage)).not.toContain(result.current.sessionKey)
+    act(() => reportSessionFailure('login-token', 'SESSION_INVALIDATED'))
+    expect(result.current.sessionKey).toBeNull()
+  })
+
   it.each([
     ['updatePassword', ['old password', 'new passphrase'], 'password', 'PATCH', { updated: true }],
     ['logoutEverywhere', [], 'logout-all', 'POST', { loggedOut: true }],
