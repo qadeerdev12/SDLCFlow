@@ -1,5 +1,4 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import express from 'express';
 import { createServer } from 'node:http';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
@@ -8,7 +7,6 @@ import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { Server } from 'socket.io';
 import { io as createClient } from 'socket.io-client';
-import createAuthRoutes from '../routes/authRoutes.js';
 import { createApp } from '../app.js';
 import { configureSockets } from '../socket.js';
 import User from '../models/User.js';
@@ -22,6 +20,7 @@ const password = 'original integration passphrase';
 const email = 'integration@example.com';
 beforeAll(async () => {
     vi.stubEnv('JWT_SECRET', 'auth-integration-secret');
+    vi.stubEnv('CLIENT_ORIGIN', origin);
     mongo = await MongoMemoryServer.create();
     await mongoose.connect(mongo.getUri());
 }, 60_000);
@@ -35,8 +34,8 @@ afterEach(async () => {
 afterAll(async () => { vi.unstubAllEnvs(); await mongoose.disconnect(); await mongo?.stop(); });
 
 async function fixture() {
-    const app = express();
-    app.use('/api/v1/auth', createAuthRoutes({ refresh: { origins: [origin] } }));
+    // Exercise the real app composition, not only an isolated auth router.
+    const app = createApp({ refresh: {} });
     const http = createServer(app);
     io = new Server(http);
     app.set('io', io);

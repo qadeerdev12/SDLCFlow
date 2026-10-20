@@ -7,7 +7,8 @@ import createRefreshRoutes from './refreshRoutes.js';
 
 
 // refresh is an explicit server-construction option for integration tests and
-// the future client cutover. createApp deliberately keeps the legacy default.
+// the future client cutover. createApp forwards opt-in options but stays legacy
+// by default; it supplies the same origins used by credentialed CORS.
 export default function createAuthRoutes({ refresh = null } = {}) {
   const router = express.Router();
   const security = refresh ? createRefreshSecurity(refresh) : null;

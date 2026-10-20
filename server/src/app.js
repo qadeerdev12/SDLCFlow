@@ -17,7 +17,15 @@ export function allowedClientOrigins() {
     .filter(Boolean);
 }
 
-export function createApp({ io } = {}) {
+export function createApp({ io, refresh = null } = {}) {
+  // Construction-only migration option, never selected from request data.
+  // The live entry point stays legacy until the coordinated client cutover.
+  if (refresh !== null && (typeof refresh !== 'object' || Array.isArray(refresh))) {
+    throw new Error('Refresh configuration must be an explicit options object');
+  }
+  if (refresh && Object.hasOwn(refresh, 'origins')) {
+    throw new Error('Configure refresh origins through CLIENT_ORIGIN, not a separate allowlist');
+  }
   const app = express();
   app.set('trust proxy', trustedProxies());
   const clientOrigins = allowedClientOrigins();
@@ -29,7 +37,10 @@ export function createApp({ io } = {}) {
 
   if (io) app.set('io', io);
 
-  app.use('/api/v1/auth', createAuthRoutes());
+  // Cookie guards and credentialed CORS must agree on the exact origin set.
+  app.use('/api/v1/auth', createAuthRoutes({
+    refresh: refresh ? { ...refresh, origins: clientOrigins } : null,
+  }));
   app.use(express.json());
   app.use('/api/v1/integrations', githubIntegrationRoutes);
   app.use('/api/v1/workflow-templates', workflowTemplateRoutes);

@@ -59,3 +59,6 @@ Before deployment, verify real-browser rotation while editing cards, AI briefs,
 profile fields and chat, including multiple tabs, revocation and reconnects.
 Next is the coordinated server/client cutover and legacy credential removal, not
 an assumption that these tests alone establish production readiness.
+
+See [Cutover Readiness](auth-cutover-readiness.md) for the full-app server wiring,
+deployment-origin constraints and remaining activation steps.
