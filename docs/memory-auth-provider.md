@@ -2,8 +2,8 @@
 
 Status: implemented behind `AuthProvider mode="memory"`, with provider and
 coordinator tests. The application's default is still `legacy`. Do not switch
-the live application until account-action call sites and token-keyed UI lifetimes
-are migrated together with the server. API/socket renewal is now implemented for
+the live application until token-keyed UI lifetimes are migrated together with
+the server. Account-action UI integration and API/socket renewal are implemented for
 memory mode; see [Client Token Renewal](client-token-renewal.md).
 
 ## Responsibilities and Design Decisions
@@ -74,11 +74,12 @@ session invalidation. An ambiguous failure rejects and retains current memory
 state rather than claiming server revocation happened. A supplied old token
 cannot trigger logout of the current session.
 
-**Integration blocker:** AppHeader still assumes synchronous local logout, and
-ProfilePage still calls the legacy account APIs directly. Their handlers must
-await coordinated mutations and handle rejection before enabling memory mode.
-Password/logout-all/deletion UI wiring remains a later slice, not silently fixed
-by mounting this provider.
+AppHeader awaits logout and displays a pending state or error before navigating.
+ProfilePage uses the provider's `updatePassword`, `logoutEverywhere` and
+`deleteAccount` actions, rather than combining a direct API call with a second
+logout. The legacy provider implements the same interface using existing bearer
+endpoints. See [Account Action Integration](account-action-integration.md) for
+the socket-revocation race and verification details.
 
 ### Handle Other Tabs Without Refresh Storms
 
@@ -102,7 +103,7 @@ network recovery, rate-limit delay, login/signup, logout failures, late response
 cross-tab messages and migration compatibility. These are unit/integration tests,
 not a claim of real-browser multi-tab verification.
 
-Next: account-action UI integration and stable session keys, then the coordinated
+Next: stable session keys, then the coordinated
 server/client cutover and real-browser checks. Memory-mode transports intercept
 the first explicit expiry rejection for renewal; legacy mode retains its terminal
 session-failure behavior.

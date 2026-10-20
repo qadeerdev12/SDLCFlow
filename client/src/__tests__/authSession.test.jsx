@@ -16,6 +16,22 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals() })
 const hook = () => renderHook(() => useAuth(), { wrapper: AuthProvider })
 
+it.each([
+  ['updatePassword', ['current passphrase', 'new passphrase'], '/auth/password'],
+  ['logoutEverywhere', [], '/auth/logout-all'],
+  ['deleteAccount', ['current passphrase'], '/auth/me'],
+])('clears legacy credentials after confirmed %s without a second logout', async (action, args, path) => {
+  const { result } = hook()
+  await waitFor(() => expect(result.current.user).toEqual(user))
+  fetchMock.mockResolvedValueOnce(response({ data: {} }))
+  await act(async () => result.current[action](...args))
+  expect(fetchMock.mock.calls.at(-1)[0]).toContain(path)
+  expect(fetchMock.mock.calls.at(-1)[1].headers.Authorization).toBe('Bearer old-token')
+  expect(result.current.token).toBeNull()
+  expect(localStorage.getItem('token')).toBeNull()
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+})
+
 it('clears user and token on a protected REST session failure', async () => {
   const { result } = hook()
   await waitFor(() => expect(result.current.user).toEqual(user))

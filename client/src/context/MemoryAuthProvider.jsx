@@ -22,6 +22,7 @@ export function MemoryAuthProvider({ children }) {
     let active = true, version = 0, token = null, user = null, needsSignIn = false
     let retryAt = 0
     let familyEpoch = 0, transitioning = false, expiresAt = null
+    let endingMutation = null
     const issuedTokens = new Set()
     const update = (patch) => {
       if (!active) return
@@ -32,12 +33,12 @@ export function MemoryAuthProvider({ children }) {
       setSession((current) => ({ ...current, ...patch }))
     }
     const current = (expected) => active && version === expected
-    const clear = (message = '') => {
+    const clear = (message = '', invalidate = true) => {
       version++
       familyEpoch++
       transitioning = false
       issuedTokens.clear()
-      coordinator.invalidate()
+      if (invalidate) coordinator.invalidate()
       update({ ...emptySession, loading: false, sessionMessage: message })
     }
 
@@ -108,16 +109,34 @@ export function MemoryAuthProvider({ children }) {
     }
 
     async function mutate(action, body = {}) {
+      // Protected account actions need a current bearer as well as the cookie.
+      // Renew before starting their mutation; never blindly replay a mutation.
+      if (['password', 'logoutAll', 'deleteAccount'].includes(action)) {
+        if (!token) throw Object.assign(new Error('Please sign in again.'), { code: 'AUTH_OPERATION_STALE' })
+        if (Date.parse(expiresAt) <= Date.now()) {
+          const expectedFamily = familyEpoch
+          const renewedToken = await renew(token)
+          if (familyEpoch !== expectedFamily || token !== renewedToken || !active) {
+            throw Object.assign(new Error('Session changed before account action.'), { code: 'AUTH_OPERATION_STALE' })
+          }
+        }
+      }
       const expectedVersion = ++version // Invalidate an outstanding /me immediately.
       const expectedEpoch = ++familyEpoch
+      const ending = ['logout', 'password', 'logoutAll', 'deleteAccount'].includes(action)
+      const operation = ending ? { epoch: expectedEpoch } : null
+      endingMutation = operation
       transitioning = true
       update({ authError: '', sessionMessage: '' })
       try {
         return await coordinator.mutate(action, { body, token })
       } catch (error) {
-        failed(error, expectedVersion)
+        if (current(expectedVersion) && isSessionError(error.code) && error.code !== 'SESSION_EXPIRED') {
+          clear('Your session ended. Please sign in again.')
+        } else failed(error, expectedVersion)
         throw error // Login forms must not navigate as though a failed login succeeded.
       } finally {
+        if (endingMutation === operation) endingMutation = null
         if (familyEpoch === expectedEpoch) transitioning = false
       }
     }
@@ -150,6 +169,9 @@ export function MemoryAuthProvider({ children }) {
       login: (email, password) => mutate('login', { email, password }),
       register: (name, email, password) => mutate('register', { name, email, password }),
       logout: (expectedToken = token) => expectedToken === token ? mutate('logout') : Promise.resolve(),
+      updatePassword: (currentPassword, newPassword) => mutate('password', { currentPassword, newPassword }),
+      logoutEverywhere: () => mutate('logoutAll'),
+      deleteAccount: (password) => mutate('deleteAccount', { password }),
       retrySession: async () => {
         if (!active || needsSignIn || Date.now() < retryAt) return
         if (token) {
@@ -162,7 +184,12 @@ export function MemoryAuthProvider({ children }) {
     }
     actionsRef.current = actions
     const unsubscribe = onSessionFailure(({ token: failedToken }) => {
-      if (active && token && failedToken === token) clear('Your session ended. Please sign in again.')
+      if (active && token && failedToken === token) {
+        // Our account action can revoke sockets before its HTTP response arrives.
+        // Clear private state immediately but let that action receive confirmation.
+        const awaitingConfirmation = endingMutation?.epoch === familyEpoch
+        clear('Your session ended. Please sign in again.', !awaitingConfirmation)
+      }
     })
     const unregisterRenewal = registerSessionRenewal({ renew,
       isCurrent: (candidate) => active && !transitioning && token === candidate && issuedTokens.has(candidate),
@@ -185,6 +212,9 @@ export function MemoryAuthProvider({ children }) {
   return <AuthContext.Provider value={{ ...session,
     login: (...args) => invoke('login', ...args), register: (...args) => invoke('register', ...args),
     logout: (...args) => invoke('logout', ...args), retrySession: () => invoke('retrySession'),
+    updatePassword: (...args) => invoke('updatePassword', ...args),
+    logoutEverywhere: () => invoke('logoutEverywhere'),
+    deleteAccount: (...args) => invoke('deleteAccount', ...args),
     updateUser: (updates) => invoke('updateUser', updates),
   }}>{children}</AuthContext.Provider>
 }

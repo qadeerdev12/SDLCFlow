@@ -29,7 +29,7 @@ function initials(name) {
 }
 
 export default function ProfilePage() {
-  const { user, token, logout, updateUser } = useAuth()
+  const { user, token, updatePassword, logoutEverywhere, deleteAccount, updateUser } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -60,6 +60,8 @@ export default function ProfilePage() {
   const [loggingOutEverywhere, setLoggingOutEverywhere] = useState(false)
   const [logoutError, setLogoutError] = useState('')
   const logoutPending = useRef(false)
+  const passwordPending = useRef(false)
+  const deletePending = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -128,23 +130,25 @@ export default function ProfilePage() {
 
   async function handleDeleteAccount(e) {
     e.preventDefault()
-    if (!canDelete) return
+    if (!canDelete || deletePending.current) return
     setDeleteConfirmOpen(true)
   }
 
   async function confirmDeleteAccount() {
-    if (!canDelete) return
+    if (!canDelete || deletePending.current) return
+    deletePending.current = true
     setDeleting(true)
     setDeleteError('')
     try {
-      await authApi.deleteAccount(password, token)
+      await deleteAccount(password)
       toast.success('Account deleted')
-      logout()
       navigate('/register')
     } catch (err) {
       setDeleteError(err.message)
       toast.error('Could not delete account', err.message)
       setDeleting(false)
+    } finally {
+      deletePending.current = false
     }
   }
 
@@ -175,30 +179,30 @@ export default function ProfilePage() {
 
   async function handleSavePassword(e) {
     e.preventDefault()
-    if (!canSavePassword) return
+    if (!canSavePassword || passwordPending.current) return
     const validationError = newPasswordError(newPassword)
     if (validationError) {
       setPasswordError(validationError)
       return
     }
 
+    passwordPending.current = true
     setSavingPassword(true)
     setPasswordMessage('')
     setPasswordError('')
     try {
-      await authApi.updatePassword(currentPassword, newPassword, token)
+      await updatePassword(currentPassword, newPassword)
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      // The successful change invalidates this token too. Clear local auth now
-      // instead of leaving the profile open with unusable API credentials.
-      logout(token)
+      // The provider owns revocation and local cleanup in either auth mode.
       navigate('/login', { replace: true })
       toast.success('Password updated', 'Sign in again using your new password.')
     } catch (err) {
       setPasswordError(err.message)
       toast.error('Could not update password', err.message)
     } finally {
+      passwordPending.current = false
       setSavingPassword(false)
     }
   }
@@ -210,10 +214,7 @@ export default function ProfilePage() {
     setLoggingOutEverywhere(true)
     setLogoutError('')
     try {
-      await authApi.logoutEverywhere(token)
-      // The socket event may already have cleared this session. Target the
-      // original token so a late response cannot erase a newer login.
-      logout(token)
+      await logoutEverywhere()
       navigate('/login', { replace: true })
       toast.success('Logged out everywhere', 'Sign in again to continue.')
     } catch (err) {

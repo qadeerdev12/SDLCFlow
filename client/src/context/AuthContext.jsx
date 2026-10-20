@@ -5,7 +5,7 @@ import { isSessionError, onSessionFailure, reportSessionFailure } from '../lib/s
 import { MemoryAuthProvider } from './MemoryAuthProvider';
 
 // Explicit construction boundary, not a localStorage/env switch. The app keeps
-// legacy mode until API/socket renewal and account-action call sites are ready.
+// legacy mode until coordinated server/client cutover and browser verification.
 export function AuthProvider({ children, mode = 'legacy' }) {
     if (mode === 'memory') return <MemoryAuthProvider>{children}</MemoryAuthProvider>;
     if (mode !== 'legacy') throw new Error('Unknown authentication mode');
@@ -105,6 +105,22 @@ function LegacyAuthProvider({children}) {
         clearSession(expectedToken);
     }
 
+    // Keep UI policy mode-independent. Legacy requests still use bearer auth;
+    // only the memory provider owns cookie-coordinated account mutations.
+    async function endAccountSession(request) {
+        const expectedToken = tokenRef.current;
+        await request(expectedToken);
+        if (tokenRef.current && tokenRef.current !== expectedToken) {
+            throw Object.assign(new Error('Your session changed. Please check the current account.'), { code: 'AUTH_OPERATION_STALE' });
+        }
+        clearSession(expectedToken);
+    }
+
+    const updatePassword = (currentPassword, newPassword) =>
+        endAccountSession((accessToken) => authApi.updatePassword(currentPassword, newPassword, accessToken));
+    const logoutEverywhere = () => endAccountSession(authApi.logoutEverywhere);
+    const deleteAccount = (password) => endAccountSession((accessToken) => authApi.deleteAccount(password, accessToken));
+
     function updateUser(nextUser) {
         setUser((current) => ({ ...current, ...nextUser }));
     }
@@ -116,7 +132,8 @@ function LegacyAuthProvider({children}) {
         setValidationAttempt((attempt) => attempt + 1);
     }
 
-    const value = {user, token, loading, login, register, logout, updateUser, sessionMessage, authError, retrySession};
+    const value = {user, token, loading, login, register, logout, updateUser, sessionMessage, authError, retrySession,
+        updatePassword, logoutEverywhere, deleteAccount};
     
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

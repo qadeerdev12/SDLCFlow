@@ -64,7 +64,8 @@ socket replacement, stale acknowledgements and no timeout replay.
 
 Before enabling memory mode:
 
-- Wire account actions through coordinated mutations and await logout completion.
+- Account actions now use coordinated mutations and await logout completion;
+  see [Account Action Integration](account-action-integration.md).
 - Replace token-based React keys with a stable session identity. BoardPage,
   ActivityPage, NotificationBell and the TaskDraftPanel mount currently use token
   keys, so rotation would reset their local state. Preserve reset-on-account-change

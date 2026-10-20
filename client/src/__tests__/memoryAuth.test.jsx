@@ -45,6 +45,83 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('opt-in memory authentication provider', () => {
+  it.each([
+    ['updatePassword', ['old password', 'new passphrase'], 'password', 'PATCH', { updated: true }],
+    ['logoutEverywhere', [], 'logout-all', 'POST', { loggedOut: true }],
+    ['deleteAccount', ['old password'], 'me', 'DELETE', { deleted: true }],
+  ])('coordinates %s and accepts HTTP confirmation after socket revocation', async (action, args, path, method, confirmation) => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    const pending = deferred()
+    fetchMock.mockReturnValueOnce(pending.promise)
+    let operation
+    await act(async () => {
+      operation = result.current[action](...args)
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    })
+    expect(fetchMock.mock.calls[2][0]).toContain(`/auth/${path}`)
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({
+      method, credentials: 'include',
+      headers: { Authorization: 'Bearer memory-token', 'X-SDLCFlow-CSRF': '1' },
+    })
+    act(() => reportSessionFailure('memory-token', 'SESSION_INVALIDATED'))
+    expect(result.current.token).toBeNull()
+    await act(async () => {
+      pending.resolve(response({ data: confirmation }))
+      await expect(operation).resolves.toEqual(confirmation)
+    })
+    expect(result.current.user).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps the session after a rejected account password and does not call logout', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    fetchMock.mockResolvedValueOnce(response({ error: { code: 'INVALID_CREDENTIALS', message: 'Incorrect password' } }, 401))
+    await act(async () => {
+      await expect(result.current.deleteAccount('wrong')).rejects.toHaveProperty('code', 'INVALID_CREDENTIALS')
+    })
+    expect(result.current.token).toBe('memory-token')
+    expect(result.current.user).toEqual(user)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('renews an expired bearer before sending a protected account action', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    const now = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(now + 901000)
+    fetchMock.mockResolvedValueOnce(response({ data: access('renewed-token') }))
+      .mockResolvedValueOnce(response({ data: { updated: true } }))
+    await act(async () => result.current.updatePassword('old password', 'new passphrase'))
+    expect(fetchMock.mock.calls[2][0]).toContain('/auth/refresh')
+    expect(fetchMock.mock.calls[3][1].headers.Authorization).toBe('Bearer renewed-token')
+    expect(result.current.token).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('does not clear a new login after an older account action completes', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    const pending = deferred()
+    fetchMock.mockReturnValueOnce(pending.promise)
+    let operation
+    await act(async () => {
+      operation = result.current.logoutEverywhere()
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    })
+    const rejected = expect(operation).rejects.toHaveProperty('code', 'AUTH_OPERATION_STALE')
+    fetchMock.mockResolvedValueOnce(response({ data: access('new-token', { ...user, id: 'two' }) }))
+    await act(async () => {
+      const login = result.current.login('new@example.com', 'password')
+      pending.resolve(response({ data: { loggedOut: true } }))
+      await rejected
+      await login
+    })
+    expect(result.current.token).toBe('new-token')
+    expect(result.current.user.id).toBe('two')
+  })
+
   it('shares REST and socket-style renewal, preserving identity and retrying REST once', async () => {
     const { result } = hook()
     await waitFor(() => expect(result.current.user).toEqual(user))

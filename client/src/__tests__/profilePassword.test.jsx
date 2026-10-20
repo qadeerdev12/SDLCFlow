@@ -4,10 +4,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import ProfilePage from '../pages/ProfilePage'
 
 const mocks = vi.hoisted(() => ({ logout: vi.fn(), updatePassword: vi.fn(), getProfile: vi.fn(), getGitHubAccount: vi.fn(), success: vi.fn(), error: vi.fn() }))
-vi.mock('../context/useAuth', () => ({ useAuth: () => ({ user: { name: 'Test', email: 'test@example.com' }, token: 'old-token', logout: mocks.logout }) }))
+vi.mock('../context/useAuth', () => ({ useAuth: () => ({ user: { name: 'Test', email: 'test@example.com' }, token: 'old-token', updatePassword: mocks.updatePassword }) }))
 vi.mock('../context/useToast', () => ({ useToast: () => ({ success: mocks.success, error: mocks.error }) }))
 vi.mock('../components/AppHeader', () => ({ default: () => null }))
-vi.mock('../lib/api', () => ({ authApi: { getProfile: mocks.getProfile, updatePassword: mocks.updatePassword }, integrationApi: { getGitHubAccount: mocks.getGitHubAccount } }))
+vi.mock('../lib/api', () => ({ authApi: { getProfile: mocks.getProfile }, integrationApi: { getGitHubAccount: mocks.getGitHubAccount } }))
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -31,8 +31,8 @@ it('clears the current session and returns to login after a successful password 
   mocks.updatePassword.mockResolvedValue({ data: { updated: true } })
   await submit()
   await screen.findByRole('heading', { name: 'Login screen' })
-  expect(mocks.updatePassword).toHaveBeenCalledWith('original passphrase', 'replacement passphrase', 'old-token')
-  expect(mocks.logout).toHaveBeenCalledTimes(1)
+  expect(mocks.updatePassword).toHaveBeenCalledWith('original passphrase', 'replacement passphrase')
+  expect(mocks.logout).not.toHaveBeenCalled()
   expect(mocks.success).toHaveBeenCalledWith('Password updated', 'Sign in again using your new password.')
 })
 

@@ -21,6 +21,9 @@ export default function AppHeader() {
   const navigate = useNavigate()
 
   const [open, setOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
+  const logoutPending = useRef(false)
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -41,9 +44,21 @@ export default function AppHeader() {
     }
   }, [open])
 
-  function handleLogout() {
-    logout()
-    navigate('/login')
+  async function handleLogout() {
+    if (logoutPending.current) return
+    logoutPending.current = true
+    setLoggingOut(true)
+    setLogoutError('')
+    try {
+      // Cookie logout must finish before navigation claims the session ended.
+      await logout()
+      navigate('/login', { replace: true })
+    } catch (error) {
+      setLogoutError(error.message || 'Could not log out. Please try again.')
+    } finally {
+      logoutPending.current = false
+      setLoggingOut(false)
+    }
   }
 
   return (
@@ -175,6 +190,7 @@ export default function AppHeader() {
                 <button
                   role="menuitem"
                   onClick={handleLogout}
+                  disabled={loggingOut}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -182,8 +198,9 @@ export default function AppHeader() {
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
-                  Log out
+                  {loggingOut ? 'Logging out...' : 'Log out'}
                 </button>
+                {logoutError && <p role="alert" className="px-4 pb-3 text-sm text-red-700 dark:text-red-300">{logoutError}</p>}
               </div>
             )}
           </div>
