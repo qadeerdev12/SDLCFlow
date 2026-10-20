@@ -67,8 +67,9 @@ version and family validity before this flow is enabled.
 ## Next Slice and Verification
 
 The [client refresh coordinator](client-refresh-coordinator.md) is implemented
-and tested in isolation. Next: provider integration and the intentional
-legacy-token cutover. Do not connect issuance to live login prematurely.
+and connected to the opt-in [memory provider](memory-auth-provider.md). Next:
+API/socket renewal, account-action UI wiring and the intentional legacy-token
+cutover. Do not connect issuance to live login prematurely.
 
 Run `npm test -- src/__tests__/refreshSessions.test.js` from `server` for focused
 coverage, or `npm test` for all server tests. No browser UI changes are expected

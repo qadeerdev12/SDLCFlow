@@ -1,7 +1,8 @@
 # Client Refresh Coordinator
 
-Status: isolated foundation, not wired into AuthContext, api.js or useSocket.
-Current login, localStorage token usage, and server activation are unchanged.
+Status: connected to the opt-in [memory provider](memory-auth-provider.md), but
+not to the live app's default provider, api.js or useSocket. Current live login,
+localStorage token usage, and server activation are unchanged.
 
 ## Code Map
 
@@ -91,6 +92,6 @@ Run `npm test -- src/__tests__/refreshCoordinator.test.js`, the complete client
 suite, lint and build. Unit tests simulate browser APIs; they do not replace real
 multi-tab Chrome/Firefox/Safari tests on the final deployment origins.
 
-Next: integrate provider-owned memory-only access state and bootstrap, then API
-and socket renewal, account-action call sites, and the deliberate client/server
+Provider-owned memory-only access state and bootstrap are now implemented in
+opt-in mode. Next: API and socket renewal, account-action call sites, and deliberate client/server
 cutover. Retain the current app behavior until both sides are ready together.

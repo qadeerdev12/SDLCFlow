@@ -2,9 +2,17 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { authApi } from '../lib/api';
 import { AuthContext } from './authContextValue';
 import { isSessionError, onSessionFailure, reportSessionFailure } from '../lib/sessionEvents';
+import { MemoryAuthProvider } from './MemoryAuthProvider';
 
-// The Provider wraps the app and owns login/session state.
-export function AuthProvider({children}) {
+// Explicit construction boundary, not a localStorage/env switch. The app keeps
+// legacy mode until API/socket renewal and account-action call sites are ready.
+export function AuthProvider({ children, mode = 'legacy' }) {
+    if (mode === 'memory') return <MemoryAuthProvider>{children}</MemoryAuthProvider>;
+    if (mode !== 'legacy') throw new Error('Unknown authentication mode');
+    return <LegacyAuthProvider>{children}</LegacyAuthProvider>;
+}
+
+function LegacyAuthProvider({children}) {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(() => localStorage.getItem('token')); // lazy init from localStorage
     const [loading, setLoading] = useState(true); // true until we have checked an existing token
