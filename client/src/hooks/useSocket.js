@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 import { isSessionError, reportSessionFailure } from '../lib/sessionEvents'
+import { hasSessionRenewal, renewExpiredSession } from '../lib/sessionRenewal'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5050'
 
@@ -9,6 +10,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5050'
 // separate from imperative socket APIs.
 export function useSocket(token) {
   const socketRef = useRef(null)
+  const sessionFailureRef = useRef(null)
   const [connected, setConnected] = useState(false)
   const [connectionError, setConnectionError] = useState('')
 
@@ -25,12 +27,22 @@ export function useSocket(token) {
     let active = true
     let retryTimer
     let retryDelay = 3000
+    let renewal
     const endSession = (code) => {
       if (!active || !isSessionError(code)) return
       clearTimeout(retryTimer)
       socket.disconnect() // Stop reconnect attempts with credentials known to be invalid.
+      if (code === 'SESSION_EXPIRED' && hasSessionRenewal()) {
+        // The provider commits the new token; the token dependency below then
+        // replaces this socket. Existing connect handlers rejoin/refetch state.
+        renewal ??= renewExpiredSession(token).catch((error) => {
+          if (active) setConnectionError(error.message || 'Could not renew your session.')
+        })
+        return
+      }
       reportSessionFailure(token, code)
     }
+    sessionFailureRef.current = endSession
     socket.on('session:invalidated', ({ code } = {}) => endSession(code))
 
     socket.on('connect', () => {
@@ -63,6 +75,7 @@ export function useSocket(token) {
       socket.disconnect()
       setConnected(false)
       socketRef.current = null
+      sessionFailureRef.current = null
     }
   }, [token])
 
@@ -81,9 +94,10 @@ export function useSocket(token) {
           return
         }
         if (!response?.ok) {
-          if (isSessionError(response?.error?.code)) socket.disconnect()
-          reportSessionFailure(socket.auth?.token, response?.error?.code)
-          reject(new Error(response?.error?.message || 'Realtime request failed.'))
+          // Never replay the event, including after an expiry acknowledgement.
+          // A late ack from a replaced socket cannot invalidate its successor.
+          if (socketRef.current === socket) sessionFailureRef.current?.(response?.error?.code)
+          reject(Object.assign(new Error(response?.error?.message || 'Realtime request failed.'), { code: response?.error?.code }))
           return
         }
         resolve(response.data)

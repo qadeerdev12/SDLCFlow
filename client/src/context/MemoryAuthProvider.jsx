@@ -3,6 +3,7 @@ import { AuthContext } from './authContextValue'
 import { authApi } from '../lib/api'
 import { createRefreshCoordinator } from '../lib/refreshCoordinator'
 import { isSessionError, onSessionFailure } from '../lib/sessionEvents'
+import { registerSessionRenewal } from '../lib/sessionRenewal'
 
 const emptySession = { user: null, token: null, expiresAt: null, loading: true,
   authError: '', sessionMessage: '', needsSignIn: false }
@@ -20,16 +21,22 @@ export function MemoryAuthProvider({ children }) {
     // the first lifetime before queued requests can apply to its replacement.
     let active = true, version = 0, token = null, user = null, needsSignIn = false
     let retryAt = 0
+    let familyEpoch = 0, transitioning = false, expiresAt = null
+    const issuedTokens = new Set()
     const update = (patch) => {
       if (!active) return
       if ('token' in patch) token = patch.token
       if ('user' in patch) user = patch.user
       if ('needsSignIn' in patch) needsSignIn = patch.needsSignIn
+      if ('expiresAt' in patch) expiresAt = patch.expiresAt
       setSession((current) => ({ ...current, ...patch }))
     }
     const current = (expected) => active && version === expected
     const clear = (message = '') => {
       version++
+      familyEpoch++
+      transitioning = false
+      issuedTokens.clear()
       coordinator.invalidate()
       update({ ...emptySession, loading: false, sessionMessage: message })
     }
@@ -44,6 +51,7 @@ export function MemoryAuthProvider({ children }) {
       } catch (error) {
         if (!current(expectedVersion) || token !== expectedToken) return
         if (isSessionError(error.code)) clear('Your session ended. Please sign in again.')
+        else if (error.recoveryRequired || error.code === 'AUTH_RECOVERY_REQUIRED') failed(error, expectedVersion)
         else update({ loading: false, authError: 'Could not check your session. Please try again.' })
       }
     }
@@ -54,7 +62,12 @@ export function MemoryAuthProvider({ children }) {
         if (!['refresh', 'login', 'register'].includes(action)) { clear(); return }
         const nextVersion = ++version
         retryAt = 0
-        const nextUser = validUser(data.user) ? data.user : null
+        if (action !== 'refresh') issuedTokens.clear()
+        issuedTokens.add(data.token)
+        // Bound memory while retaining recent tokens for delayed expiry replies.
+        if (issuedTokens.size > 32) issuedTokens.delete(issuedTokens.values().next().value)
+        // Same-family renewal retains identity instead of showing bootstrap loading.
+        const nextUser = validUser(data.user) ? data.user : action === 'refresh' ? user : null
         // Commit the token synchronously while the cookie lock is held. /me is
         // read-only and runs outside the cookie lifecycle, guarded by version.
         update({ token: data.token, expiresAt: data.expiresAt, user: nextUser,
@@ -96,12 +109,40 @@ export function MemoryAuthProvider({ children }) {
 
     async function mutate(action, body = {}) {
       const expectedVersion = ++version // Invalidate an outstanding /me immediately.
+      const expectedEpoch = ++familyEpoch
+      transitioning = true
       update({ authError: '', sessionMessage: '' })
       try {
         return await coordinator.mutate(action, { body, token })
       } catch (error) {
         failed(error, expectedVersion)
         throw error // Login forms must not navigate as though a failed login succeeded.
+      } finally {
+        if (familyEpoch === expectedEpoch) transitioning = false
+      }
+    }
+
+    async function renew(expiredToken) {
+      if (!active || transitioning || !token || !issuedTokens.has(expiredToken)) {
+        throw Object.assign(new Error('Session changed before renewal.'), { code: 'AUTH_OPERATION_STALE' })
+      }
+      if (needsSignIn) throw Object.assign(new Error('Please sign in again.'), { code: 'AUTH_RECOVERY_REQUIRED' })
+      if (Date.now() < retryAt) throw Object.assign(new Error('Please wait before renewing your session.'), {
+        code: 'AUTH_RATE_LIMITED', retryAfter: Math.ceil((retryAt - Date.now()) / 1000),
+      })
+      // Another caller may already have renewed this family's token. Never use
+      // a new account's token to replay an old account's request.
+      if (token !== expiredToken && Date.parse(expiresAt) > Date.now()) return token
+      const expectedEpoch = familyEpoch, expectedVersion = version
+      try {
+        const data = await coordinator.refresh()
+        if (!active || familyEpoch !== expectedEpoch || transitioning || token !== data.token) {
+          throw Object.assign(new Error('Session changed during renewal.'), { code: 'AUTH_OPERATION_STALE' })
+        }
+        return data.token
+      } catch (error) {
+        failed(error, expectedVersion)
+        throw error
       }
     }
 
@@ -123,11 +164,15 @@ export function MemoryAuthProvider({ children }) {
     const unsubscribe = onSessionFailure(({ token: failedToken }) => {
       if (active && token && failedToken === token) clear('Your session ended. Please sign in again.')
     })
+    const unregisterRenewal = registerSessionRenewal({ renew,
+      isCurrent: (candidate) => active && !transitioning && token === candidate && issuedTokens.has(candidate),
+    })
     void restore()
     return () => {
       active = false
       version++
       unsubscribe()
+      unregisterRenewal()
       coordinator.dispose()
       if (actionsRef.current === actions) actionsRef.current = null
     }

@@ -1,4 +1,5 @@
 import { reportSessionFailure } from './sessionEvents';
+import { hasSessionRenewal, renewExpiredSession, isCurrentRenewalToken } from './sessionRenewal';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api/v1';
 
@@ -8,7 +9,10 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api/v1';
 //  - attaches the auth token if we have one
 //  - parses the JSON response and throws on errors
 
-async function request(endpoint, {method = 'GET', body, token } = {}) {
+async function request(endpoint, {method = 'GET', body, token, renewed = false } = {}) {
+    if (renewed && !isCurrentRenewalToken(token)) {
+        throw Object.assign(new Error('Session changed before retry.'), { code: 'AUTH_OPERATION_STALE' });
+    }
     const headers = {'Content-Type': 'application/json'};
 
     // if a token was passed, attach it way our 'Protect' middleware expects.
@@ -30,6 +34,13 @@ async function request(endpoint, {method = 'GET', body, token } = {}) {
 
     // Our Server returns {error: {code, message}} with a non-2xx status on failure.
     if (!res.ok) {
+        // SESSION_EXPIRED is issued by protect before a controller runs. Retry
+        // once with this family's new token, never on timeouts/5xx or revocation.
+        if (res.status === 401 && data?.error?.code === 'SESSION_EXPIRED'
+            && token && !renewed && hasSessionRenewal()) {
+            const nextToken = await renewExpiredSession(token);
+            return request(endpoint, { method, body, token: nextToken, renewed: true });
+        }
         // Surface the server's message so the UI can show it.
         const error = new Error(data?.error?.message || `Request failed with status ${res.status}`);
         // Keep retry metadata available without changing existing message-based callers.

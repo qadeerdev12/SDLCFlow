@@ -2,8 +2,9 @@
 
 Status: implemented behind `AuthProvider mode="memory"`, with provider and
 coordinator tests. The application's default is still `legacy`. Do not switch
-the live application until API/socket renewal and account-action call sites are
-migrated together with the server.
+the live application until account-action call sites and token-keyed UI lifetimes
+are migrated together with the server. API/socket renewal is now implemented for
+memory mode; see [Client Token Renewal](client-token-renewal.md).
 
 ## Responsibilities and Design Decisions
 
@@ -101,6 +102,7 @@ network recovery, rate-limit delay, login/signup, logout failures, late response
 cross-tab messages and migration compatibility. These are unit/integration tests,
 not a claim of real-browser multi-tab verification.
 
-Next: access-token renewal for REST and Socket.IO, account-action UI integration,
-then the coordinated server/client cutover and real-browser checks. Until renewal
-lands, SESSION_EXPIRED still follows the existing terminal session-failure path.
+Next: account-action UI integration and stable session keys, then the coordinated
+server/client cutover and real-browser checks. Memory-mode transports intercept
+the first explicit expiry rejection for renewal; legacy mode retains its terminal
+session-failure behavior.

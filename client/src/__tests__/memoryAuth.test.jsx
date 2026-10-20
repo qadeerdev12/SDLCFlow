@@ -6,6 +6,8 @@ import { AuthProvider } from '../context/AuthContext'
 import { useAuth } from '../context/useAuth'
 import { reportSessionFailure } from '../lib/sessionEvents'
 import ProtectedRoute from '../components/ProtectedRoute'
+import { authApi } from '../lib/api'
+import { renewExpiredSession } from '../lib/sessionRenewal'
 
 const user = { id: 'one', name: 'Test', email: 'test@example.com' }
 const access = (token = 'memory-token', nextUser) => ({ token,
@@ -43,6 +45,76 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('opt-in memory authentication provider', () => {
+  it('shares REST and socket-style renewal, preserving identity and retrying REST once', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    const pending = deferred()
+    fetchMock.mockImplementation(async (url, options) => {
+      if (url.endsWith('/auth/refresh')) return pending.promise
+      if (options.headers.Authorization === 'Bearer memory-token') {
+        return response({ error: { code: 'SESSION_EXPIRED' } }, 401)
+      }
+      return response({ data: user })
+    })
+    await act(async () => {
+      const rest = authApi.getMe('memory-token')
+      const socket = renewExpiredSession('memory-token')
+      await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/auth/refresh'))).toHaveLength(2))
+      pending.resolve(response({ data: access('renewed-token') }))
+      await expect(socket).resolves.toBe('renewed-token')
+      await expect(rest).resolves.toEqual({ data: user })
+    })
+    expect(result.current.token).toBe('renewed-token')
+    expect(result.current.user).toEqual(user)
+    expect(result.current.loading).toBe(false)
+    // A delayed expiry from the same family reuses the already-renewed token.
+    await expect(renewExpiredSession('memory-token')).resolves.toBe('renewed-token')
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/auth/refresh'))).toHaveLength(2)
+  })
+
+  it('does not retry an old account request after signing into another account', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    const pending = deferred()
+    fetchMock.mockReturnValueOnce(pending.promise)
+    const request = authApi.getMe('memory-token')
+    const rejected = expect(request).rejects.toHaveProperty('code', 'AUTH_OPERATION_STALE')
+    fetchMock.mockResolvedValueOnce(response({ data: access('other-token', { ...user, id: 'two' }) }))
+    await act(async () => result.current.login('other@example.com', 'password'))
+    await act(async () => {
+      pending.resolve(response({ error: { code: 'SESSION_EXPIRED' } }, 401))
+      await rejected
+    })
+    expect(result.current.token).toBe('other-token')
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('ends the session if the once-retried REST request is also expired', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    fetchMock.mockImplementation(async (url) => url.endsWith('/auth/refresh')
+      ? response({ data: access('renewed-token') })
+      : response({ error: { code: 'SESSION_EXPIRED' } }, 401))
+    await act(async () => {
+      await expect(authApi.getMe('memory-token')).rejects.toHaveProperty('code', 'SESSION_EXPIRED')
+    })
+    expect(result.current.token).toBeNull()
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/auth/refresh'))).toHaveLength(2)
+  })
+
+  it('fails closed when a renewal response is lost and never blindly retries it', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    fetchMock.mockResolvedValueOnce(response({ error: { code: 'SESSION_EXPIRED' } }, 401))
+      .mockRejectedValueOnce(new TypeError('Offline'))
+    await act(async () => {
+      await expect(authApi.getMe('memory-token')).rejects.toHaveProperty('code', 'AUTH_RECOVERY_REQUIRED')
+    })
+    expect(result.current.needsSignIn).toBe(true)
+    await expect(renewExpiredSession('memory-token')).rejects.toHaveProperty('code', 'AUTH_RECOVERY_REQUIRED')
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
   it('bootstraps from the refresh cookie, never a stored token, then loads the user', async () => {
     localStorage.setItem('token', 'legacy-secret')
     const { result } = hook()
