@@ -478,15 +478,16 @@ adapter, deliberately deferred until there is a reason to scale horizontally.
 the same gap will eventually exhaust float precision. Thousands of moves away, but
 real.
 
-**Authentication browser verification is in progress.** Login/signup, reload,
-local cookie/storage behavior, restoration failures and REST/socket renewal pass the isolated
+**The planned local authentication browser checks pass in Chrome.** Login/signup, reload,
+local cookie/storage behavior, restoration failures, REST/socket renewal and
+multi-tab coordination and account-action revocation pass the isolated
 [browser check](docs/authentication-browser-verification.md). Access JWTs now live only in
 memory for at most 15 minutes, with rotating HttpOnly refresh cookies and a
 seven-day absolute session lifetime. Ordinary logout revokes its server-side
 session family; password changes and **Log out everywhere** invalidate old
 account sessions. Legacy tokens are rejected. See the
 [active authentication guide](docs/authentication-cutover.md) for startup and
-the remaining real-browser checks.
+the remaining production HTTPS and cross-browser checks.
 
 **Not deployed yet.** It runs locally against Atlas; Vercel and Render are the
 intended hosts, but cookie authentication requires a reviewed same-site domain

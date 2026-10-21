@@ -96,14 +96,83 @@ per-packet guard rejects and disconnects it. This avoids a race with the idle ti
 and verifies the acknowledgement failure path deterministically. It is not a
 production expiry setting or an authentication bypass.
 
+## Chunk 3 Coverage
+
+[Multi-tab scenarios](../server/scripts/auth-check/multiple-tabs.mjs) open two real
+pages in the same isolated browser context. They share cookies, localStorage,
+Web Locks and BroadcastChannel, just like two tabs of the application.
+
+- Both tabs reload while the first refresh is held. The browser's Web Lock queue
+  shows one holder and one waiter, and only one refresh reaches the network until
+  released. Both then restore successfully. The database records two sequential
+  rotations and no replay revocation.
+- Signing into a different disposable account in one tab removes the other tab's
+  old profile and unsaved draft. That tab sends no automatic refresh; explicit
+  `Try again` adopts the new account without carrying over the old draft.
+- Observed account-change broadcasts contain only the fixed event type and opaque
+  revision, not a token, cookie value, user details or form data.
+- A real refresh commits on the server, then its browser response is aborted.
+  The tab waiting for the lock does not send another refresh. Both tabs require
+  sign-in, and reloading both still sends no additional refresh. Database checks
+  confirm exactly one rotation and no replay revocation.
+
+### Why Two Tabs Rotate Twice
+
+Same-tab callers share one pending refresh, but tokens are not shared between
+tabs. Each tab obtains its own in-memory access token through a serialized refresh.
+Web Locks protect the shared cookie; BroadcastChannel invalidates stale identity;
+the non-secret revision/blocked marker rejects stale intent and persists recovery
+requirements across reloads. The marker is not a replacement for a lock.
+
+Holding/aborting responses and observing channel messages are test-only browser
+instrumentation. Locks, broadcasts, cookie rotation and database writes use the
+real application code. This verifies active tabs in one Chrome context, not
+suspended tabs, browser crashes, every browser engine or separate browser profiles.
+The lost-response case uses Playwright to forward the request and then abort the
+page response; it does not simulate every possible network or cookie-delivery failure.
+
+## Chunk 4 Coverage
+
+[Account-action scenarios](../server/scripts/auth-check/account-actions.mjs) use
+fresh disposable accounts and two independent browser contexts per scenario.
+Those contexts have different refresh families, modelling separate devices. The
+logout scenario also opens a tab sharing the initiating browser's cookie.
+
+- Ordinary logout clears the initiating browser's cookie, removes protected content
+  from its shared tab and disconnects that family's sockets. The other independent
+  session retains REST access and its live socket connection.
+- Logout-all clears the cookie, increments the account session version and revokes
+  both sessions. The password hash remains unchanged and a fresh login succeeds.
+- Password change rejects an incorrect current password without invalidating either
+  session. A successful change revokes both sessions; the old password fails login
+  and the replacement password succeeds.
+- Account deletion rejects an incorrect password without deleting the user or
+  ending either session. Successful deletion removes the account, refresh records
+  and a fixture project owned by that account. A project owned by another user
+  survives, with the deleted user's membership removed.
+- Cancelling logout-all or deletion confirmation sends no mutation request.
+- For every successful action, captured old access tokens are rejected by real REST
+  requests and new Socket.IO handshakes. Already-connected affected sockets are
+  disconnected, and captured old refresh credentials cannot restore the session.
+
+All actions run through the normal application UI with real controller/database
+behavior. Read-only access probes and rejected refresh/handshake probes run from
+the test process; credentials stay in memory and are never logged. Database checks
+supplement UI assertions rather than replacing them. No real accounts are deleted.
+
+These checks cover successful actions, cancellation and incorrect passwords. They
+do not simulate every account-action outage, partial deletion failure, concurrent
+destructive action or every related-data cleanup relationship.
+
 ## Verified Result and Remaining Work
 
-Chunks 1 and 2 passed locally with Chrome 155.0.8059.85. This does not certify other browser
+Chunks 1-4 passed locally with Chrome 155.0.8059.85. This does not certify other browser
 engines, mobile browsers, production HTTPS or a deployed proxy configuration.
 
-Next chunks cover multi-tab coordination and revocation through logout/password
-changes/account deletion. Real production Secure/__Host- cookie enforcement and
-same-site deployment must also be checked in the deployed HTTPS environment.
+The planned local browser-verification sequence is complete. Real production
+Secure/__Host- cookie enforcement, same-site deployment and proxy routing still
+need verification in the deployed HTTPS environment. Other browser engines and
+mobile browsers remain separate checks; this is not production certification.
 
 Review [the runner](../server/scripts/check-auth-browser.mjs) and
 [active authentication design](authentication-cutover.md) together. This iteration

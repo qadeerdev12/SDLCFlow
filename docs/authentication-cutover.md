@@ -4,8 +4,9 @@ Status: memory-only access tokens and rotating refresh cookies are now the defau
 in source. Restart/rebuild both processes to activate this change. Automated tests
 cover the cutover. The isolated Chrome check now covers login/signup, reload
 restoration, local cookie/storage behavior, restoration failures, expiry-driven
-REST/socket renewal, rejoin/refetch and chat draft retention. Multi-tab and
-account-action browser validation remain pending.
+REST/socket renewal, rejoin/refetch, chat draft retention, multi-tab coordination
+and account-action revocation. The planned local browser checks are complete;
+production HTTPS and other browser engines remain unverified.
 Older authentication guides describe staged implementation history; this file
 supersedes their references to dormant routes, opt-in providers or legacy tokens.
 
@@ -91,13 +92,16 @@ Review core files:
 
 ## Browser Verification
 
-Chunks 1 and 2 passed against the real client and API with a disposable database. Run
+Chunks 1-4 passed against the real client and API with a disposable database. Run
 `npm run test:auth-browser` from `server/`. For setup, exact coverage and remaining
 limitations, see [the browser verification guide](authentication-browser-verification.md).
 
-The next chunk is multi-tab coordination. Account-action checks follow separately.
+Logout, logout-all, password changes and account deletion are now covered,
+including their effects on independent sessions and old REST/socket credentials.
+Production HTTPS, proxy routing and broader browser coverage remain separate work.
 
-Use disposable accounts for destructive tests. Check login/signup, page reload,
+For additional manual verification, use disposable accounts for destructive tests.
+Check login/signup, page reload,
 cookie flags, absence of stored bearer tokens, REST/socket expiry, rejoin/refetch,
 draft retention, multiple tabs, logout, password change and account deletion.
 Also test blocked storage, temporary auth outages and lost refresh responses.
