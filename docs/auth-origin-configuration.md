@@ -1,5 +1,10 @@
 # Authentication Origin Configuration
 
+For the selected single-web-service production layout and current configuration
+contract, see [First Deployment Plan](deployment-plan.md). The checker now also
+validates production NODE_ENV, exact frontend/API origin including port, optional
+GitHub callback routing and proxy allowlist syntax.
+
 > Historical implementation guide. The coordinated cutover is now active in source.
 > For current startup, token policy and verification status, see
 > [Active Authentication and Cutover](authentication-cutover.md). Earlier opt-in

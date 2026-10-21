@@ -454,6 +454,7 @@ server/src/
 | [AI task drafting](docs/ai-task-drafting.md) | OpenAI setup, editable previews, privacy boundaries, and testing |
 | [AI project summaries](docs/ai-project-summaries.md) | Task and optional GitHub snapshots, source citations, consent, and recovery |
 | [Summary verification](docs/project-summary-verification.md) | Isolated browser/API checks, setup, covered scenarios, and manual quality review |
+| [First deployment plan](docs/deployment-plan.md) | Selected single-service topology, public URLs, configuration checks and remaining deployment gates |
 
 ---
 
@@ -489,9 +490,10 @@ account sessions. Legacy tokens are rejected. See the
 [active authentication guide](docs/authentication-cutover.md) for startup and
 the remaining production HTTPS and cross-browser checks.
 
-**Not deployed yet.** It runs locally against Atlas; Vercel and Render are the
-intended hosts, but cookie authentication requires a reviewed same-site domain
-arrangement or same-origin proxy before deployment.
+**Not deployed yet.** The selected first-release layout is one persistent web
+service serving the frontend, API and sockets under one HTTPS origin, with Atlas
+separate. Production static serving, provider/domain selection and proxy review
+remain pending. See the [deployment plan](docs/deployment-plan.md).
 
 ---
 

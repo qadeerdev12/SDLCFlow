@@ -56,6 +56,10 @@ does not become secure merely because new source exists on disk.
 
 ## Production Startup
 
+The selected deployment topology is one persistent web service for the frontend,
+API and sockets. See [First Deployment Plan](deployment-plan.md) for its public
+URL contract and unimplemented hosting/static-serving prerequisites.
+
 `npm start` with no NODE_ENV defaults to production security. Set exact HTTPS
 CLIENT_ORIGIN values; absent origins or HTTP origins fail before the server listens.
 Only development, test and production are accepted environment names. A misspelled

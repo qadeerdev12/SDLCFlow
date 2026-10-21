@@ -1,4 +1,6 @@
 import { createRefreshSecurity } from '../middleware/refreshSecurity.js';
+import { authRuntimeOptions } from './authRuntime.js';
+import { trustedProxies } from '../utils/trustedProxies.js';
 
 function parseUrl(value, label, path) {
     let url;
@@ -11,13 +13,16 @@ function parseUrl(value, label, path) {
 }
 
 /** Read-only cutover preflight, not an authentication-mode selector. Deliberately
- * accepts only same-host layouts; sibling domains need an explicit deployment
+ * accepts same-origin production and same-host local layouts; sibling domains need an explicit deployment
  * review, not a naive last-two-label guess at the public suffix boundary.
  */
 export function checkAuthDeployment({ server = {}, client = {}, mode } = {}) {
     if (!['local', 'production'].includes(mode)) throw new Error('Select --local or --production explicitly');
     const local = mode === 'local';
     if (local && server.NODE_ENV === 'production') throw new Error('Local cookie mode cannot be used with NODE_ENV=production');
+    if (!local && authRuntimeOptions(server).localHttp) {
+        throw new Error('Production preflight requires NODE_ENV=production or the secure unset default');
+    }
     const required = (value, fallback, label) => {
         if (value) return value;
         if (local) return fallback;
@@ -46,8 +51,21 @@ export function checkAuthDeployment({ server = {}, client = {}, mode } = {}) {
         throw new Error('Frontend and API must use the same hostname and scheme for this preflight. Other layouts require a same-site deployment review; do not weaken cookie security.');
     }
     if (socket.origin !== api.origin) throw new Error('VITE_SOCKET_URL must match the API origin served by the shared HTTP/Socket.IO server');
+    if (!local && frontend.origin !== api.origin) {
+        throw new Error('Production preflight requires the frontend and API to share one HTTPS origin, including the port');
+    }
+    // OAuth returns through the API, not the React router. Validate only public
+    // routing here; this does not inspect or claim to verify provider credentials.
+    const githubCallback = server.GITHUB_CALLBACK_URL
+        ? parseUrl(server.GITHUB_CALLBACK_URL, 'GITHUB_CALLBACK_URL', '/api/v1/integrations/github/callback') : null;
+    if (githubCallback && githubCallback.origin !== api.origin) {
+        throw new Error('GITHUB_CALLBACK_URL must use the public API origin');
+    }
+    // Syntax validation is not evidence that a network peer is trustworthy.
+    const proxyTrust = trustedProxies(server.TRUSTED_PROXY_CIDRS || '');
     const warnings = origins.filter((origin) => new URL(origin).hostname !== api.hostname)
         .map(() => 'An additional allowed frontend hostname cannot use this API URL with the current cookie policy. Use matching URLs or remove that unused origin.');
     return { mode, origins, frontend: frontend.origin, api: api.href, socket: socket.origin,
-        refresh, cookieName: security.cookieName, warnings };
+        refresh, cookieName: security.cookieName, githubCallback: githubCallback?.href || null,
+        proxyTrust, warnings };
 }

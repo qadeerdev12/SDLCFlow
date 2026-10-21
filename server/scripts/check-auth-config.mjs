@@ -19,7 +19,7 @@ try {
     // rejected below rather than silently validating a different effective URL.
     const client = Object.assign({}, ...['.env', '.env.local', `.env.${viteMode}`, `.env.${viteMode}.local`]
         .map((name) => read(resolve(root, '../client', name))), process.env);
-    for (const value of [server.CLIENT_ORIGIN, server.CLIENT_URL, client.VITE_API_URL, client.VITE_SOCKET_URL]) {
+    for (const value of [server.CLIENT_ORIGIN, server.CLIENT_URL, server.GITHUB_CALLBACK_URL, client.VITE_API_URL, client.VITE_SOCKET_URL]) {
         if (value?.includes('$')) throw new Error('Use explicit URL values for this preflight; variable expansion is not supported');
     }
     const result = checkAuthDeployment({ server, client, mode });
