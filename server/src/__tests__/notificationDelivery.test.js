@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { createServer } from 'node:http';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
-import request from 'supertest';
+import request, { issueAccess } from './helpers/auth.js';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { Server } from 'socket.io';
 import { io as createClient } from 'socket.io-client';
@@ -53,7 +53,8 @@ async function fixture() {
     { name: 'Sam', email: 'sam@example.com', passwordHash: 'unused-test-hash' },
     { name: 'Lee', email: 'lee@example.com', passwordHash: 'unused-test-hash' },
   ]);
-  const token = (user) => jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+  const tokens = new Map(await Promise.all([owner, recipient, outsider].map(async (user) => [user.id, await issueAccess(user)])));
+  const token = (user) => tokens.get(user.id);
   const created = await request(app).post('/api/v1/boards')
     .set('Authorization', `Bearer ${token(owner)}`).send({ name: 'Uptime Desk' }).expect(201);
   const board = created.body.data.board;
@@ -137,8 +138,8 @@ describe('private notification delivery', () => {
     const auth = {
       missing: {},
       invalid: { token: 'invalid' },
-      expired: { token: jwt.sign({ id: ctx.recipient.id }, process.env.JWT_SECRET, { expiresIn: -1 }) },
-      'deleted-user': { token: jwt.sign({ id: deletedId }, process.env.JWT_SECRET) },
+      expired: { token: jwt.sign({ ...jwt.decode(await issueAccess(ctx.recipient)), iat: Math.floor(Date.now() / 1000) - 20, exp: Math.floor(Date.now() / 1000) - 1 }, process.env.JWT_SECRET) },
+      'deleted-user': { token: jwt.sign({ ...jwt.decode(await issueAccess(ctx.recipient)), id: deletedId }, process.env.JWT_SECRET) },
     }[kind];
     await expect(ctx.connect(auth)).rejects.toBeInstanceOf(Error);
     expect(io.sockets.sockets.size).toBe(4);

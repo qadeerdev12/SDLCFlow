@@ -1,5 +1,10 @@
 # Client Refresh Coordinator
 
+> Historical implementation guide. The coordinated cutover is now active in source.
+> For current startup, token policy and verification status, see
+> [Active Authentication and Cutover](authentication-cutover.md). Earlier opt-in
+> and legacy-default statements below describe the pre-cutover stages only.
+
 Status: connected to the opt-in [memory provider](memory-auth-provider.md), but
 not to the live app's default provider, api.js or useSocket. Current live login,
 localStorage token usage, and server activation are unchanged.

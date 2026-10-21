@@ -45,6 +45,13 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('opt-in memory authentication provider', () => {
+  it('fails closed before network access if the retired token cannot be removed', async () => {
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => { throw new Error('Storage blocked') })
+    const { result } = hook()
+    await waitFor(() => expect(result.current.authError).toContain('Browser storage is unavailable'))
+    expect(result.current.token).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
   it('keeps a non-secret UI identity through renewal but replaces it on every sign-in', async () => {
     const { result } = hook()
     await waitFor(() => expect(result.current.user).toEqual(user))
@@ -219,7 +226,7 @@ describe('opt-in memory authentication provider', () => {
     expect(fetchMock.mock.calls[0][0]).toContain('/auth/refresh')
     expect(fetchMock.mock.calls[0][1].credentials).toBe('include')
     expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer memory-token')
-    expect(localStorage.getItem('token')).toBe('legacy-secret') // Removal belongs to cutover.
+    expect(localStorage.getItem('token')).toBeNull() // Never import retired credentials.
     expect(JSON.stringify(localStorage)).not.toContain('memory-token')
     expect(sessionStorage.length).toBe(0)
   })

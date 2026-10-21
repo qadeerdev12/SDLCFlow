@@ -10,7 +10,6 @@ import { createApp } from '../app.js';
 import { configureSockets } from '../socket.js';
 import createRefreshRoutes from '../routes/refreshRoutes.js';
 import { createAccessToken } from '../utils/accessTokens.js';
-import { createSessionToken } from '../utils/sessionTokens.js';
 import { createRefreshSession } from '../services/refreshSessionService.js';
 import RefreshSession, { MAX_REFRESH_ROTATIONS } from '../models/RefreshSession.js';
 import User from '../models/User.js';
@@ -36,7 +35,7 @@ async function fixture() {
     const family = await createRefreshSession(user);
     const { token } = createAccessToken(family);
     const app = createApp();
-    // Only this fixture mounts the future router; live createApp still does not.
+    // A separate mount exercises isolated family rotation/eviction scenarios.
     app.use('/test-auth', createRefreshRoutes({ origins: ['https://app.example.com'] }));
     const http = createServer(app);
     io = new Server(http);
@@ -78,13 +77,12 @@ async function denied(ctx, token, code) {
 }
 
 describe('REST and socket access-family validation', () => {
-    it('accepts a current family and preserves the explicit legacy path', async () => {
+    it('accepts a current family but rejects legacy JWTs over both transports', async () => {
         const ctx = await fixture();
         await ctx.me().expect(200);
         await ctx.connect();
-        const legacy = createSessionToken(ctx.user);
-        await ctx.me(legacy).expect(200);
-        await ctx.connect(legacy);
+        const legacy = jwt.sign({ id: ctx.user.id, sessionVersion: 0 }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        await denied(ctx, legacy, 'INVALID_TOKEN');
     });
 
     it.each(['sid', 'purpose', 'iss', 'aud', 'sessionVersion', 'exp'])('rejects missing new-format claim %s without legacy fallback', async (field) => {
@@ -145,7 +143,6 @@ describe('REST and socket access-family validation', () => {
         const otherFamily = await createRefreshSession(ctx.user);
         const otherToken = createAccessToken(otherFamily).token;
         const other = await ctx.connect(otherToken);
-        const legacy = await ctx.connect(createSessionToken(ctx.user));
         const board = (await request(ctx.app).post('/api/v1/boards')
             .set('Authorization', `Bearer ${ctx.token}`).send({ name: 'Family project' }).expect(201)).body.data.board;
         await one.timeout(2000).emitWithAck('board:join', { boardId: board._id });
@@ -155,7 +152,6 @@ describe('REST and socket access-family validation', () => {
         expect(await secondEnd).toEqual(['SESSION_INVALIDATED']);
         expect(io.sockets.adapter.rooms.has(`board:${board._id}`)).toBe(false);
         expect(io.sockets.sockets.has(other.id)).toBe(true);
-        expect(io.sockets.sockets.has(legacy.id)).toBe(true);
         await ctx.me(otherToken).expect(200);
         await denied(ctx, ctx.token, 'SESSION_INVALIDATED');
     });
@@ -209,7 +205,8 @@ describe('REST and socket access-family validation', () => {
         const secondFamily = await createRefreshSession(ctx.user);
         const second = await ctx.connect(createAccessToken(secondFamily).token);
         const firstEnd = ended(first), secondEnd = ended(second);
-        await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', `Bearer ${ctx.token}`).send({}).expect(200);
+        await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', `Bearer ${ctx.token}`)
+            .set('Origin', 'http://localhost:5173').set('X-SDLCFlow-CSRF', '1').send({}).expect(200);
         expect(await firstEnd).toEqual(['SESSION_INVALIDATED']);
         expect(await secondEnd).toEqual(['SESSION_INVALIDATED']);
         const updated = await User.findById(ctx.user._id).select('+sessionVersion');

@@ -208,15 +208,16 @@ describe('opt-in login and account session integration', () => {
         await ctx.me(other.body.data.token).expect(200);
     });
 
-    it('keeps the live app in legacy mode regardless of submitted mode fields', async () => {
+    it('cannot select legacy issuance using submitted mode fields', async () => {
         await fixture();
-        const app = createApp();
-        const result = await request(app).post('/api/v1/auth/login').send({ email, password, refresh: true }).expect(200);
+        const app = createApp({ refresh: {} });
+        const result = await request(app).post('/api/v1/auth/login').set('Origin', origin).set('X-SDLCFlow-CSRF', '1')
+            .send({ email, password, refresh: false, mode: 'legacy' }).expect(200);
         const claims = jwt.decode(result.body.data.token);
-        expect(claims.sid).toBeUndefined();
-        expect(claims.exp - claims.iat).toBe(7 * 24 * 60 * 60);
-        expect(result.headers['set-cookie']).toBeUndefined();
-        await request(app).post('/api/v1/auth/refresh').send({}).expect(404);
+        expect(claims.sid).toBeTruthy();
+        expect(claims.exp - claims.iat).toBe(900);
+        expect(result.headers['set-cookie']).toBeDefined();
+        await request(app).post('/api/v1/auth/refresh').send({}).expect(403);
     });
 
     it('retains throttle-before-parse ordering in the opt-in login flow', async () => {

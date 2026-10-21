@@ -478,15 +478,17 @@ adapter, deliberately deferred until there is a reason to scale horizontally.
 the same gap will eventually exhaust float precision. Thousands of moves away, but
 real.
 
-**JWTs last seven days with no refresh token.** Logging out clears the token
-client-side; ordinary logout does not revoke it server-side. Password changes
-and **Log out everywhere** revoke old sessions across REST and live sockets on
-the current server. A [token lifecycle proposal](docs/token-lifecycle-design.md)
-reviews memory-only access tokens and HttpOnly refresh cookies; it is not yet
-implemented.
+**Authentication browser verification is pending.** Access JWTs now live only in
+memory for at most 15 minutes, with rotating HttpOnly refresh cookies and a
+seven-day absolute session lifetime. Ordinary logout revokes its server-side
+session family; password changes and **Log out everywhere** invalidate old
+account sessions. Legacy tokens are rejected. See the
+[active authentication guide](docs/authentication-cutover.md) for startup and
+the remaining real-browser checks.
 
 **Not deployed yet.** It runs locally against Atlas; Vercel and Render are the
-intended hosts and the environment variables above are already wired for them.
+intended hosts, but cookie authentication requires a reviewed same-site domain
+arrangement or same-origin proxy before deployment.
 
 ---
 

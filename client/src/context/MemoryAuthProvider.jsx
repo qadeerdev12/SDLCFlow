@@ -9,14 +9,25 @@ const emptySession = { user: null, token: null, sessionKey: null, expiresAt: nul
   authError: '', sessionMessage: '', needsSignIn: false }
 const validUser = (user) => user && typeof user.id === 'string' && typeof user.name === 'string'
 
-/** Opt-in migration provider. It never reads/writes stored credentials. Keep it
- * separate from the legacy provider so hooks and side effects cannot mix modes.
+/** Access credentials live only in memory. The old stored credential is removed,
+ * never read or imported; restoration uses only the HttpOnly refresh cookie.
  */
 export function MemoryAuthProvider({ children }) {
   const [session, setSession] = useState(emptySession)
   const actionsRef = useRef(null)
 
   useEffect(() => {
+    try {
+      localStorage.removeItem('token');
+    } catch {
+      let active = true;
+      actionsRef.current = { retrySession: () => window.location.reload() };
+      queueMicrotask(() => {
+        if (active) setSession({ ...emptySession, loading: false,
+          authError: 'Browser storage is unavailable. Enable site storage and reload to sign in safely.' });
+      });
+      return () => { active = false; actionsRef.current = null; };
+    }
     // One effect lifetime owns one coordinator. StrictMode cleanup invalidates
     // the first lifetime before queued requests can apply to its replacement.
     let active = true, version = 0, token = null, user = null, needsSignIn = false
@@ -211,7 +222,7 @@ export function MemoryAuthProvider({ children }) {
   }, [])
 
   const invoke = (action, ...args) => {
-    if (!actionsRef.current) return Promise.reject(new Error('Authentication is not ready.'))
+    if (!actionsRef.current?.[action]) return Promise.reject(new Error('Authentication is not ready.'))
     return actionsRef.current[action](...args)
   }
   return <AuthContext.Provider value={{ ...session,

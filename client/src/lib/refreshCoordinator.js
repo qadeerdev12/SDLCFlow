@@ -13,7 +13,7 @@ function browserStorage() {
   try { return globalThis.localStorage } catch { return null }
 }
 
-/** Dormant until AuthContext migration. Create ONE instance per tab, not per
+/** Create ONE instance per tab, not per
  * component/socket. onResult must synchronously apply session state; never start
  * another coordinated request inside it (the cookie lock is still held).
  */

@@ -57,18 +57,8 @@ async function request(endpoint, {method = 'GET', body, token, renewed = false }
 }
 
 export const authApi = {
-    register: (name, email, password) =>
-        request('/auth/register', {
-            method: 'POST',
-            body: { name, email, password }
-        }),
-
-    login: (email, password) =>
-        request('/auth/login', {
-            method: 'POST',
-            body: { email, password }
-        }),
-
+    // Cookie-changing actions belong to the provider's refresh coordinator.
+    // This wrapper is only for bearer-authenticated account reads/profile edits.
     getMe: (token) =>
         request('/auth/me', {
             token
@@ -86,21 +76,6 @@ export const authApi = {
             token
         }),
 
-    updatePassword: (currentPassword, newPassword, token) =>
-        request('/auth/password', {
-            method: 'PATCH',
-            body: { currentPassword, newPassword },
-            token
-        }),
-
-    logoutEverywhere: (token) => request('/auth/logout-all', { method: 'POST', token }),
-
-    deleteAccount: (password, token) =>
-        request('/auth/me', {
-            method: 'DELETE',
-            body: { password },
-            token
-    }),
 }
 
 export const integrationApi = {

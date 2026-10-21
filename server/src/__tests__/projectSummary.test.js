@@ -1,7 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
-import jwt from 'jsonwebtoken';
-import request from 'supertest';
+import request, { issueAccess } from './helpers/auth.js';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { createApp } from '../app.js';
 import Board from '../models/Board.js';
@@ -192,7 +191,7 @@ afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 async function fixture(role = 'member') {
   const user = await User.create({ name: 'Alex', email: 'private@example.com', passwordHash: 'unused' });
   const board = await Board.create({ name: 'Private project', owner: user._id, members: role ? [{ user: user._id, role }] : [] });
-  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+  const token = await issueAccess(user);
   const url = `/api/v1/boards/${board.id}/summary`;
   return { user, board, url, send: () => request(app).post(url).set('Authorization', `Bearer ${token}`),
     add: (values = {}) => Card.create({ board: board._id, list: new mongoose.Types.ObjectId(), title: 'Task', status: 'Done', position: 1, ...values }),

@@ -1,14 +1,13 @@
-import { createSessionToken } from '../utils/sessionTokens.js';
 import { createAccessToken } from '../utils/accessTokens.js';
 import { createRefreshSession } from './refreshSessionService.js';
 import RefreshSession from '../models/RefreshSession.js';
 
-/** Called only after signup or password verification. Router-owned locals select
- * the migration mode; request bodies/headers must never choose token policy.
+/** Called only after signup or password verification. A cookie-enabled router
+ * is required; missing wiring must never issue a legacy bearer credential.
  */
 export async function issueAuthSession(user, res) {
     const security = res.locals.refreshSecurity;
-    if (!security) return { token: createSessionToken(user) };
+    if (!security) throw new Error('Refresh cookie security must be configured before session issuance');
 
     const session = await createRefreshSession(user);
     try {

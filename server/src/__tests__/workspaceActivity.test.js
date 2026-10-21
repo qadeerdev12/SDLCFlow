@@ -1,7 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
-import jwt from 'jsonwebtoken';
-import request from 'supertest';
+import request, { issueAccess } from './helpers/auth.js';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { createApp } from '../app.js';
 import Activity from '../models/Activity.js';
@@ -27,7 +26,7 @@ async function fixture() {
     { name: 'Sam', email: 'sam@example.com', passwordHash: 'unused' },
   ]);
   const board = await Board.create({ name: 'Uptime Desk', owner: actor._id, members: [{ user: user._id, role: 'member' }] });
-  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+  const token = await issueAccess(user);
   return {
     user, actor, board,
     get: (query = {}) => request(app).get('/api/v1/activities').query(query).set('Authorization', `Bearer ${token}`),

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import request from 'supertest';
+import request from './helpers/auth.js';
 import { createApp } from '../app.js';
 import { login, register } from '../controllers/authController.js';
 import { AUTH_LIMITS } from '../middleware/authRateLimit.js';

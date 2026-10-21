@@ -1,4 +1,4 @@
-// Infrastructure for opt-in cookie-auth routes; live createApp stays legacy.
+// Cookie-auth request policy shared by login, refresh and account actions.
 // Keep these origins identical to the credentialed CORS allowlist at integration.
 export const REFRESH_CSRF_HEADER = 'X-SDLCFlow-CSRF';
 

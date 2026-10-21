@@ -1,4 +1,5 @@
 import express from 'express';
+import { authRuntimeOptions } from './config/authRuntime.js';
 import cors from 'cors';
 import createAuthRoutes from './routes/authRoutes.js';
 import { trustedProxies } from './utils/trustedProxies.js';
@@ -17,10 +18,9 @@ export function allowedClientOrigins() {
     .filter(Boolean);
 }
 
-export function createApp({ io, refresh = null } = {}) {
-  // Construction-only migration option, never selected from request data.
-  // The live entry point stays legacy until the coordinated client cutover.
-  if (refresh !== null && (typeof refresh !== 'object' || Array.isArray(refresh))) {
+export function createApp({ io, refresh = authRuntimeOptions() } = {}) {
+  // Configuration cannot disable cookie authentication or restore legacy JWTs.
+  if (!refresh || typeof refresh !== 'object' || Array.isArray(refresh)) {
     throw new Error('Refresh configuration must be an explicit options object');
   }
   if (refresh && Object.hasOwn(refresh, 'origins')) {
@@ -39,7 +39,7 @@ export function createApp({ io, refresh = null } = {}) {
 
   // Cookie guards and credentialed CORS must agree on the exact origin set.
   app.use('/api/v1/auth', createAuthRoutes({
-    refresh: refresh ? { ...refresh, origins: clientOrigins } : null,
+    refresh: { ...refresh, origins: clientOrigins },
   }));
   app.use(express.json());
   app.use('/api/v1/integrations', githubIntegrationRoutes);

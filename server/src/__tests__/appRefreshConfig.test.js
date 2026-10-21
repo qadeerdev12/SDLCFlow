@@ -44,9 +44,10 @@ it('rejects ambiguous opt-in options and a second origin allowlist', () => {
     expect(() => createApp({ refresh: { origins: ['https://other.example.com'] } })).toThrow('CLIENT_ORIGIN');
 });
 
-it('keeps the default app legacy and resource endpoints bearer-protected', async () => {
+it('enables guarded refresh by default and keeps resource endpoints bearer-protected', async () => {
     const app = createApp();
-    await request(app).post('/api/v1/auth/refresh').send({}).expect(404);
+    await request(app).post('/api/v1/auth/refresh').send({}).expect(403);
+    expect(() => createApp({ refresh: null })).toThrow('explicit options object');
     const denied = await request(app).get('/api/v1/boards').expect(401);
     expect(denied.body.error.code).toBe('NO_TOKEN_PROVIDED');
     await request(app).get('/health').expect(200);

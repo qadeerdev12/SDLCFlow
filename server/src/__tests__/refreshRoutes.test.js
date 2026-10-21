@@ -137,8 +137,8 @@ describe('unmounted refresh HTTP router', () => {
         expect((await RefreshSession.findById(session.sessionId)).rotationCount).toBe(0);
     });
 
-    it('does not enable refresh/logout in the real app', async () => {
-        await request(createApp()).post('/api/v1/auth/refresh').send({}).expect(404);
-        await request(createApp()).post('/api/v1/auth/logout').send({}).expect(404);
+    it('protects mounted refresh/logout with the cookie request guard', async () => {
+        await request(createApp()).post('/api/v1/auth/refresh').send({}).expect(403);
+        await request(createApp()).post('/api/v1/auth/logout').send({}).expect(403);
     });
 });

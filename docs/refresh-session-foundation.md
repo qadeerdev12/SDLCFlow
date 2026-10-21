@@ -1,5 +1,10 @@
 # Refresh Session Foundation
 
+> Historical implementation guide. The coordinated cutover is now active in source.
+> For current startup, token policy and verification status, see
+> [Active Authentication and Cutover](authentication-cutover.md). Earlier opt-in
+> and legacy-default statements below describe the pre-cutover stages only.
+
 Status: the opt-in auth router supports issuance, account actions, refresh/logout,
 and REST/socket family validation. Live `createApp` still uses the legacy default:
 seven-day login tokens and unchanged browser storage. No refresh cookies are

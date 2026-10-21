@@ -1,5 +1,10 @@
 # Authentication Hardening
 
+> Historical implementation guide. The coordinated cutover is now active in source.
+> For current startup, token policy and verification status, see
+> [Active Authentication and Cutover](authentication-cutover.md). Earlier opt-in
+> and legacy-default statements below describe the pre-cutover stages only.
+
 ## Decision
 
 SDLCFlow will retain self-managed JWT authentication. Supabase Auth migration is

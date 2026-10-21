@@ -3,10 +3,9 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import request from 'supertest';
+import request, { issueAccess } from './helpers/auth.js';
 import { createApp } from '../app.js';
 import User from '../models/User.js';
-import { createSessionToken } from '../utils/sessionTokens.js';
 
 let mongo;
 const password = 'original passphrase';
@@ -23,7 +22,7 @@ async function setup(version = 0) {
     const app = createApp();
     const user = await User.create({ name: 'Test', email: 'test@example.com', sessionVersion: version,
         passwordHash: await bcrypt.hash(password, 4) });
-    const token = createSessionToken(user);
+    const token = await issueAccess(user);
     return {
         app, user, token,
         change: (body = { currentPassword: password, newPassword }, auth = token) => request(app)
@@ -36,7 +35,7 @@ async function setup(version = 0) {
 describe('password change session revocation', () => {
     it('replaces the hash and increments once, invalidating all old REST tokens', async () => {
         const ctx = await setup(4);
-        const otherToken = jwt.sign({ id: ctx.user.id, sessionVersion: 4, iat: 1 }, process.env.JWT_SECRET);
+        const otherToken = await issueAccess(ctx.user);
         const result = await ctx.change().expect(200);
         expect(result.body).toEqual({ data: { updated: true } });
         const stored = await ctx.stored();
@@ -53,11 +52,12 @@ describe('password change session revocation', () => {
         await ctx.me(login.body.data.token).expect(200);
     });
 
-    it('revokes legacy tokens and creates the missing counter atomically', async () => {
+    it('rejects legacy tokens but can update a legacy document using a current session', async () => {
         const ctx = await setup();
         await User.collection.updateOne({ _id: ctx.user._id }, { $unset: { sessionVersion: '' } });
         const legacy = jwt.sign({ id: ctx.user.id }, process.env.JWT_SECRET);
-        await ctx.change({ currentPassword: password, newPassword }, legacy).expect(200);
+        await ctx.change({ currentPassword: password, newPassword }, legacy).expect(401);
+        await ctx.change({ currentPassword: password, newPassword }).expect(200);
         expect((await ctx.stored()).sessionVersion).toBe(1);
         await ctx.me(legacy).expect(401);
         await ctx.me().expect(401);

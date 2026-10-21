@@ -9,7 +9,7 @@
     "test": "vitest run",
     "test:summary-browser": "node scripts/check-project-summary.mjs",
     "start": "node src/index.js",
-    "dev": "nodemon --watch src src/index.js"
+    "dev": "NODE_ENV=development nodemon --watch src src/index.js"
   },
   "keywords": [],
   "author": "",

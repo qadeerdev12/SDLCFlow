@@ -1,7 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
-import jwt from 'jsonwebtoken';
-import request from 'supertest';
+import request, { issueAccess } from './helpers/auth.js';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { createApp } from '../app.js';
 import Notification from '../models/Notification.js';
@@ -34,7 +33,7 @@ async function fixture() {
   });
   const list = await List.create({ board: board._id, title: 'Todo', position: 1000 });
   const card = await Card.create({ board: board._id, list: list._id, title: 'API tests', position: 1000 });
-  const token = jwt.sign({ id: recipient.id }, process.env.JWT_SECRET);
+  const token = await issueAccess(recipient);
   return {
     recipient, actor, board, card, token,
     add: (overrides = {}) => Notification.create({

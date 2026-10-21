@@ -6,12 +6,13 @@ import { allowedClientOrigins, createApp } from './app.js';
 import { configureSockets } from './socket.js';
 import { registerNotificationSubscriber } from './events/notificationSubscriber.js';
 import { appEvents } from './events/eventBus.js';
+import { authRuntimeOptions } from './config/authRuntime.js';
 
 // Keep HTTP and Socket.IO CORS in sync. CLIENT_ORIGIN accepts a comma-separated
 // list so local dev can use either localhost or 127.0.0.1, and deploys can add
 // the production web URL without code changes.
 const CLIENT_ORIGINS = allowedClientOrigins();
-const app = createApp();  //create the Express application
+const app = createApp({ refresh: authRuntimeOptions() });
 const httpServer = createServer(app); //create an HTTP server instance
 
 // Attach Socket.IO to that same HTTP server.

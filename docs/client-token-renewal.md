@@ -1,5 +1,10 @@
 # REST and WebSocket Token Renewal
 
+> Historical implementation guide. The coordinated cutover is now active in source.
+> For current startup, token policy and verification status, see
+> [Active Authentication and Cutover](authentication-cutover.md). Earlier opt-in
+> and legacy-default statements below describe the pre-cutover stages only.
+
 Status: implemented for the opt-in memory provider. The live application's
 legacy mode is unchanged. This is reactive renewal, not a proactive expiry timer.
 

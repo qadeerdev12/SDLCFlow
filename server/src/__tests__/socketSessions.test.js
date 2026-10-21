@@ -3,14 +3,13 @@ import { createServer } from 'node:http';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import request from 'supertest';
+import request, { issueAccess } from './helpers/auth.js';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { Server } from 'socket.io';
 import { io as createClient } from 'socket.io-client';
 import { createApp } from '../app.js';
 import { configureSockets } from '../socket.js';
 import { revokeSocketSessions } from '../services/socketSessionService.js';
-import { createSessionToken } from '../utils/sessionTokens.js';
 import User from '../models/User.js';
 
 let mongo, io;
@@ -38,7 +37,7 @@ async function fixture() {
   configureSockets(io);
   await new Promise((resolve) => http.listen(0, '127.0.0.1', resolve));
   const user = await User.create({ name: 'Test', email: 'test@example.com', passwordHash: await bcrypt.hash(password, 4) });
-  const token = createSessionToken(user);
+  const token = await issueAccess(user);
   const connect = (credential = token) => {
     const socket = createClient(`http://127.0.0.1:${http.address().port}`, {
       auth: { token: credential }, autoConnect: false, reconnection: false, forceNew: true,
@@ -64,7 +63,7 @@ function ended(socket) {
 describe('socket session lifecycle', () => {
   it.each([null, '0', -1, 1.5])('rejects malformed version %j at handshake', async (version) => {
     const ctx = await fixture();
-    const token = jwt.sign({ id: ctx.user.id, sessionVersion: version }, process.env.JWT_SECRET);
+    const token = jwt.sign({ ...jwt.decode(ctx.token), sessionVersion: version }, process.env.JWT_SECRET);
     await expect(ctx.connect(token)).rejects.toMatchObject({ data: { code: 'INVALID_TOKEN' } });
     expect(io.sockets.sockets.size).toBe(0);
   });
@@ -74,7 +73,7 @@ describe('socket session lifecycle', () => {
     const first = await ctx.connect();
     const second = await ctx.connect();
     const other = await User.create({ name: 'Other', email: 'other@example.com', passwordHash: 'unused' });
-    const unrelated = await ctx.connect(createSessionToken(other));
+    const unrelated = await ctx.connect(await issueAccess(other));
     const board = (await request(ctx.app).post('/api/v1/boards').set('Authorization', `Bearer ${ctx.token}`).send({ name: 'Test project' }).expect(201)).body.data.board;
     expect((await first.timeout(2000).emitWithAck('board:join', { boardId: board._id })).ok).toBe(true);
     const firstEnded = ended(first);
@@ -96,7 +95,7 @@ describe('socket session lifecycle', () => {
 
   it('disconnects an idle socket when its token expires', async () => {
     const ctx = await fixture();
-    const token = jwt.sign({ id: ctx.user.id, sessionVersion: 0 }, process.env.JWT_SECRET, { expiresIn: 2 });
+    const token = jwt.sign({ ...jwt.decode(ctx.token), exp: Math.floor(Date.now() / 1000) + 2 }, process.env.JWT_SECRET);
     const socket = await ctx.connect(token);
     expect(await ended(socket)).toEqual(['SESSION_EXPIRED']);
     expect(io.sockets.adapter.rooms.has(`user:${ctx.user.id}`)).toBe(false);
@@ -157,7 +156,7 @@ describe('socket session lifecycle', () => {
     const first = await ctx.connect();
     const second = await ctx.connect();
     const other = await User.create({ name: 'Other', email: 'other@example.com', passwordHash: 'unused' });
-    const otherToken = createSessionToken(other);
+    const otherToken = await issueAccess(other);
     const otherSocket = await ctx.connect(otherToken);
     const endedFirst = ended(first);
     const endedSecond = ended(second);
@@ -188,7 +187,8 @@ describe('socket session lifecycle', () => {
     await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', 'Bearer invalid').expect(401);
     await User.collection.updateOne({ _id: ctx.user._id }, { $unset: { sessionVersion: '' } });
     const legacy = jwt.sign({ id: ctx.user.id }, process.env.JWT_SECRET);
-    await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', `Bearer ${legacy}`).expect(200);
+    await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', `Bearer ${legacy}`).expect(401);
+    await request(ctx.app).post('/api/v1/auth/logout-all').set('Authorization', `Bearer ${ctx.token}`).expect(200);
     const stored = await User.findById(ctx.user._id).select('+sessionVersion +passwordHash');
     expect(stored.sessionVersion).toBe(1);
     expect(stored.email).toBe(ctx.user.email);

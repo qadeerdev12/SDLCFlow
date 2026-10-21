@@ -1,5 +1,10 @@
 # Authentication Origin Configuration
 
+> Historical implementation guide. The coordinated cutover is now active in source.
+> For current startup, token policy and verification status, see
+> [Active Authentication and Cutover](authentication-cutover.md). Earlier opt-in
+> and legacy-default statements below describe the pre-cutover stages only.
+
 Status: configuration preflight is available. Neither server nor client entry
 point has switched to memory authentication. No secret or local environment file
 is changed by the checker.

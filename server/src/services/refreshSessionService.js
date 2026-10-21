@@ -22,7 +22,7 @@ function result(session, credential) {
 }
 
 /** Internal issuance boundary: pass a credential-verified user with version selected.
- * Not wired into login yet. Raw credentials belong only in the eventual cookie.
+ * Raw credentials belong only in the HttpOnly cookie, never the JSON response.
  */
 export async function createRefreshSession(user) {
     const version = sessionVersion(user.sessionVersion);
@@ -38,7 +38,7 @@ export async function createRefreshSession(user) {
 }
 
 /** Single-use rotation. Callers must serialize refreshes, not retry old secrets.
- * HTTP policy lives in the unmounted refresh router; socket eviction is pending.
+ * HTTP policy and family-scoped socket eviction live in the refresh router.
  */
 export async function rotateRefreshSession(credential) {
     if (typeof credential !== 'string' || !/^[a-f0-9]{24}\.[A-Za-z0-9_-]{43}$/.test(credential)) reject();

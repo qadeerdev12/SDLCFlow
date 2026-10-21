@@ -3,10 +3,10 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import request from 'supertest';
+import request, { issueAccess } from './helpers/auth.js';
 import { createApp } from '../app.js';
 import User from '../models/User.js';
-import { sessionVersion, createSessionToken } from '../utils/sessionTokens.js';
+import { sessionVersion } from '../utils/sessionTokens.js';
 
 let mongo;
 const password = 'a test passphrase';
@@ -45,18 +45,18 @@ describe('session version foundation', () => {
             .send({ name: 'Test', email: 'test@example.com', password, sessionVersion: 99 }).expect(201);
         const decoded = jwt.verify(result.body.data.token, process.env.JWT_SECRET);
         expect(decoded.sessionVersion).toBe(0);
-        expect(decoded.exp - decoded.iat).toBe(7 * 24 * 60 * 60);
+        expect(decoded.exp - decoded.iat).toBe(900);
         expect(result.body.data.user).not.toHaveProperty('sessionVersion');
         const profile = await me(app, result.body.data.token).expect(200);
         expect(profile.body.data).not.toHaveProperty('sessionVersion');
         expect((await User.findById(decoded.id)).sessionVersion).toBeUndefined();
-        expect(() => createSessionToken({ _id: decoded.id })).toThrow('Session version must be selected');
+        await expect(issueAccess({ _id: decoded.id })).rejects.toThrow('selected, valid session version');
     });
 
     it('checks the stored version on each request and login issues its current value', async () => {
         const app = createApp();
         const user = await createUser();
-        const oldToken = createSessionToken(user);
+        const oldToken = await issueAccess(user);
         await me(app, oldToken).expect(200);
         // Simulate a future revocation action without adding one in this slice.
         await User.updateOne({ _id: user._id }, { $inc: { sessionVersion: 1 } });
@@ -69,12 +69,12 @@ describe('session version foundation', () => {
         await me(app, sign({ id: user.id, sessionVersion: 2 })).expect(401);
     });
 
-    it('supports legacy documents and tokens only while the stored version is zero', async () => {
+    it('supports old account documents but requires fresh login instead of legacy tokens', async () => {
         const app = createApp();
         const user = await createUser();
         await User.collection.updateOne({ _id: user._id }, { $unset: { sessionVersion: '' } });
         const legacyToken = sign({ id: user.id });
-        await me(app, legacyToken).expect(200);
+        await me(app, legacyToken).expect(401);
         const login = await request(app).post('/api/v1/auth/login').send({ email: user.email, password }).expect(200);
         expect(jwt.verify(login.body.data.token, process.env.JWT_SECRET).sessionVersion).toBe(0);
         await User.updateOne({ _id: user._id }, { $inc: { sessionVersion: 1 } });
@@ -91,7 +91,7 @@ describe('session version foundation', () => {
     it('rejects malformed IDs, expired/tampered tokens, and deleted accounts', async () => {
         const app = createApp();
         const user = await createUser();
-        const token = createSessionToken(user);
+        const token = await issueAccess(user);
         for (const id of [null, {}, 'invalid']) {
             const result = await me(app, sign({ id, sessionVersion: 0 })).expect(401);
             expect(result.body.error.code).toBe('INVALID_TOKEN');
@@ -106,7 +106,7 @@ describe('session version foundation', () => {
     it('does not let profile updates overwrite internal session state', async () => {
         const app = createApp();
         const user = await createUser(3);
-        await request(app).patch('/api/v1/auth/profile').set('Authorization', `Bearer ${createSessionToken(user)}`)
+        await request(app).patch('/api/v1/auth/profile').set('Authorization', `Bearer ${await issueAccess(user)}`)
             .send({ name: 'Renamed', sessionVersion: 0 }).expect(200);
         expect((await User.findById(user._id).select('+sessionVersion')).sessionVersion).toBe(3);
     });
@@ -114,10 +114,10 @@ describe('session version foundation', () => {
     it('fails closed for corrupt stored state and refuses to sign it', async () => {
         const app = createApp();
         const user = await createUser();
-        const token = createSessionToken(user);
+        const token = await issueAccess(user);
         await User.collection.updateOne({ _id: user._id }, { $set: { sessionVersion: null } });
         await me(app, token).expect(401);
-        expect(() => createSessionToken({ _id: user._id, sessionVersion: null })).toThrow();
+        await expect(issueAccess({ _id: user._id, sessionVersion: null })).rejects.toThrow();
         user.sessionVersion = -1;
         await expect(user.validate()).rejects.toThrow();
     });

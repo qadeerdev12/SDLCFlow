@@ -1,7 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
-import jwt from 'jsonwebtoken';
-import request from 'supertest';
+import request, { issueAccess } from './helpers/auth.js';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { createApp } from '../app.js';
 import Board from '../models/Board.js';
@@ -30,7 +29,7 @@ async function fixture({ legacy = false } = {}) {
   const workflow = legacy ? null : await ensureDefaultWorkflow(board._id);
   const list = await List.create({ board: board._id, workflow: workflow?._id, title: 'Todo', position: 2000 });
   const card = await Card.create({ board: board._id, workflow: workflow?._id, list: list._id, title: 'Task', position: 2000, assignee: user._id });
-  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+  const token = await issueAccess(user);
   return { user, board, workflow, list, card, get: () => request(app).get(`/api/v1/boards/${board.id}`).set('Authorization', `Bearer ${token}`) };
 }
 

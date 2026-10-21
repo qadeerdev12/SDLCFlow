@@ -1,5 +1,10 @@
 # Memory-Only Authentication Provider
 
+> Historical implementation guide. The coordinated cutover is now active in source.
+> For current startup, token policy and verification status, see
+> [Active Authentication and Cutover](authentication-cutover.md). Earlier opt-in
+> and legacy-default statements below describe the pre-cutover stages only.
+
 Status: implemented behind `AuthProvider mode="memory"`, with provider and
 coordinator tests. The application's default is still `legacy`. Do not switch
 the live application until coordinated server/client cutover and browser checks.

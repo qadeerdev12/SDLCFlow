@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import request from 'supertest';
+import request from './helpers/auth.js';
 import { io as createClient } from 'socket.io-client';
 import { Server } from 'socket.io';
 import { createApp } from '../app.js';

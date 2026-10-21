@@ -1,9 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
-import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import request from 'supertest';
+import request, { issueAccess } from './helpers/auth.js';
 import { io as createClient } from 'socket.io-client';
 import { Server } from 'socket.io';
 import { createApp } from '../app.js';
@@ -55,7 +54,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   const users = await User.create(['owner', 'member', 'outsider'].map((name) => ({ name, email: `${name}@example.com`, passwordHash: 'unused-test-hash' })));
-  const tokens = users.map((user) => jwt.sign({ id: user._id.toString() }, process.env.JWT_SECRET));
+  const tokens = await Promise.all(users.map(issueAccess));
   const board = await Board.create({ name: 'Project', owner: users[0]._id, members: [{ user: users[0]._id, role: 'owner' }, { user: users[1]._id, role: 'member' }] });
   const other = await Board.create({ name: 'Other project', owner: users[2]._id, members: [{ user: users[2]._id, role: 'owner' }] });
   const workflow = await Workflow.create({ board: board._id, name: 'General', templateKey: 'default', position: 1000 });

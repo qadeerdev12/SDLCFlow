@@ -11,7 +11,7 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider>
+        <AuthProvider mode="memory">
           <ToastProvider>
             <App />
           </ToastProvider>
