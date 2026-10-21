@@ -2,7 +2,9 @@
 
 Status: memory-only access tokens and rotating refresh cookies are now the default
 in source. Restart/rebuild both processes to activate this change. Automated tests
-cover the cutover; real-browser renewal and multi-tab validation remain pending.
+cover the cutover. The isolated Chrome check now covers login/signup, reload
+restoration, local cookie/storage behavior and restoration failures; expiry-driven
+renewal and multi-tab validation remain pending.
 Older authentication guides describe staged implementation history; this file
 supersedes their references to dormant routes, opt-in providers or legacy tokens.
 
@@ -86,7 +88,14 @@ Review core files:
   [client default](../client/src/__tests__/authSession.test.jsx),
   [storage removal](../client/src/__tests__/memoryAuth.test.jsx).
 
-## Next: Browser Verification
+## Browser Verification
+
+Chunk 1 passed against the real client and API with a disposable database. Run
+`npm run test:auth-browser` from `server/`. For setup, exact coverage and remaining
+limitations, see [the browser verification guide](authentication-browser-verification.md).
+
+The next chunk is expiry-driven REST/Socket.IO renewal, including rejoin/refetch
+and draft retention. Multi-tab and account-action checks follow separately.
 
 Use disposable accounts for destructive tests. Check login/signup, page reload,
 cookie flags, absence of stored bearer tokens, REST/socket expiry, rejoin/refetch,
@@ -94,4 +103,5 @@ draft retention, multiple tabs, logout, password change and account deletion.
 Also test blocked storage, temporary auth outages and lost refresh responses.
 An uncertain refresh must require sign-in, not blindly replay rotation.
 
-Automated tests are not proof of browser cookie behavior or production routing.
+Unit tests alone are not proof of browser cookie behavior. The local browser
+runner verifies the development cookie only, not production HTTPS routing.

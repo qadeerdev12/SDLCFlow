@@ -478,7 +478,9 @@ adapter, deliberately deferred until there is a reason to scale horizontally.
 the same gap will eventually exhaust float precision. Thousands of moves away, but
 real.
 
-**Authentication browser verification is pending.** Access JWTs now live only in
+**Authentication browser verification is in progress.** Login/signup, reload,
+local cookie/storage behavior and restoration failures pass the isolated
+[browser check](docs/authentication-browser-verification.md). Access JWTs now live only in
 memory for at most 15 minutes, with rotating HttpOnly refresh cookies and a
 seven-day absolute session lifetime. Ordinary logout revokes its server-side
 session family; password changes and **Log out everywhere** invalidate old
