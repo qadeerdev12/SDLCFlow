@@ -14,6 +14,7 @@ import { Server } from 'socket.io';
 import { createApp } from '../src/app.js';
 import { configureSockets } from '../src/socket.js';
 import User from '../src/models/User.js';
+import { checkRenewal } from './auth-check/renewal.mjs';
 
 // Never load server .env or connect to the user's database. Vite's API/socket
 // URLs are overridden too, so the real client can only use these test servers.
@@ -207,8 +208,9 @@ try {
   assert.equal(await dashboard(blocked).count(), 0);
   assert.deepEqual(blockedRequests, [], 'Failed legacy-token cleanup must prevent auth and resource requests');
   console.log('PASS blocked storage fails closed before API requests');
+  await checkRenewal({ newPage, origin, apiOrigin, io, password });
   assert.deepEqual(problems, [], 'No uncaught browser exceptions');
-  console.log(`All chunk 1 auth checks passed in Chromium ${browser.version()}. Production HTTPS, expiry and multi-tab checks remain separate.`);
+  console.log(`All chunk 1 and 2 auth checks passed in Chromium ${browser.version()}. Production HTTPS and multi-tab checks remain separate.`);
 } finally {
   // These handles belong only to this runner, never the user's dev processes.
   await browser?.close();

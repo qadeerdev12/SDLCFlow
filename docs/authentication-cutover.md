@@ -3,8 +3,9 @@
 Status: memory-only access tokens and rotating refresh cookies are now the default
 in source. Restart/rebuild both processes to activate this change. Automated tests
 cover the cutover. The isolated Chrome check now covers login/signup, reload
-restoration, local cookie/storage behavior and restoration failures; expiry-driven
-renewal and multi-tab validation remain pending.
+restoration, local cookie/storage behavior, restoration failures, expiry-driven
+REST/socket renewal, rejoin/refetch and chat draft retention. Multi-tab and
+account-action browser validation remain pending.
 Older authentication guides describe staged implementation history; this file
 supersedes their references to dormant routes, opt-in providers or legacy tokens.
 
@@ -90,12 +91,11 @@ Review core files:
 
 ## Browser Verification
 
-Chunk 1 passed against the real client and API with a disposable database. Run
+Chunks 1 and 2 passed against the real client and API with a disposable database. Run
 `npm run test:auth-browser` from `server/`. For setup, exact coverage and remaining
 limitations, see [the browser verification guide](authentication-browser-verification.md).
 
-The next chunk is expiry-driven REST/Socket.IO renewal, including rejoin/refetch
-and draft retention. Multi-tab and account-action checks follow separately.
+The next chunk is multi-tab coordination. Account-action checks follow separately.
 
 Use disposable accounts for destructive tests. Check login/signup, page reload,
 cookie flags, absence of stored bearer tokens, REST/socket expiry, rejoin/refetch,

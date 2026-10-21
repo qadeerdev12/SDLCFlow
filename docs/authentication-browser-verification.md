@@ -56,13 +56,52 @@ Storage failure is simulated by rejecting legacy-token removal, not by disabling
 every storage API in browser settings. All successful auth requests use the real
 controllers, database, password verification and session service.
 
+## Chunk 2 Coverage
+
+- An expired REST profile mutation receives the real server's SESSION_EXPIRED
+  rejection, refreshes once, then retries successfully. The database contains the
+  saved profile name.
+- A profile 503 neither refreshes nor retries the mutation, and retains the draft.
+- If the retry also receives SESSION_EXPIRED, the client stops after two attempts
+  and clears the session instead of looping.
+- A genuinely short-lived signed access token expires on connected sockets. The
+  real server expiry timer triggers renewal; board and inbox sockets share one
+  refresh, old sockets disconnect and a replacement rejoins the board room.
+- A list changed directly in the database during the refresh gap, without a
+  broadcast, appears after reconnect. This verifies snapshot refetch, not merely
+  the connection indicator.
+- An unsent chat draft survives renewal. Reconnection does not submit it; an
+  explicit send persists exactly one message.
+- Expiry during a message packet rejects the mutation without replay. The failed
+  message remains available for manual retry, which persists exactly one copy.
+
+### Test Boundaries
+
+[Renewal scenarios](../server/scripts/auth-check/renewal.mjs) live separately from
+the runner's server/browser lifecycle. No production auth code is changed.
+
+REST expiry is injected by replacing selected outbound bearer tokens with signed,
+already-expired copies of their real session claims. The actual server verifier
+returns the rejection. This isolates the REST retry path from the socket timer.
+The profile 503 is a simulated network response, not a database outage.
+
+For idle sockets, only the login response's access-token timing is shortened to
+12 seconds using the runner's signing key. The refresh cookie, persisted family,
+signature verification and expiry timer are real. Renewal is briefly held so the
+test can check the draft and insert a missed update before reconnection.
+
+For packet expiry, a test-only catch-all listener moves the server socket's session
+deadline into the past immediately before message middleware runs. The real
+per-packet guard rejects and disconnects it. This avoids a race with the idle timer
+and verifies the acknowledgement failure path deterministically. It is not a
+production expiry setting or an authentication bypass.
+
 ## Verified Result and Remaining Work
 
-Chunk 1 passed locally with Chrome 155.0.8059.85. This does not certify other browser
+Chunks 1 and 2 passed locally with Chrome 155.0.8059.85. This does not certify other browser
 engines, mobile browsers, production HTTPS or a deployed proxy configuration.
 
-Next chunks cover access-token expiry, REST/Socket.IO renewal, room rejoin/refetch,
-draft retention, multi-tab coordination and revocation through logout/password
+Next chunks cover multi-tab coordination and revocation through logout/password
 changes/account deletion. Real production Secure/__Host- cookie enforcement and
 same-site deployment must also be checked in the deployed HTTPS environment.
 
