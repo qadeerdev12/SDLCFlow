@@ -4,7 +4,10 @@ import crypto from 'crypto';
 const TOKEN_PREFIX = 'enc:v1:';
 
 function tokenEncryptionKey() {
-  const secret = process.env.GITHUB_TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET;
+  // Keep the legacy fallback local-only. Signing-key rotation must not silently
+  // change the encryption key used for production GitHub credentials.
+  const local = ['development', 'test'].includes(process.env.NODE_ENV);
+  const secret = process.env.GITHUB_TOKEN_ENCRYPTION_KEY || (local ? process.env.JWT_SECRET : undefined);
   if (!secret) throw new Error('GitHub token encryption key is not configured.');
   return crypto.createHash('sha256').update(secret).digest();
 }

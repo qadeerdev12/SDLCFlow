@@ -2,6 +2,12 @@
 
 Audit date: 2026-10-18. Source baseline: `ebf8cd2`.
 
+Update 2026-10-21: memory-only access tokens, rotating refresh cookies and all four
+local Chrome verification chunks are complete. Dependency remediation and
+production secret startup checks are covered in the
+[production security review](production-security-review.md). The baseline below
+is historical; remaining release blockers still apply.
+
 **Verdict:** suitable for a portfolio case study, but not ready for unrestricted
 public signup and live integrations. Resolve the blockers below before opening
 the demo. This is a targeted launch audit, not a complete security assessment.
@@ -55,19 +61,19 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   Chunk 4 adds confirmed log out everywhere, with atomic generation revocation
   and protection against stale/repeated requests. The four session-invalidation
   chunks are complete for the current single-process deployment.
-  Still required: token lifecycle
-  and storage review, recovery, and email verification. Previously issued JWTs
+  Token lifecycle/storage cutover and local browser checks are now complete.
+  Still required: account recovery and email verification scope decisions before
+  unrestricted public signup. Previously issued JWTs
   now fail REST/socket checks after password changes; multi-instance revocation
   remains outside the current single-process implementation. See
   [Authentication Hardening](authentication.md) for policy and slice details.
 
-- [ ] **3. Remediate dependency advisories and rerun checks.** Current audit
-  results differ from September's clean result. Server: 7 affected packages
-  (1 critical, 6 high); excluding dev dependencies: `proxy-addr` (critical) and
-  `engine.io` (high). Client: 9 affected packages (7 high, 2 moderate); excluding
-  dev dependencies: 6. Update deliberately, not with `npm audit fix --force`.
-  The nodemon recommendation includes an old major downgrade and needs manual
-  review. Keep runtime changes separate from tooling changes.
+- [x] **3. Remediate dependency advisories and rerun checks.** On 2026-10-21,
+  compatible lockfile updates resolved the runtime/tooling advisories. Node watch
+  replaced nodemon, removing its vulnerable development-only dependency chain
+  without a forced downgrade. Full and omit-dev audits report zero findings in
+  both packages. Server/client tests, build/lint and browser checks are recorded
+  in the production security review; rerun audits before deployment.
 
 - [ ] **4. Bound public-demo abuse and cost.** Public registration is open;
   login/signup now have per-process IP throttling, not distributed abuse controls.
@@ -133,9 +139,7 @@ scaling, and a GitHub App migration are not required for this portfolio launch.
 Self-managed JWT authentication is the chosen path; Supabase is no longer a
 planned launch dependency.
 
-**Next review gate:** approve the [token lifecycle proposal](token-lifecycle-design.md),
-including the same-site deployment requirement, before implementation. The next
-code slice would be refresh-session storage and atomic rotation tests, with the
-new flow disabled until client/server cutover. Session-invalidation chunks 1-4 are
-complete; broader authentication and launch blockers remain open. No runtime,
-dependency, or deployment configuration changed in the design-review slice.
+**Next review gate:** resolve the remaining launch blockers and deployment gates
+above. The token lifecycle proposal has been implemented and locally verified;
+the selected topology is documented in the [deployment plan](deployment-plan.md).
+The dependency/security slice is not blanket production approval.

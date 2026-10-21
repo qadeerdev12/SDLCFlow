@@ -7,6 +7,10 @@ import { configureSockets } from './socket.js';
 import { registerNotificationSubscriber } from './events/notificationSubscriber.js';
 import { appEvents } from './events/eventBus.js';
 import { authRuntimeOptions } from './config/authRuntime.js';
+import { validateProductionSecurity } from './config/productionSecurity.js';
+
+// Fail before opening a database connection or accepting traffic. Never log keys.
+validateProductionSecurity();
 
 // Keep HTTP and Socket.IO CORS in sync. CLIENT_ORIGIN accepts a comma-separated
 // list so local dev can use either localhost or 127.0.0.1, and deploys can add
