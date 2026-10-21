@@ -6,6 +6,10 @@ legacy by default; this is not the live cutover.
 
 ## Full-App Construction
 
+Run the read-only [origin configuration preflight](auth-origin-configuration.md)
+before changing entry points. It validates local URLs and conservative production
+layouts without enabling memory mode or editing environment files.
+
 The application factory accepts a server-owned `refresh` option:
 
 ```js

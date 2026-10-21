@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "check:auth-config": "node scripts/check-auth-config.mjs",
     "test": "vitest run",
     "test:summary-browser": "node scripts/check-project-summary.mjs",
     "start": "node src/index.js",
