@@ -85,15 +85,35 @@ current client and older integrations.
 `GET /integrations/github/start` returns the authorization URL instead of
 redirecting immediately because protected REST routes need the SDLCFlow JWT in
 the `Authorization` header. The client should call this endpoint first, then set
-`window.location` to `authorizationUrl`.
+`window.location` to `authorizationUrl`. Fetch must use `credentials: 'include'`
+to accept the OAuth binding cookie when local frontend/API ports differ.
 
-The OAuth callback validates a signed `state`, exchanges GitHub's temporary
+The OAuth callback consumes a browser-bound, single-use opaque `state`, exchanges GitHub's temporary
 `code` server-side, fetches the GitHub profile/email, and stores the encrypted
 connection against the SDLCFlow user. The current MVP requests `read:user user:email repo`;
 `repo` is required so private and public repositories can appear in the project
 repo picker. Existing GitHub connections made before repo access was introduced
 must reconnect before `GET /integrations/github/repos` can return repository
 data.
+State expires after ten minutes; only digests of state and the separate browser
+secret are stored. The production binding cookie is `__Host-sdlcflow_github_oauth`
+(Secure, HttpOnly, SameSite=Lax, Path=/, no Domain). Lax permits GitHub's top-level
+GET redirect; the authentication refresh cookie remains Strict. Explicit local
+development/test uses `sdlcflow_github_oauth_dev` without Secure.
+
+MongoDB atomically consumes state before the code exchange. Missing/wrong cookies,
+malformed or expired state, replay, and invalidated initiating login sessions fail
+closed. A denial or provider failure after consumption requires a fresh Connect
+GitHub attempt. Starting again supersedes the prior attempt for that login family;
+the browser stores only its latest binding cookie, so concurrent connection tabs
+are intentionally not supported. Existing GitHub connections are unaffected;
+in-flight links created before this change must be restarted.
+
+Backend coverage is in `server/src/__tests__/githubOAuthState.test.js`; provider
+calls are mocked. Real browser redirect/cookie verification is the next chunk,
+not evidence supplied by these backend tests. See GitHub's
+[OAuth authorization guidance](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps).
+
 Disconnecting makes a best-effort token revoke call to GitHub, removes
 SDLCFlow's stored GitHub connection, and unlinks projects that depended on that
 account. GitHub rate limits return `429 GITHUB_RATE_LIMITED` with retry metadata

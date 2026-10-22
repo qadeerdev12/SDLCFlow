@@ -9,7 +9,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api/v1';
 //  - attaches the auth token if we have one
 //  - parses the JSON response and throws on errors
 
-async function request(endpoint, {method = 'GET', body, token, renewed = false } = {}) {
+async function request(endpoint, {method = 'GET', body, token, renewed = false, credentials } = {}) {
     if (renewed && !isCurrentRenewalToken(token)) {
         throw Object.assign(new Error('Session changed before retry.'), { code: 'AUTH_OPERATION_STALE' });
     }
@@ -21,6 +21,7 @@ async function request(endpoint, {method = 'GET', body, token, renewed = false }
     }
 
     const config = {method, headers}
+    if (credentials) config.credentials = credentials;
     if (body) {
         config.body = JSON.stringify(body); // JS object -> JSON string for the wire
 
@@ -39,7 +40,7 @@ async function request(endpoint, {method = 'GET', body, token, renewed = false }
         if (res.status === 401 && data?.error?.code === 'SESSION_EXPIRED'
             && token && !renewed && hasSessionRenewal()) {
             const nextToken = await renewExpiredSession(token);
-            return request(endpoint, { method, body, token: nextToken, renewed: true });
+            return request(endpoint, { method, body, token: nextToken, renewed: true, credentials });
         }
         // Surface the server's message so the UI can show it.
         const error = new Error(data?.error?.message || `Request failed with status ${res.status}`);
@@ -80,7 +81,8 @@ export const authApi = {
 
 export const integrationApi = {
   startGitHubOAuth: (token) =>
-    request('/integrations/github/start', { token }),
+    // Accept the HttpOnly OAuth binding cookie across local Vite/API ports.
+    request('/integrations/github/start', { token, credentials: 'include' }),
 
   getGitHubAccount: (token) =>
     request('/integrations/github/account', { token }),

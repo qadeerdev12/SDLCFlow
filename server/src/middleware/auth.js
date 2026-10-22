@@ -67,6 +67,9 @@ export async function protect(req, res, next) {
 
         // Controllers must serialize explicit public fields, not this full document.
         req.user = user;
+        // Internal verified claims for flows that must remain tied to this
+        // login family (for example, an OAuth callback arriving without a JWT).
+        req.authSession = { sessionId: decoded.sid, sessionVersion: decoded.sessionVersion };
 
         next();     
     } catch (error) {

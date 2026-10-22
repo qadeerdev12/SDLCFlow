@@ -1,11 +1,32 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { authApi } from '../lib/api'
+import { authApi, integrationApi } from '../lib/api'
 import { registerSessionRenewal } from '../lib/sessionRenewal'
 
 let unregister
 const response = (status, code) => ({ ok: status < 400, status, headers: new Headers({ 'Content-Type': 'application/json' }),
   json: async () => ({ error: { code }, data: {} }) })
 afterEach(() => { unregister?.(); vi.unstubAllGlobals() })
+
+it('accepts the OAuth binding cookie on start and preserves credentials after renewal', async () => {
+  unregister = registerSessionRenewal({ renew: async () => 'new', isCurrent: (token) => token === 'new' })
+  const fetch = vi.fn().mockResolvedValueOnce(response(401, 'SESSION_EXPIRED'))
+    .mockResolvedValueOnce(response(200))
+  vi.stubGlobal('fetch', fetch)
+  await integrationApi.startGitHubOAuth('old')
+  expect(fetch).toHaveBeenCalledTimes(2)
+  for (const [url, config] of fetch.mock.calls) {
+    expect(url).toContain('/integrations/github/start')
+    expect(config.credentials).toBe('include')
+  }
+  expect(fetch.mock.calls[1][1].headers.Authorization).toBe('Bearer new')
+})
+
+it('does not opt unrelated bearer requests into cross-origin cookies', async () => {
+  const fetch = vi.fn().mockResolvedValue(response(200))
+  vi.stubGlobal('fetch', fetch)
+  await integrationApi.getGitHubAccount('token')
+  expect(fetch.mock.calls[0][1]).not.toHaveProperty('credentials')
+})
 
 it('retries a rejected REST mutation once with the same body and renewed bearer', async () => {
   const renew = vi.fn(async () => 'new')

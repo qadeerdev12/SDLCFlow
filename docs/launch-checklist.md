@@ -92,13 +92,13 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   terminate affected sockets, and define provider-revocation failure behavior.
   Current inbox filtering hides missing boards; this does not remove orphan data.
 
-- [ ] **6. Review GitHub OAuth before enabling visitor connections.** The current
-  signed state has a ten-minute lifetime and random nonce, but the nonce is not
-  consumed and the callback does not bind it to the initiating browser session
-  (`githubIntegrationController.js:32-48,115-152`). Add/review browser binding and
-  one-time use, including account deletion during authorization. This is a code
-  review finding, not a demonstrated live OAuth exploit. The broad `repo` scope
-  also needs clear permission copy; use a separate production OAuth application.
+- [ ] **6. Review GitHub OAuth before enabling visitor connections.** Backend
+  browser binding and atomic single-use state are implemented, with ten-minute
+  expiry and initiating-session checks before exchange and before saving. Tests
+  cover replay, concurrent callbacks, wrong browsers, revocation and account
+  deletion. Complete browser redirect/cookie verification in the next chunk;
+  this gate is not closed by mocked-provider backend tests. The broad `repo`
+  scope also needs clear permission copy; use a separate production OAuth app.
 
 Dependency counts are package advisories, not counts of confirmed exploitable
 application paths. `trust proxy` defaults to false and is only enabled by explicit

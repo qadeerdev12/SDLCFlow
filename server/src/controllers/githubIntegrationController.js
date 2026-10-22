@@ -1,5 +1,4 @@
-import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
+import { issueGitHubOAuthState, consumeGitHubOAuthState, assertGitHubOAuthSession } from '../services/githubOAuthStateService.js';
 import Board from '../models/Board.js';
 import GitHubAccount from '../models/GitHubAccount.js';
 import BoardGitHubIntegration from '../models/BoardGitHubIntegration.js';
@@ -27,26 +26,6 @@ function githubConfigReady() {
 function clientRedirectBase() {
   const explicitUrl = process.env.CLIENT_URL || process.env.CLIENT_ORIGIN?.split(',')[0];
   return explicitUrl || 'http://localhost:5173';
-}
-
-function signOAuthState(userId) {
-  return jwt.sign(
-    {
-      purpose: 'github_oauth',
-      userId: userId.toString(),
-      nonce: crypto.randomBytes(16).toString('hex'),
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: '10m' }
-  );
-}
-
-function verifyOAuthState(state) {
-  const payload = jwt.verify(state, process.env.JWT_SECRET);
-  if (payload.purpose !== 'github_oauth' || !payload.userId) {
-    throw new Error('Invalid OAuth state.');
-  }
-  return payload;
 }
 
 function safeAccountPayload(account) {
@@ -93,6 +72,7 @@ function sendGitHubError(res, error, fallbackMessage) {
 // Returns the GitHub authorization URL. The client redirects the browser there
 // after this protected request, which keeps the SDLCFlow JWT out of query params.
 export async function startGitHubOAuth(req, res) {
+  res.set('Cache-Control', 'no-store');
   if (!githubConfigReady()) {
     return res.status(500).json({
       error: { code: 'GITHUB_CONFIG_MISSING', message: 'GitHub OAuth is not configured on the server.' },
@@ -103,7 +83,13 @@ export async function startGitHubOAuth(req, res) {
   authorizeUrl.searchParams.set('client_id', process.env.GITHUB_CLIENT_ID);
   authorizeUrl.searchParams.set('redirect_uri', process.env.GITHUB_CALLBACK_URL);
   authorizeUrl.searchParams.set('scope', GITHUB_SCOPES.join(' '));
-  authorizeUrl.searchParams.set('state', signOAuthState(req.user._id));
+  try {
+    authorizeUrl.searchParams.set('state', await issueGitHubOAuthState(req, res));
+  } catch {
+    return res.status(503).json({ error: {
+      code: 'GITHUB_OAUTH_UNAVAILABLE', message: 'Could not start GitHub connection. Please try again.',
+    } });
+  }
 
   return res.status(200).json({
     data: {
@@ -114,22 +100,29 @@ export async function startGitHubOAuth(req, res) {
 }
 
 // GET /api/v1/integrations/github/callback
-// GitHub redirects here with a short-lived code. We validate the signed state,
+// GitHub redirects here with a short-lived code. We consume browser-bound state,
 // exchange the code server-side, and attach the GitHub account to the SDLCFlow user.
 export async function handleGitHubCallback(req, res) {
+  res.set('Cache-Control', 'no-store');
+  res.set('Referrer-Policy', 'no-referrer');
   try {
-    const { code, state } = req.query;
-    if (!code || !state) {
+    const attempt = await consumeGitHubOAuthState(req, res);
+    const { code } = req.query;
+    // Denial and missing-code responses consume valid state too. Starting over
+    // is intentional: ambiguous provider failures must never replay an attempt.
+    if (req.query.error || typeof code !== 'string' || !code || code.length > 2048) {
       return redirectToClient(res, 'missing_code');
     }
 
-    const { userId } = verifyOAuthState(state);
+    const userId = attempt.user;
     const token = await exchangeCodeForToken(code);
     const [profile, primaryEmail] = await Promise.all([
       fetchGitHubProfile(token.accessToken),
       fetchPrimaryGitHubEmail(token.accessToken),
     ]);
 
+    // Provider requests can take time; recheck logout/deletion before saving.
+    await assertGitHubOAuthSession(attempt);
     await GitHubAccount.findOneAndUpdate(
       { user: userId },
       {
@@ -150,8 +143,9 @@ export async function handleGitHubCallback(req, res) {
     );
 
     return redirectToClient(res, 'connected');
-  } catch (error) {
-    console.error('GitHub OAuth callback error:', error);
+  } catch {
+    // Provider errors can include credentials or request URLs. Do not log them.
+    console.warn('GitHub OAuth callback failed');
     return redirectToClient(res, 'error');
   }
 }
