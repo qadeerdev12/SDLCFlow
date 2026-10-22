@@ -22,6 +22,19 @@ Alternatively, use an already installed Google Chrome:
 PLAYWRIGHT_CHANNEL=chrome npm run test:auth-browser
 ```
 
+Select Firefox or WebKit explicitly (no fallback to Chromium):
+
+```sh
+npx playwright install firefox webkit
+PLAYWRIGHT_BROWSER=firefox npm run test:auth-browser
+PLAYWRIGHT_BROWSER=webkit npm run test:auth-browser
+```
+
+`PLAYWRIGHT_BROWSER` defaults to `chromium`. `PLAYWRIGHT_CHANNEL` is allowed only
+with Chromium; unset it when testing Firefox or WebKit. Each invocation gets its
+own temporary database and services. All engines run the same four auth chunks
+and the mobile-sized checks below; unsupported capabilities are not skipped.
+
 MongoMemoryServer needs its MongoDB binary cached or permission to download it on
 first use. Local listeners and browser subprocesses must be allowed. No running
 development server, .env secrets, GitHub connection or OpenAI key is required.
@@ -164,12 +177,50 @@ These checks cover successful actions, cancellation and incorrect passwords. The
 do not simulate every account-action outage, partial deletion failure, concurrent
 destructive action or every related-data cleanup relationship.
 
+## Cross-Browser and Mobile-Sized Coverage
+
+The runner accepts Chromium, Firefox and WebKit. The Vite configuration now uses
+`envDir: false` instead of the deprecated `envFile` option, preserving isolation
+from real client environment files.
+
+[Mobile-sized checks](../server/scripts/auth-check/mobile.mjs) inspect login and
+signup at widths 320, 390 and 768, all with an 844px viewport height. They assert
+no page-wide horizontal overflow, that visible form controls fit horizontally,
+and that another element does not cover their center after scrolling into view.
+At 390px they exercise signup, the profile menu, logout-all confirmation
+cancellation and authenticated profile reload. Screenshots are retained in a
+printed temporary directory outside the repository, using only disposable data.
+
+These are viewport checks, not full device emulation: touch input, software
+keyboards, mobile browser chrome, actual iOS Safari and Android remain unverified.
+They cover authentication/profile surfaces, not every responsive project view.
+
+### Results on 2026-10-22
+
+| Engine | Result |
+| --- | --- |
+| Chrome / Chromium channel | Full four-chunk suite and mobile-sized checks passed |
+| Playwright WebKit 26.6 | Full four-chunk suite and mobile-sized checks passed |
+| Playwright Firefox 155.0 | Blocked before navigation: browser reports `Could not find profile folder` |
+
+WebKit login/signup screenshots at 320px and the confirmation at 390px were also
+visually inspected. Firefox failed with both the default temporary directory and
+`TMPDIR=/private/tmp`. This resembles an
+[upstream macOS profile-access report](https://github.com/microsoft/playwright/issues/42768),
+but the exact local OS cause was not independently established. No privacy
+permissions were relaxed, normal browser profiles edited, or browser binaries
+patched. Rerun the Firefox command in a supported environment before closing that
+verification item. Browser installation succeeded; application tests did not run
+in Firefox, so it is neither a pass nor a demonstrated application regression.
+
 ## Verified Result and Remaining Work
 
-Chunks 1-4 passed locally with Chrome 155.0.8059.85. This does not certify other browser
-engines, mobile browsers, production HTTPS or a deployed proxy configuration.
+Chunks 1-4 passed locally with Chrome 155.0.8059.85 and Playwright WebKit 26.6.
+Firefox remains blocked as documented above. These checks do not certify real
+mobile browsers, production HTTPS or a deployed proxy configuration.
 
-The planned local browser-verification sequence is complete. Real production
+The original four-chunk Chrome sequence is complete; the broader cross-browser
+chunk remains open for Firefox. Real production
 Secure/__Host- cookie enforcement, same-site deployment and proxy routing still
 need verification in the deployed HTTPS environment. Other browser engines and
 mobile browsers remain separate checks; this is not production certification.

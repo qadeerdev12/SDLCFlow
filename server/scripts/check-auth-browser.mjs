@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
 import { Server } from 'socket.io';
 import { createApp } from '../src/app.js';
 import { configureSockets } from '../src/socket.js';
@@ -17,6 +17,14 @@ import User from '../src/models/User.js';
 import { checkRenewal } from './auth-check/renewal.mjs';
 import { checkMultipleTabs } from './auth-check/multiple-tabs.mjs';
 import { checkAccountActions } from './auth-check/account-actions.mjs';
+import { checkMobileAuth } from './auth-check/mobile.mjs';
+
+const engines = { chromium, firefox, webkit };
+const browserName = process.env.PLAYWRIGHT_BROWSER || 'chromium';
+if (!Object.hasOwn(engines, browserName)) throw new Error('PLAYWRIGHT_BROWSER must be chromium, firefox or webkit');
+if (process.env.PLAYWRIGHT_CHANNEL && browserName !== 'chromium') {
+  throw new Error('PLAYWRIGHT_CHANNEL is only supported with the chromium engine');
+}
 
 // Never load server .env or connect to the user's database. Vite's API/socket
 // URLs are overridden too, so the real client can only use these test servers.
@@ -40,7 +48,7 @@ try {
   const apiOrigin = `http://127.0.0.1:${api.address().port}`;
   vite = await createServer({
     root: clientRoot, configFile: join(clientRoot, 'vite.config.js'),
-    envFile: false, cacheDir: join(scratch, 'vite-cache'),
+    envDir: false, cacheDir: join(scratch, 'vite-cache'),
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(`${apiOrigin}/api/v1`),
       'import.meta.env.VITE_SOCKET_URL': JSON.stringify(apiOrigin),
@@ -55,7 +63,7 @@ try {
   io = new Server(api, { cors: { origin, methods: ['GET', 'POST'] } });
   app.set('io', io);
   configureSockets(io);
-  browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+  browser = await engines[browserName].launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
 
   async function newPage(sharedContext) {
     // Passing a context models real tabs sharing cookies, storage and Web Locks.
@@ -216,8 +224,9 @@ try {
   await checkRenewal({ newPage, origin, apiOrigin, io, password });
   await checkMultipleTabs({ newPage, origin, password });
   await checkAccountActions({ newPage, origin, apiOrigin, io, password });
+  await checkMobileAuth({ newPage, origin, password, browserName });
   assert.deepEqual(problems, [], 'No uncaught browser exceptions');
-  console.log(`All chunk 1-4 auth checks passed in Chromium ${browser.version()}. Production HTTPS and other browser engines remain unverified.`);
+  console.log(`All chunk 1-4 auth checks and mobile-sized checks passed in ${browserName} ${browser.version()}. Production HTTPS and real mobile devices remain unverified.`);
 } finally {
   // These handles belong only to this runner, never the user's dev processes.
   await browser?.close();

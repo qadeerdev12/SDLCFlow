@@ -6,7 +6,9 @@ cover the cutover. The isolated Chrome check now covers login/signup, reload
 restoration, local cookie/storage behavior, restoration failures, expiry-driven
 REST/socket renewal, rejoin/refetch, chat draft retention, multi-tab coordination
 and account-action revocation. The planned local browser checks are complete;
-production HTTPS and other browser engines remain unverified.
+Chrome and Playwright WebKit pass the expanded suite including mobile-sized
+checks. Firefox is blocked at browser launch; production HTTPS and real mobile
+devices remain unverified. See the browser guide for the exact scope.
 Older authentication guides describe staged implementation history; this file
 supersedes their references to dormant routes, opt-in providers or legacy tokens.
 
@@ -102,7 +104,8 @@ limitations, see [the browser verification guide](authentication-browser-verific
 
 Logout, logout-all, password changes and account deletion are now covered,
 including their effects on independent sessions and old REST/socket credentials.
-Production HTTPS, proxy routing and broader browser coverage remain separate work.
+Production HTTPS, proxy routing, Firefox launch recovery and real-device coverage
+remain separate work.
 
 For additional manual verification, use disposable accounts for destructive tests.
 Check login/signup, page reload,

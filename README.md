@@ -480,7 +480,7 @@ adapter, deliberately deferred until there is a reason to scale horizontally.
 the same gap will eventually exhaust float precision. Thousands of moves away, but
 real.
 
-**The planned local authentication browser checks pass in Chrome.** Login/signup, reload,
+**Local authentication browser checks pass in Chrome and Playwright WebKit.** Login/signup, reload,
 local cookie/storage behavior, restoration failures, REST/socket renewal and
 multi-tab coordination and account-action revocation pass the isolated
 [browser check](docs/authentication-browser-verification.md). Access JWTs now live only in
@@ -489,7 +489,9 @@ seven-day absolute session lifetime. Ordinary logout revokes its server-side
 session family; password changes and **Log out everywhere** invalidate old
 account sessions. Legacy tokens are rejected. See the
 [active authentication guide](docs/authentication-cutover.md) for startup and
-the remaining production HTTPS and cross-browser checks.
+the remaining production HTTPS and cross-browser checks. Mobile-sized auth/profile
+checks also pass; Firefox testing is blocked by a local browser-launch failure,
+and real mobile devices remain unverified.
 
 **Not deployed yet.** The selected first-release layout is one persistent web
 service serving the frontend, API and sockets under one HTTPS origin, with Atlas
