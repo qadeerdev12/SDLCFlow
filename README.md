@@ -495,8 +495,10 @@ and real mobile devices remain unverified.
 
 **Not deployed yet.** The selected first-release layout is one persistent web
 service serving the frontend, API and sockets under one HTTPS origin, with Atlas
-separate. Production static serving, provider/domain selection and proxy review
-remain pending. See the [deployment plan](docs/deployment-plan.md).
+separate. Production static serving is implemented with routing tests;
+provider/domain selection, proxy review and hosted smoke tests remain pending.
+See the [deployment plan](docs/deployment-plan.md) for build/start instructions
+and remaining release gates.
 
 ---
 

@@ -8,6 +8,7 @@ import { registerNotificationSubscriber } from './events/notificationSubscriber.
 import { appEvents } from './events/eventBus.js';
 import { authRuntimeOptions } from './config/authRuntime.js';
 import { validateProductionSecurity } from './config/productionSecurity.js';
+import { defaultClientBuild } from './config/clientBuild.js';
 
 // Fail before opening a database connection or accepting traffic. Never log keys.
 validateProductionSecurity();
@@ -16,7 +17,10 @@ validateProductionSecurity();
 // list so local dev can use either localhost or 127.0.0.1, and deploys can add
 // the production web URL without code changes.
 const CLIENT_ORIGINS = allowedClientOrigins();
-const app = createApp({ refresh: authRuntimeOptions() });
+const app = createApp({
+    refresh: authRuntimeOptions(),
+    clientBuild: (process.env.NODE_ENV || 'production') === 'production' ? defaultClientBuild : null,
+});
 const httpServer = createServer(app); //create an HTTP server instance
 
 // Attach Socket.IO to that same HTTP server.

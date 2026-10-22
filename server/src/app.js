@@ -10,6 +10,7 @@ import githubIntegrationRoutes from './routes/githubIntegrationRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
+import { mountClientBuild } from './config/clientBuild.js';
 
 export function allowedClientOrigins() {
   return (process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
@@ -18,7 +19,7 @@ export function allowedClientOrigins() {
     .filter(Boolean);
 }
 
-export function createApp({ io, refresh = authRuntimeOptions() } = {}) {
+export function createApp({ io, refresh = authRuntimeOptions(), clientBuild = null } = {}) {
   // Configuration cannot disable cookie authentication or restore legacy JWTs.
   if (!refresh || typeof refresh !== 'object' || Array.isArray(refresh)) {
     throw new Error('Refresh configuration must be an explicit options object');
@@ -50,7 +51,7 @@ export function createApp({ io, refresh = authRuntimeOptions() } = {}) {
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/activities', activityRoutes);
 
-  app.get('/', (req, res) => {
+  if (!clientBuild) app.get('/', (req, res) => {
     res.json({
       name: 'SDLCFlow API',
       status: 'ok',
@@ -62,6 +63,9 @@ export function createApp({ io, refresh = authRuntimeOptions() } = {}) {
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // Opt in at production startup; tests and local Vite retain API-only mode.
+  if (clientBuild) mountClientBuild(app, clientBuild);
 
   return app;
 }

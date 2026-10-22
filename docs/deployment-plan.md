@@ -9,8 +9,9 @@ service plan and database environment have not been provisioned or selected here
 
 This is an architecture/configuration checkpoint, not a deployable release yet.
 No secrets, real environment files, DNS records or hosted resources were changed.
-The current Express app still returns API metadata at `/`; it does not yet serve
-the React build. Static serving and deployment packaging are subsequent work.
+Production startup now serves the React build from `client/dist`; development
+retains API metadata at `/` and uses Vite separately. Hosting, runtime packaging
+and the remaining launch gates still need review before staging deployment.
 
 ```text
 Browser
@@ -21,8 +22,8 @@ Hosting HTTPS edge / reviewed reverse proxy
   |
   v
 One persistent Node process
-  |-- /assets/*       React build assets (to implement)
-  |-- page routes     React entry document (to implement)
+  |-- /assets/*       React build assets
+  |-- page routes     React entry document
   |-- /api/v1/*       Express API, including GitHub callback
   |-- /socket.io/*    Socket.IO polling + WebSocket upgrade
   |-- /health         existing process liveness endpoint
@@ -98,10 +99,9 @@ to use `npm run dev` and `npm run check:auth-config -- --local`.
 
 ## Remaining Implementation Gates
 
-1. Add production-only static serving for `client/dist`, preserving local Vite
-   development. Known page routes must support direct navigation/reload. Missing
-   assets and API routes must not fall through to HTML; socket routes must keep
-   reaching Socket.IO. Define index/asset caching explicitly and test these paths.
+1. Static serving is implemented and covered by local routing tests. Verify it
+   again through the selected host's HTTPS edge, including deep-link reloads,
+   missing assets and Socket.IO transport upgrades.
 2. Add reproducible build/start configuration for both packages and pin a supported
    Node runtime. Build the client with its final public URLs; run only the Node
    service in production, never Vite's dev server.
@@ -115,6 +115,44 @@ to use `npm run dev` and `npm run check:auth-config -- --local`.
 6. Deploy staging only after approval, then verify HTTPS cookies, OAuth redirects,
    deep links, Socket.IO polling/upgrades, reconnect and account revocation there.
 
-These are follow-up tasks, not changes implemented by this document. The four
-[local browser-verification chunks](authentication-browser-verification.md) pass;
-production HTTPS and other browser engines remain unverified.
+The [local browser-verification checks](authentication-browser-verification.md)
+pass in Chrome and WebKit; Firefox remains launch-blocked. Production HTTPS and
+real-device behavior remain unverified.
+
+## Production Static Serving
+
+`server/src/index.js` enables `server/src/config/clientBuild.js` only in production
+(also the safe default when NODE_ENV is omitted). The app factory stays API-only
+unless given a build directory, keeping integration tests and local Vite isolated.
+Missing `index.html` stops startup before the database connection or listener.
+
+The build path is relative to the module, not the working directory. Preserve the
+repository layout when packaging: `server/` and `client/dist/` must be siblings.
+With final public Vite URLs configured in the build environment, from the repo root:
+
+```sh
+npm --prefix client ci --include=dev
+npm --prefix client run build
+npm --prefix server ci --omit=dev
+NODE_ENV=production npm --prefix server start
+```
+
+This is a build/start recipe, not a hosting setup. Supply reviewed server runtime
+secrets separately; never use local development URLs in the hosted client build.
+Do not run the production-only install in a development checkout if you still need
+server test dependencies without reinstalling them.
+
+- Known page URLs receive `index.html` with `Cache-Control: no-cache`, allowing
+  revalidation after deploys. Add new page routes to the allowlist when updating
+  `client/src/App.jsx`.
+- Generated Vite `/assets/` files are immutable for one year. Keep manually named,
+  mutable public files outside that directory; other public files revalidate.
+- Missing API, socket, asset and unknown page URLs return JSON 404s, never the SPA.
+  Unknown server URLs therefore differ from client-side navigation's home redirect.
+- API authentication and `/health` retain their existing behavior. Health remains
+  liveness only, not database readiness. Socket.IO owns its transport endpoint on
+  the shared HTTP server before Express handles unmatched requests.
+
+Run `npm test -- src/__tests__/clientBuild.test.js` from `server/` to verify routing
+with a disposable build fixture. The test includes the actual Socket.IO polling
+handshake; it does not claim to verify hosted WebSocket upgrades or HTTPS cookies.
