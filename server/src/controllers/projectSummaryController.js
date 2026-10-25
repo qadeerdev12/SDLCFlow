@@ -3,6 +3,7 @@ import { createDraftLimiter, draftError } from '../services/taskDraftService.js'
 import { summarizeProject } from '../services/projectSummaryService.js';
 import { withProjectGitHubContext } from '../services/projectSummaryGitHubService.js';
 import { summaryRetryAfter } from '../utils/summaryRetryAfter.js';
+import { assertAIEnabled } from '../services/aiUsageService.js';
 
 const acquire = createDraftLimiter('summary');
 
@@ -18,6 +19,7 @@ export async function createProjectSummary(req, res) {
     if (includeGitHub !== undefined && typeof includeGitHub !== 'boolean') {
       throw draftError('includeGitHub must be a boolean.', 400, 'VALIDATION');
     }
+    assertAIEnabled();
     release = acquire(req.user._id);
     // Existing clients remain task-only. Repository data requires explicit opt-in.
     const summary = includeGitHub === true
@@ -33,7 +35,7 @@ export async function createProjectSummary(req, res) {
     return res.status(status).json({ error: {
       code: err.code || 'SERVER', message: status === 500 ? 'Could not generate a project summary.' : err.message,
       // Preserve provider timing for manual retries without exposing raw errors.
-      ...(err.code === 'GITHUB_RATE_LIMITED' ? { retryAfter: err.retryAfter, resetAt: err.resetAt } : {}),
+      ...(['GITHUB_RATE_LIMITED', 'AI_DAILY_LIMIT'].includes(err.code) ? { retryAfter: err.retryAfter, resetAt: err.resetAt } : {}),
     } });
   } finally {
     release?.();

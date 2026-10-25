@@ -1,3 +1,5 @@
+import { assertAIEnabled, reserveAIRequest } from './aiUsageService.js';
+
 const TAGS = ['Task', 'Feature', 'Bug', 'Design', 'Research', 'Docs', 'Chore'];
 
 export function draftError(message, statusCode, code) {
@@ -12,8 +14,8 @@ export function validateDraftInput(body) {
   return { title: body.title.trim(), brief: body.brief.trim() };
 }
 
-// Local abuse guard, not billing enforcement. Multi-instance deployment needs a
-// shared limiter. Attempts count even on provider failure; no automatic retries.
+// Local per-user abuse guard. The shared daily allowance is enforced separately
+// at the provider boundary. Neither is a dollar-denominated billing guarantee.
 export function createDraftLimiter(feature = 'draft') {
   const users = new Map();
   return (userId) => {
@@ -58,9 +60,11 @@ export async function generateTaskDraft(input) {
 // Shared provider boundary for read-only AI features. Each feature owns its
 // input selection, schema, and semantic validation; none can grant model tools.
 export async function generateStructuredOutput({ input, schema: outputSchema, name, instructions, validate, subject = 'AI drafting' }) {
+  assertAIEnabled();
   const key = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_TASK_DRAFT_MODEL;
   if (!key || !model) throw draftError(`${subject} is not configured on the server.`, 503, 'AI_NOT_CONFIGURED');
+  await reserveAIRequest();
   try {
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',

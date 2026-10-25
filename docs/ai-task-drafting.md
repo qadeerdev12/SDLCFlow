@@ -3,7 +3,10 @@
 ## Setup
 
 Set `OPENAI_API_KEY` and `OPENAI_TASK_DRAFT_MODEL` in `server/.env`, then restart
-the API server. Use a model available to your OpenAI API project that supports
+the API server. Production also requires `AI_ENABLED=true`; it defaults to disabled.
+Review `AI_DAILY_REQUEST_LIMIT` before enabling it. Drafts and summaries share a
+persistent allowance; see [AI usage safeguards](ai-usage-safeguards.md).
+Use a model available to your OpenAI API project that supports
 the Responses API and strict JSON-schema output. No default model is silently
 selected. Missing configuration returns `503 AI_NOT_CONFIGURED`; the rest of
 SDLCFlow works normally. Never expose these values through `VITE_` variables or
@@ -29,7 +32,8 @@ It uses native server-side fetch, so no SDK/package is required.
    checklist plus buttons save reviewed items immediately through `checklistOperation`.
    Discarding/closing a draft does not undo checklist items already added.
 
-Generation does not mutate the database, create activity, or emit socket events.
+Generation does not mutate project/task data, create activity, or emit socket events.
+It does reserve an attempt in the shared daily usage counter before calling the provider.
 Applying a suggestion uses the existing card mutation path, including permission
 checks and realtime broadcasts. Existing checklist items/completion states are
 never replaced. Concurrent scalar field edits retain existing last-write behavior.
@@ -43,8 +47,9 @@ never replaced. Concurrent scalar field edits retain existing last-write behavio
 - Requests time out after 20 seconds, output is capped at 1800 tokens, and no
   automatic retries occur. The local per-user guard permits one in-flight request
   and five attempts per minute per server process. Errors count as attempts.
-- This guard is not a spending cap. Before multi-instance/public deployment, use
-  a shared limiter, abuse controls, and provider billing limits/monitoring.
+- The additional MongoDB-backed daily request cap survives restarts and is shared
+  across users and AI features. Neither guard is a dollar spending cap; provider
+  billing controls/monitoring and other abuse controls remain deployment requirements.
 - Generation may finish after the user closes the modal; it is ignored by the UI
   but may still incur provider usage. Accepted writes may finish after closing.
 - Reopening/regenerating does not track prior suggestions across sessions. Review

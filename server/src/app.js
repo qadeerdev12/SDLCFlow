@@ -1,5 +1,6 @@
 import express from 'express';
 import { authRuntimeOptions } from './config/authRuntime.js';
+import { aiUsageOptions } from './config/aiUsage.js';
 import cors from 'cors';
 import createAuthRoutes from './routes/authRoutes.js';
 import { trustedProxies } from './utils/trustedProxies.js';
@@ -20,6 +21,7 @@ export function allowedClientOrigins() {
 }
 
 export function createApp({ io, refresh = authRuntimeOptions(), clientBuild = null } = {}) {
+  aiUsageOptions(); // Reject invalid safety settings before accepting requests.
   // Configuration cannot disable cookie authentication or restore legacy JWTs.
   if (!refresh || typeof refresh !== 'object' || Array.isArray(refresh)) {
     throw new Error('Refresh configuration must be an explicit options object');

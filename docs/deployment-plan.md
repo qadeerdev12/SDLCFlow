@@ -78,6 +78,12 @@ Server-only secrets: `MONGO_URI`, `JWT_SECRET`, `GITHUB_CLIENT_SECRET`,
 in a `VITE_` variable, frontend bundle, committed env file or deployment log.
 Retain the encryption key when redeploying: existing GitHub tokens depend on it.
 
+Production AI is disabled by default. Enabling it requires `AI_ENABLED=true`,
+provider credentials/model, and a reviewed `AI_DAILY_REQUEST_LIMIT` (default 100
+attempts shared across drafts, summaries and users in the database). See
+[AI usage safeguards](ai-usage-safeguards.md) for persistence, retry/error behavior,
+the shutdown switch and why a request allowance is not a dollar spending cap.
+
 ## Configuration Preflight
 
 ### Signup Admission

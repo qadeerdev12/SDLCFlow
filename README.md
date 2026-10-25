@@ -459,6 +459,7 @@ server/src/
 | [Board page maintenance](docs/board-page-maintenance.md) | Component ownership, drag invariants, regression checks, and future extraction boundaries |
 | [Workspace activity](docs/workspace-activity.md) | Membership-scoped feed, cursor pagination, query behavior, and regression checks |
 | [AI task drafting](docs/ai-task-drafting.md) | OpenAI setup, editable previews, privacy boundaries, and testing |
+| [AI usage safeguards](docs/ai-usage-safeguards.md) | Production disable switch, shared daily request allowance, and billing boundaries |
 | [AI project summaries](docs/ai-project-summaries.md) | Task and optional GitHub snapshots, source citations, consent, and recovery |
 | [Summary verification](docs/project-summary-verification.md) | Isolated browser/API checks, setup, covered scenarios, and manual quality review |
 | [First deployment plan](docs/deployment-plan.md) | Selected single-service topology, public URLs, configuration checks and remaining deployment gates |

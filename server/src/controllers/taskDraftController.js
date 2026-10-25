@@ -1,4 +1,5 @@
 import Card from '../models/Card.js';
+import { assertAIEnabled } from '../services/aiUsageService.js';
 import { getBoardIfRole } from '../utils/boardAccess.js';
 import { createDraftLimiter, draftError, generateTaskDraft, validateDraftInput } from '../services/taskDraftService.js';
 
@@ -13,6 +14,7 @@ export async function createTaskDraft(req, res) {
     const board = await getBoardIfRole(boardId, req.user._id, ['owner', 'admin', 'member']);
     if (!board || !await Card.exists({ _id: cardId, board: boardId })) throw draftError('Card not found.', 404, 'NOT_FOUND');
     const input = validateDraftInput(req.body);
+    assertAIEnabled();
     release = acquire(req.user._id);
     const draft = await generateTaskDraft(input);
     // Generation never writes a card or broadcasts an event. Applying suggestions
@@ -20,8 +22,11 @@ export async function createTaskDraft(req, res) {
     return res.json({ data: { draft } });
   } catch (err) {
     const status = err.statusCode || 500;
-    if (status === 429) res.set('Retry-After', '60');
-    return res.status(status).json({ error: { code: err.code || 'SERVER', message: status === 500 ? 'Could not generate a draft.' : err.message } });
+    if (status === 429) res.set('Retry-After', String(err.retryAfter || 60));
+    return res.status(status).json({ error: {
+      code: err.code || 'SERVER', message: status === 500 ? 'Could not generate a draft.' : err.message,
+      ...(err.code === 'AI_DAILY_LIMIT' ? { retryAfter: err.retryAfter, resetAt: err.resetAt } : {}),
+    } });
   } finally {
     release?.();
   }

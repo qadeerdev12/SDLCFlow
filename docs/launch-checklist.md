@@ -81,11 +81,13 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   The API enforces the mode before signup processing, and the UI handles closed,
   loading and unavailable states. Configure and verify the deployed policy.
   Login/signup have per-process IP throttling, not distributed abuse controls.
-  The AI limiter in
-  `taskDraftService.js:17` is per-user, per-process, and resets with the process;
-  it is not a global spending cap and new accounts get fresh allowances. Decide
-  restricted demo access versus open signup. Add appropriate admission, resource,
-  and cost controls, or disable live AI for anonymous/demo visitors. Use fictional
+  AI is disabled by default in production (`AI_ENABLED=false`); enabled instances
+  share an atomic MongoDB daily request allowance across users, drafts and summaries
+  (`AI_DAILY_REQUEST_LIMIT`, default 100). Attempts count even on provider failure;
+  restarts and new accounts do not reset the counter. Accounting failures block
+  provider calls. This is a request cap, not a dollar spending guarantee. Confirm
+  the deployed settings, provider-side billing controls and alert ownership before
+  enabling live AI. Per-user minute limits remain process-local. Use fictional
   isolated projects; never expose personal work or shared owner credentials.
 
 - [ ] **5. Complete account deletion and GitHub connection cleanup.** Notification

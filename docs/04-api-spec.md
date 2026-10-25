@@ -208,9 +208,16 @@ Responses are `no-store`; errors use the AI codes below. See
 and member roles are allowed only for a card belonging to that project.
 Generation is read-only and responses are `Cache-Control: no-store`.
 Validation failures return 400; missing/inaccessible cards return 404;
-request limits return 429 with `Retry-After: 60`; missing AI configuration returns
+per-user request limits return 429 with `Retry-After: 60`; missing AI configuration returns
 503 `AI_NOT_CONFIGURED`; exhausted credit/quota or provider spending limits return
 503 `AI_QUOTA` without retry timing; provider/output failures return 502; timeout returns 504.
+Both drafts and project summaries return `503 AI_DISABLED` when AI is switched
+off, and `503 AI_USAGE_UNAVAILABLE` when the shared usage counter cannot be checked.
+An exhausted shared daily allowance returns `429 AI_DAILY_LIMIT` with JSON
+`retryAfter` (seconds), `resetAt` (next midnight UTC), and a matching `Retry-After`
+header. No automatic retry occurs. Authorization and validation still precede
+these checks. Empty task-only summaries make no AI call and consume no daily
+allowance, but disabled summary routes still return `AI_DISABLED`.
 See [AI task drafting](ai-task-drafting.md) for configuration, review/apply semantics,
 limits, and provider data boundaries.
 
