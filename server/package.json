@@ -8,6 +8,7 @@
     "check:auth-config": "node scripts/check-auth-config.mjs",
     "test": "vitest run",
     "test:auth-browser": "node scripts/check-auth-browser.mjs",
+    "test:github-browser": "node scripts/check-github-browser.mjs",
     "test:summary-browser": "node scripts/check-project-summary.mjs",
     "start": "node src/index.js",
     "dev": "NODE_ENV=development node --watch src/index.js"

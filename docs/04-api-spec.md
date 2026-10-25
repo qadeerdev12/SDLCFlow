@@ -110,8 +110,9 @@ are intentionally not supported. Existing GitHub connections are unaffected;
 in-flight links created before this change must be restarted.
 
 Backend coverage is in `server/src/__tests__/githubOAuthState.test.js`; provider
-calls are mocked. Real browser redirect/cookie verification is the next chunk,
-not evidence supplied by these backend tests. See GitHub's
+calls are mocked. The separate [browser verification guide](github-oauth-browser-verification.md)
+covers simulated-provider cross-site redirects and remaining real-provider/HTTPS
+checks. See GitHub's
 [OAuth authorization guidance](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps).
 
 Disconnecting makes a best-effort token revoke call to GitHub, removes

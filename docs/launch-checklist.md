@@ -96,8 +96,9 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   browser binding and atomic single-use state are implemented, with ten-minute
   expiry and initiating-session checks before exchange and before saving. Tests
   cover replay, concurrent callbacks, wrong browsers, revocation and account
-  deletion. Complete browser redirect/cookie verification in the next chunk;
-  this gate is not closed by mocked-provider backend tests. The broad `repo`
+  deletion. The [browser runner](github-oauth-browser-verification.md) covers
+  simulated-provider cross-site cookies and redirects. Real GitHub and deployed
+  HTTPS verification remain required; simulated tests do not close this gate. The broad `repo`
   scope also needs clear permission copy; use a separate production OAuth app.
 
 Dependency counts are package advisories, not counts of confirmed exploitable

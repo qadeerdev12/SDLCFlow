@@ -372,6 +372,13 @@ stats aggregation, role enforcement on project repo links, commit sync recording
 activity without duplicates, older connections being asked to reconnect for the
 `repo` scope, and cards storing GitHub references.
 
+The isolated GitHub browser check exercises Profile connection, cross-site cookie
+delivery, replay rejection, cancellation, expiry and logout during authorization.
+From `server/`, run `PLAYWRIGHT_CHANNEL=chrome npm run test:github-browser`.
+It uses disposable accounts and a simulated provider, not real GitHub credentials.
+See the [verification guide](docs/github-oauth-browser-verification.md) for scope,
+WebKit commands and the real-provider/staging checklist.
+
 Client checks:
 
 ```bash
