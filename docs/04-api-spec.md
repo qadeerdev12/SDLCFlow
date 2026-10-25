@@ -9,6 +9,21 @@ Defines the contract between client and server: the REST API (request/response w
 
 ## 1. Conventions
 
+### Registration Admission
+
+`GET /api/v1/auth/registration` is public and returns
+`{ "data": { "mode": "open" } }` (or `restricted`) with `Cache-Control: no-store`.
+It exposes no credentials, user details or admission overrides.
+
+In restricted mode, `POST /api/v1/auth/register` returns
+`403 REGISTRATION_RESTRICTED` before JSON parsing, user lookup, password hashing
+or session issuance. Existing CSRF checks and signup throttling run first, so
+their errors may take precedence. Login and existing sessions are unaffected.
+The server is authoritative even when a client submits directly or has stale
+policy information. See the deployment plan for `REGISTRATION_MODE` defaults.
+
+### Common Contract
+
 - **Base URL:** `/api/v1`
 - **Auth:** `Authorization: Bearer <JWT>` header on all protected REST routes.
 - **Content type:** `application/json`.

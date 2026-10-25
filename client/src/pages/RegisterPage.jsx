@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useTheme } from '../context/useTheme'
 import Logo from '../components/Logo'
 import { newPasswordError, PASSWORD_HELP } from '../lib/passwordPolicy'
+import { authApi } from '../lib/api'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -11,6 +12,18 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [mode, setMode] = useState(null)
+  const [policyError, setPolicyError] = useState(false)
+  const [policyAttempt, setPolicyAttempt] = useState(0)
+
+  useEffect(() => {
+    let active = true
+    authApi.getRegistrationPolicy().then(({ data }) => {
+      if (!['open', 'restricted'].includes(data?.mode)) throw new Error('Invalid signup policy')
+      if (active) setMode(data.mode)
+    }).catch(() => { if (active) setPolicyError(true) })
+    return () => { active = false }
+  }, [policyAttempt])
 
   const { register } = useAuth()
   const { dark, toggle } = useTheme()
@@ -18,6 +31,7 @@ export default function RegisterPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (mode !== 'open' || submitting) return
     const validationError = newPasswordError(password)
     if (validationError) {
       setError(validationError)
@@ -29,6 +43,9 @@ export default function RegisterPage() {
       await register(name, email, password)
       navigate('/dashboard')
     } catch (err) {
+      // The policy can change after this page loads. The server remains the
+      // authority, even if a stale tab still displays the signup form.
+      if (err.code === 'REGISTRATION_RESTRICTED') setMode('restricted')
       setError(err.message)
     } finally {
       setSubmitting(false)
@@ -43,14 +60,24 @@ export default function RegisterPage() {
         </Link>
         <div className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">New workspace</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-100">Create your account</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">Start a project and shape its workflows around the work you are managing.</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-100">{mode === 'restricted' ? 'Private preview' : 'Create your account'}</h1>
+          <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">{mode === 'restricted' ? 'Public signup is currently closed. Existing members can still log in.' : 'Start a project and shape its workflows around the work you are managing.'}</p>
         </div>
 
         {error && (
-          <p className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">{error}</p>
+          <p role="alert" className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">{error}</p>
         )}
 
+        {!mode && !policyError && <p role="status" className="mt-5 text-sm text-zinc-500">Checking signup availability...</p>}
+        {policyError && <div className="mt-5">
+          <p role="alert" className="text-sm text-red-600 dark:text-red-300">Signup availability could not be checked.</p>
+          <button type="button" className="mt-2 text-sm font-semibold text-teal-700 underline dark:text-teal-300" onClick={() => {
+            setPolicyError(false)
+            setPolicyAttempt((value) => value + 1)
+          }}>Try again</button>
+        </div>}
+
+        {mode === 'open' && <>
         <div className="mt-6 space-y-4">
           <Field label="Name" type="text" value={name} onChange={setName} maxLength={100} autoComplete="name" />
           <Field label="Email" type="email" value={email} onChange={setEmail} maxLength={254} autoComplete="email" />
@@ -65,6 +92,7 @@ export default function RegisterPage() {
         >
           {submitting ? 'Creating account...' : 'Create account'}
         </button>
+        </>}
 
         <p className="mt-5 text-center text-sm text-zinc-500 dark:text-zinc-400">
           Already have an account?{' '}

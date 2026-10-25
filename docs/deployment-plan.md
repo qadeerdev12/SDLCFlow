@@ -80,6 +80,25 @@ Retain the encryption key when redeploying: existing GitHub tokens depend on it.
 
 ## Configuration Preflight
 
+### Signup Admission
+
+Set server-only `REGISTRATION_MODE=restricted` for the initial private portfolio
+preview. It closes public self-signup, not login or access for existing accounts.
+`open` permits normal signup; it is not a substitute for email verification,
+account recovery, abuse controls or AI spending limits.
+
+When unset/empty, development and test environments default to `open`;
+production (including unspecified `NODE_ENV`) defaults to `restricted`. Invalid
+non-empty values stop app construction. The API snapshots the policy at startup,
+so restart after changing it. There is no frontend override or invitation bypass.
+Provision isolated demo accounts in a controlled environment before closing signup;
+do not temporarily open a publicly reachable production instance to create accounts.
+The signup page reads the public policy endpoint and hides its form while restricted
+or while availability cannot be confirmed. Existing landing-page signup links
+lead to this private-preview state.
+
+### Validate Origins
+
 From `server/`, run against the intended public build/runtime settings:
 
 ```sh

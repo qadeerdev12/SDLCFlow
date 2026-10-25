@@ -75,8 +75,12 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   both packages. Server/client tests, build/lint and browser checks are recorded
   in the production security review; rerun audits before deployment.
 
-- [ ] **4. Bound public-demo abuse and cost.** Public registration is open;
-  login/signup now have per-process IP throttling, not distributed abuse controls.
+- [ ] **4. Bound public-demo abuse and cost.** Registration admission is implemented:
+  `REGISTRATION_MODE=restricted` closes public self-signup while preserving login.
+  Production defaults to restricted; local development/test defaults to open.
+  The API enforces the mode before signup processing, and the UI handles closed,
+  loading and unavailable states. Configure and verify the deployed policy.
+  Login/signup have per-process IP throttling, not distributed abuse controls.
   The AI limiter in
   `taskDraftService.js:17` is per-user, per-process, and resets with the process;
   it is not a global spending cap and new accounts get fresh allowances. Decide

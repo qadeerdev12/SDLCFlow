@@ -58,6 +58,7 @@ async function request(endpoint, {method = 'GET', body, token, renewed = false, 
 }
 
 export const authApi = {
+    getRegistrationPolicy: () => request('/auth/registration'),
     // Cookie-changing actions belong to the provider's refresh coordinator.
     // This wrapper is only for bearer-authenticated account reads/profile edits.
     getMe: (token) =>
