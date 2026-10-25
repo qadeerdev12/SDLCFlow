@@ -1,0 +1,18 @@
+{
+  "name": "sdlcflow",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "24.22.1",
+    "npm": "11.19.1"
+  },
+  "packageManager": "npm@11.19.1",
+  "scripts": {
+    "build": "npm --prefix client run build",
+    "start": "NODE_ENV=production npm --prefix server start",
+    "check:auth-config": "npm --prefix server run check:auth-config -- --production",
+    "test:client": "npm --prefix client test",
+    "test:server": "npm --prefix server test",
+    "lint": "npm --prefix client run lint"
+  }
+}

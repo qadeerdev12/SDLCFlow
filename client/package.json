@@ -1,6 +1,11 @@
 {
   "name": "sdlcflow-client",
   "private": true,
+  "engines": {
+    "node": "24.22.1",
+    "npm": "11.19.1"
+  },
+  "packageManager": "npm@11.19.1",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

@@ -62,8 +62,8 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   and protection against stale/repeated requests. The four session-invalidation
   chunks are complete for the current single-process deployment.
   Token lifecycle/storage cutover and local browser checks are now complete.
-  Still required: account recovery and email verification scope decisions before
-  unrestricted public signup. Previously issued JWTs
+  Still required: implement account recovery and email verification before
+  unrestricted public signup (confirmed required on 2026-10-25). Previously issued JWTs
   now fail REST/socket checks after password changes; multi-instance revocation
   remains outside the current single-process implementation. See
   [Authentication Hardening](authentication.md) for policy and slice details.
@@ -127,8 +127,10 @@ than claiming every advisory is reachable. Re-run `npm audit --json` and
 - [ ] Configure separate staging/production MongoDB, JWT/encryption secrets,
   GitHub callbacks, API/socket URLs, and exact allowed client origins. Validate
   required production variables at startup instead of falling back to localhost.
-- [ ] Pin the supported Node runtime and document frontend build/output and
-  backend start commands. Configure SPA deep-link rewrites on the frontend host.
+- [x] Pin the supported Node/npm runtime and document reproducible installs,
+  frontend build/output and backend start commands. Root commands preserve the
+  separate client/server lockfiles. SPA routes are served by Express; verify
+  the selected host honors the runtime pins and deep links at staging.
 - [ ] Serve the backend on a WebSocket-capable host with HTTPS. Verify two-account
   collaboration and reconnection against deployed URLs, not just localhost.
 - [ ] Configure baseline response security headers, JSON error handling, readiness
@@ -139,6 +141,23 @@ than claiming every advisory is reachable. Re-run `npm audit --json` and
   optional AI with staging accounts. Verify HTTP and Socket.IO access separately.
 - [ ] Record production-secret ownership, database backup/restore, rollback, and
   provider budget/alert procedures. No hosting accounts were inspected in this audit.
+
+## Required Account Flows Before Public Signup
+
+These are committed scope, not optional enhancements. Implement in reviewable
+slices after build/runtime, readiness/shutdown and CI preparation, before the
+final public-signup staging gate. A restricted staging environment can be used
+to develop and test them without enabling public registration.
+
+- [ ] Shared email delivery configuration and isolated test transport; select a
+  provider and sender domain before sending real messages.
+- [ ] Account recovery request and password-reset flow, including bounded,
+  expiring single-use tokens, safe responses and session revocation.
+- [ ] Email verification issuance, resend and confirmation flow, including
+  expiry, abuse limits, existing-account migration and email-change behavior.
+- [ ] Frontend pending/success/error states and automated regression coverage.
+- [ ] Staging checks for real email delivery, links, replay/expiry and revoked
+  sessions. Keep `REGISTRATION_MODE=restricted` until these and other gates pass.
 
 ## Portfolio packaging / can wait
 

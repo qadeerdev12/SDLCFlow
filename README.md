@@ -295,26 +295,44 @@ persistence, activity logging, and response shape whether it arrived as an HTTP
 
 ## Running it locally
 
-You need Node 20+ and a MongoDB connection string (a free Atlas cluster is fine).
+Use Node **24.22.1** with its bundled npm **11.19.1**, plus a MongoDB connection
+string. The exact versions are pinned in `.nvmrc`, `.node-version` and each
+package's engines; installs reject mismatched versions. With nvm installed:
 
 ```bash
 git clone https://github.com/qadeerdev12/SDLCFlow.git
 cd SDLCFlow
+nvm install
+nvm use
 ```
 
 Server:
 
 ```bash
-cd server && npm install && cp .env.example .env && npm run dev
+cd server
+npm ci --include=dev
+cp .env.example .env
+# Fill in your local configuration before starting.
+npm run dev
 ```
 
 Client, in a second terminal:
 
 ```bash
-cd client && npm install && cp .env.example .env && npm run dev
+cd client
+npm ci --include=dev
+cp .env.example .env
+npm run dev
 ```
 
-The client runs on `http://localhost:5173` and the API on `http://localhost:5050`.
+Run `nvm use` in each new terminal before installing or starting the app. The
+client runs on `http://localhost:5173` and the API on `http://localhost:5050`.
+
+The root package only forwards commands; it does not merge the two package
+lockfiles or install their dependencies. From the repository root, `npm run build`
+builds the client and `npm start` runs the production server (not local development).
+See the [deployment recipe](docs/deployment-plan.md#reproducible-build-and-start)
+for clean installs, public build-time URLs and production configuration.
 
 <div align="center">
 
@@ -511,6 +529,10 @@ separate. Production static serving is implemented with routing tests;
 provider/domain selection, proxy review and hosted smoke tests remain pending.
 See the [deployment plan](docs/deployment-plan.md) for build/start instructions
 and remaining release gates.
+
+**Account recovery and email verification are required before public signup.**
+These flows are planned, not implemented. Keep registration restricted until
+their implementation and staging verification are complete.
 
 ---
 

@@ -10,8 +10,9 @@ service plan and database environment have not been provisioned or selected here
 This is an architecture/configuration checkpoint, not a deployable release yet.
 No secrets, real environment files, DNS records or hosted resources were changed.
 Production startup now serves the React build from `client/dist`; development
-retains API metadata at `/` and uses Vite separately. Hosting, runtime packaging
-and the remaining launch gates still need review before staging deployment.
+retains API metadata at `/` and uses Vite separately. Runtime pins and root build/
+start commands are implemented. Hosting and the remaining launch gates still
+need review before staging deployment.
 
 ```text
 Browser
@@ -127,9 +128,9 @@ to use `npm run dev` and `npm run check:auth-config -- --local`.
 1. Static serving is implemented and covered by local routing tests. Verify it
    again through the selected host's HTTPS edge, including deep-link reloads,
    missing assets and Socket.IO transport upgrades.
-2. Add reproducible build/start configuration for both packages and pin a supported
-   Node runtime. Build the client with its final public URLs; run only the Node
-   service in production, never Vite's dev server.
+2. Runtime pins and reproducible build/start commands are implemented below.
+   Configure the selected host to honor them and build with final public URLs;
+   run only the Node service in production, never Vite's dev server.
 3. Review the actual proxy chain. Blank trust is conservative but may group users
    under a proxy IP for rate limiting. Do not deploy without establishing correct
    client-IP handling; do not use blanket trust or guessed provider address ranges.
@@ -153,19 +154,75 @@ Missing `index.html` stops startup before the database connection or listener.
 
 The build path is relative to the module, not the working directory. Preserve the
 repository layout when packaging: `server/` and `client/dist/` must be siblings.
-With final public Vite URLs configured in the build environment, from the repo root:
+
+## Reproducible Build and Start
+
+Use Node **24.22.1** and its bundled npm **11.19.1** for development, CI, builds
+and runtime. Node 24 is an LTS line; this pin includes the
+[24.22.1 security release](https://nodejs.org/en/blog/release/v24.22.1).
+`.nvmrc` supports `nvm install` / `nvm use`; `.node-version` supports hosts/tools
+that read that convention. Hosts that ignore these files must be configured
+explicitly. The three package manifests pin matching engines and packageManager;
+their `.npmrc` files enforce versions during installs, not when invoking Node
+directly. Do not bypass a mismatch with `--force` or disable engine checks.
+
+The root package is a private command entry point, not an npm workspace. Its
+lockfile has no dependencies; the existing client/server lockfiles remain the
+source of dependency versions. A root `npm ci` alone does not install either app.
+`npm ci` fails on manifest/lockfile drift rather than resolving fresh versions.
+
+In a clean release checkout, with reviewed public URL settings in the build
+environment, run from the repository root:
 
 ```sh
 npm --prefix client ci --include=dev
-npm --prefix client run build
 npm --prefix server ci --omit=dev
-NODE_ENV=production npm --prefix server start
+NODE_ENV=production npm run check:auth-config
+npm run build
+npm start
 ```
 
-This is a build/start recipe, not a hosting setup. Supply reviewed server runtime
-secrets separately; never use local development URLs in the hosted client build.
-Do not run the production-only install in a development checkout if you still need
-server test dependencies without reinstalling them.
+The preflight requires the public origins described above and checks effective
+build/runtime URL configuration. It does not connect to providers or MongoDB.
+Provide server secrets only at runtime; the build does not need them. Vite embeds
+public URLs at build time, so never build a release using local development URLs.
+`npm start` explicitly sets production mode and forwards to the existing server
+command with `server/` as its working directory, preserving dotenv behavior.
+These commands target the current macOS/Linux shell environment.
+
+For local verification, use `npm --prefix server ci --include=dev` instead, then
+`npm run test:server`, `npm run test:client` and `npm run lint` from the root.
+Do not run `ci --omit=dev` in a development checkout unless you intend to remove
+its test dependencies. Use a fresh release directory for the production recipe.
+Only `client/dist`, server sources/runtime dependencies and the root start
+configuration are required to serve the app; client dev dependencies are build
+tools and do not need to be included in a final deployment artifact.
+
+Update runtime pins deliberately: change both version files, all three package
+manifests and lockfile metadata together, then rerun clean installs, tests, lint
+and a production build. `runtimeConfig.test.js` catches inconsistent pins, not
+future security advisories. Recheck supported security releases before deployment.
+
+This recipe does not provision hosting, configure a proxy or verify deployed HTTPS.
+Keep registration restricted until account recovery and email verification are
+implemented and verified on staging, alongside the remaining launch gates.
+
+### Local Release Verification (2026-10-25)
+
+Verified in a separate source copy with no private env files, using the official
+Node 24.22.1 macOS ARM64 archive checked against its published SHA-256 and bundled
+npm 11.19.1. Clean client/server installs passed without dependency version changes.
+All 638 server tests (37 files), 261 client tests (28 files), lint and the client
+production build passed. Public-URL preflight used reserved example URLs, not
+hosted configuration. A mismatched Node 24.16.0/npm 12.0.2 install was rejected.
+
+After reinstalling server dependencies with `--omit=dev`, root `npm start` served
+the actual built SPA and deep links, JSON API 404s, registration policy and
+Socket.IO polling against disposable MongoDB. The isolated process/database were
+stopped afterward. No real credentials, accounts, OAuth or paid AI calls were used.
+This does not verify Linux packaging, hosted HTTPS, proxy behavior or WebSocket
+upgrades. Existing Mongoose deprecation warnings remain; clean installs also
+reported unapproved optional/development install scripts without failing checks.
 
 - Known page URLs receive `index.html` with `Cache-Control: no-cache`, allowing
   revalidation after deploys. Add new page routes to the allowlist when updating
