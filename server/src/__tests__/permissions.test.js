@@ -1871,11 +1871,21 @@ describe.sequential('REST board permissions', () => {
     expect(profile.body.data.stats.comments).toBe(1);
     await expect(Message.countDocuments({ sender: user.user.id })).resolves.toBe(1);
 
+    const collaborator = await createUser('Collaborator', 'cleanup@example.com');
+    const notices = await Notification.create([
+      { board: ownedBoard._id, actor: collaborator._id, recipient: owner.user.id, type: 'member.added' },
+      { board: sharedBoard._id, actor: owner.user.id, recipient: user.user.id, type: 'member.added' },
+      { board: sharedBoard._id, actor: user.user.id, recipient: owner.user.id, type: 'member.added' },
+      { board: sharedBoard._id, actor: collaborator._id, recipient: owner.user.id, type: 'member.added' },
+    ]);
+
     await request(app)
       .delete('/api/v1/auth/me')
       .set('Authorization', `Bearer ${user.token}`)
       .send({ password: 'wrong-password' })
       .expect(401);
+
+    expect(await Notification.countDocuments()).toBe(4);
 
     await request(app)
       .delete('/api/v1/auth/me')
@@ -1890,11 +1900,39 @@ describe.sequential('REST board permissions', () => {
     await expect(Comment.countDocuments({ author: user.user.id })).resolves.toBe(0);
     await expect(Message.countDocuments({ sender: user.user.id })).resolves.toBe(0);
     await expect(Activity.countDocuments({ actor: user.user.id })).resolves.toBe(0);
+    const remainingNotifications = await Notification.find({}).lean();
+    expect(remainingNotifications.map((notice) => notice._id.toString())).toEqual([notices[3]._id.toString()]);
 
     const remainingBoard = await Board.findById(sharedBoard._id);
     expect(remainingBoard.members.some((member) => member.user.toString() === user.user.id)).toBe(false);
     const remainingCard = await Card.findById(sharedCard.body.data.card._id);
     expect(remainingCard.assignee).toBeNull();
+  });
+
+  it('keeps an account and its project intact when notification cleanup fails, then allows retry', async () => {
+    const app = createApp();
+    const user = await register(app, 'Owner', 'cleanup-failure@example.com');
+    const board = await createBoardWithOwner(app, user.token);
+    const notice = await Notification.create({
+      board: board._id, actor: user.user.id, recipient: user.user.id, type: 'member.added',
+    });
+    const failure = vi.spyOn(Notification, 'deleteMany').mockRejectedValueOnce(new Error('Cleanup unavailable'));
+    try {
+      await request(app).delete('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${user.token}`)
+        .send({ password: 'test-password-123' }).expect(500);
+      expect(await User.exists({ _id: user.user.id })).not.toBeNull();
+      expect(await Board.exists({ _id: board._id })).not.toBeNull();
+      expect(await Notification.exists({ _id: notice._id })).not.toBeNull();
+    } finally {
+      failure.mockRestore();
+    }
+    await request(app).delete('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ password: 'test-password-123' }).expect(200);
+    expect(await Notification.countDocuments()).toBe(0);
+    expect(await User.exists({ _id: user.user.id })).toBeNull();
+    expect(await Board.exists({ _id: board._id })).toBeNull();
   });
 
   it('updates profile details and password with credential checks', async () => {

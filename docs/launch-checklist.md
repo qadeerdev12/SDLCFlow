@@ -84,13 +84,15 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   and cost controls, or disable live AI for anonymous/demo visitors. Use fictional
   isolated projects; never expose personal work or shared owner credentials.
 
-- [ ] **5. Complete account deletion and GitHub connection cleanup.** Reproduced:
-  deleting an account and its owned project returns 200 but leaves a notification
-  referencing that project. `authController.js:273` does not delete Notifications.
-  Its GitHub cleanup deletes stored accounts without calling the revocation path
-  used by explicit disconnect. Clean up recipient/actor/project references,
-  terminate affected sockets, and define provider-revocation failure behavior.
-  Current inbox filtering hides missing boards; this does not remove orphan data.
+- [ ] **5. Complete account deletion and GitHub connection cleanup.** Notification
+  cleanup now deletes records whose recipient or actor is the deleted user, or
+  whose project is owned by that user. Unrelated records on shared projects are
+  preserved. Regression tests cover incorrect credentials, cleanup failure/retry,
+  and successful deletion. Socket termination was completed separately.
+  Still required: GitHub cleanup currently deletes stored accounts without calling
+  the provider-revocation path used by explicit disconnect. Define that failure
+  policy and implement it before closing this gate. Account deletion remains a
+  multi-step operation, not an atomic transaction.
 
 - [ ] **6. Review GitHub OAuth before enabling visitor connections.** Backend
   browser binding and atomic single-use state are implemented, with ten-minute

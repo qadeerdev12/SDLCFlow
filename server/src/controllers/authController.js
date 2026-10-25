@@ -9,6 +9,7 @@ import List from "../models/List.js";
 import Card from "../models/Card.js";
 import Comment from "../models/Comment.js";
 import Activity from "../models/Activity.js";
+import Notification from "../models/Notification.js";
 import Message from "../models/Message.js";
 import Workflow from "../models/Workflow.js";
 import GitHubAccount from "../models/GitHubAccount.js";
@@ -309,6 +310,17 @@ export async function deleteAccount(req, res) {
 
         const ownedBoards = await Board.find({ owner: user._id }).select('_id');
         const ownedBoardIds = ownedBoards.map((board) => board._id);
+
+        // Remove inbox references before deleting their user/project targets.
+        // Keep unrelated notifications, including those on shared projects.
+        // If cleanup fails, the account remains available for a deletion retry.
+        await Notification.deleteMany({
+            $or: [
+                { recipient: user._id },
+                { actor: user._id },
+                { board: { $in: ownedBoardIds } },
+            ],
+        });
 
         // Owned boards depend on the owner account for administration. Deleting
         // them keeps private project data from becoming orphaned after account removal.
