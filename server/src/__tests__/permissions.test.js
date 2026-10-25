@@ -360,7 +360,7 @@ async function startSocketServer() {
   app.set('io', io);
   configureSockets(io);
 
-  await new Promise((resolve) => httpServer.listen(0, resolve));
+  await new Promise((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
   const { port } = httpServer.address();
 
   return {

@@ -352,6 +352,10 @@ members panel, and drag a card — that is the whole feature in one gesture.
 
 ## Tests
 
+Server HTTP tests use an address-family-aware helper to keep parallel temporary
+servers isolated. See [server test isolation](docs/server-test-isolation.md) before
+adding raw Supertest or Socket.IO fixtures.
+
 ```bash
 cd server && npm test
 ```

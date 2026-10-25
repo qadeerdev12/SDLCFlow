@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import express from 'express';
 import cors from 'cors';
-import request from 'supertest';
+import request from './helpers/http.js';
 import { createRefreshSecurity, REFRESH_CSRF_HEADER } from '../middleware/refreshSecurity.js';
 
 const origin = 'https://app.example.com';

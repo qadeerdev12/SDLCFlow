@@ -1,9 +1,9 @@
-import supertest from 'supertest';
+import supertest from './http.js';
 import { createRefreshSession } from '../../services/refreshSessionService.js';
 import { createAccessToken } from '../../utils/accessTokens.js';
 
 // Resource/controller tests send the same origin/JSON/CSRF headers as the client.
-// CSRF boundary tests deliberately import raw supertest instead of this helper.
+// CSRF boundary tests use http.js directly so no auth headers are added for them.
 export default function request(app) {
     const client = supertest(app);
     for (const method of ['get', 'post', 'put', 'patch', 'delete', 'options']) {

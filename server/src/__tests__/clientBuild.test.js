@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
-import request from 'supertest';
+import request from './helpers/http.js';
 import { createApp } from '../app.js';
 
 let directory;

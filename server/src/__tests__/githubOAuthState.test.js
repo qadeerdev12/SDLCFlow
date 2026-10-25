@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
-import request from 'supertest';
+import request from './helpers/http.js';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { createHash } from 'node:crypto';
 import { createApp } from '../app.js';

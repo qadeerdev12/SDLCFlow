@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import express from 'express';
-import request from 'supertest';
+import request from './helpers/http.js';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import RefreshSession from '../models/RefreshSession.js';

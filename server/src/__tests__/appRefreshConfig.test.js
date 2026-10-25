@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import request from 'supertest';
+import request from './helpers/http.js';
 import { createApp } from '../app.js';
 
 afterEach(() => vi.unstubAllEnvs());
