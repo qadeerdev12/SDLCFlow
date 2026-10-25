@@ -4,6 +4,8 @@ import { createAccessToken } from '../../utils/accessTokens.js';
 
 // Resource/controller tests send the same origin/JSON/CSRF headers as the client.
 // CSRF boundary tests use http.js directly so no auth headers are added for them.
+// Authorization is never supplied here: each test chooses its user/token, and
+// requests without one must still exercise the real unauthenticated response.
 export default function request(app) {
     const client = supertest(app);
     for (const method of ['get', 'post', 'put', 'patch', 'delete', 'options']) {
@@ -16,6 +18,8 @@ export default function request(app) {
 }
 
 // Fixtures exercise actual family validation; never bypass the production guard.
+// Pass a user with sessionVersion selected. The created refresh record belongs
+// to the suite's disposable database and must be included in its normal cleanup.
 export async function issueAccess(user) {
     return createAccessToken(await createRefreshSession(user)).token;
 }
