@@ -394,6 +394,104 @@ function waitForConnectError(socket) {
   });
 }
 
+describe('account deletion GitHub revocation', () => {
+  async function setup() {
+    vi.stubEnv('GITHUB_CLIENT_ID', 'deletion-fixture');
+    vi.stubEnv('GITHUB_CLIENT_SECRET', 'deletion-fixture-secret');
+    const app = createApp();
+    const user = await register(app, 'Owner', 'deletion@example.com');
+    const board = await createBoardWithOwner(app, user.token);
+    const account = await GitHubAccount.create({ user: user.user.id, githubId: '123', username: 'fixture', accessToken: 'fixture-token' });
+    const notice = await Notification.create({ board: board._id, actor: user.user.id, recipient: user.user.id, type: 'member.added' });
+    const remove = (password = 'test-password-123') => request(app).delete('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${user.token}`).send({ password });
+    return { user, board, account, notice, remove };
+  }
+
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
+  it.each([204, 404])('deletes locally after GitHub returns %s', async (status) => {
+    const ctx = await setup();
+    const fetch = vi.fn(async (url, options) => {
+      expect(url).toBe('https://api.github.com/applications/deletion-fixture/token');
+      expect(options.method).toBe('DELETE');
+      expect(JSON.parse(options.body)).toEqual({ access_token: 'fixture-token' });
+      expect(options.signal).toBeInstanceOf(AbortSignal);
+      // The revocation must precede every destructive local step.
+      expect(await User.exists({ _id: ctx.user.user.id })).not.toBeNull();
+      expect(await Board.exists({ _id: ctx.board._id })).not.toBeNull();
+      expect(await Notification.exists({ _id: ctx.notice._id })).not.toBeNull();
+      return new Response(null, { status });
+    });
+    vi.stubGlobal('fetch', fetch);
+    await ctx.remove('wrong-password').expect(401);
+    expect(fetch).not.toHaveBeenCalled();
+    await ctx.remove().expect(200);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(await GitHubAccount.exists({ _id: ctx.account._id })).toBeNull();
+    expect(await User.exists({ _id: ctx.user.user.id })).toBeNull();
+  });
+
+  it.each(['network', 'timeout', 'rate-limit', 'provider', 'credentials', 'missing-config', 'unexpected-success'])(
+    'preserves local data after %s failure and permits retry', async (failure) => {
+      const ctx = await setup();
+      if (failure === 'timeout') {
+        const timeout = AbortSignal.timeout.bind(AbortSignal);
+        vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) => {
+          expect(ms).toBe(10_000);
+          return timeout(1);
+        });
+      }
+      const fetch = vi.fn(async (_url, options) => {
+        if (failure === 'timeout') return new Promise((_resolve, reject) => {
+          if (options.signal.aborted) reject(options.signal.reason);
+          else options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+        });
+        if (failure === 'network') throw new Error('private provider failure');
+        return new Response('{}', { status: { 'rate-limit': 429, provider: 503, credentials: 401, 'unexpected-success': 200 }[failure] || 500 });
+      });
+      vi.stubGlobal('fetch', fetch);
+      if (failure === 'missing-config') vi.stubEnv('GITHUB_CLIENT_SECRET', '');
+      const response = await ctx.remove().expect(503);
+      expect(response.body.error.code).toBe('GITHUB_REVOCATION_REQUIRED');
+      expect(JSON.stringify(response.body)).not.toContain('private provider failure');
+      expect(await User.exists({ _id: ctx.user.user.id })).not.toBeNull();
+      expect(await Board.exists({ _id: ctx.board._id })).not.toBeNull();
+      expect(await Notification.exists({ _id: ctx.notice._id })).not.toBeNull();
+      const stored = await GitHubAccount.findById(ctx.account._id).select('+accessToken');
+      expect(stored.accessToken).toMatch(/^enc:v1:/);
+      expect(stored.getAccessToken()).toBe('fixture-token');
+      if (failure === 'missing-config') expect(fetch).not.toHaveBeenCalled();
+      vi.stubEnv('GITHUB_CLIENT_SECRET', 'deletion-fixture-secret');
+      fetch.mockResolvedValue(new Response(null, { status: 204 }));
+      await ctx.remove().expect(200);
+    });
+
+  it('does not contact GitHub when no connection exists', async () => {
+    const ctx = await setup();
+    await ctx.account.deleteOne();
+    vi.stubEnv('GITHUB_CLIENT_SECRET', '');
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    await ctx.remove().expect(200);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('can retry local cleanup after the token was already revoked', async () => {
+    const ctx = await setup();
+    const fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    vi.stubGlobal('fetch', fetch);
+    const cleanup = vi.spyOn(Notification, 'deleteMany').mockRejectedValueOnce(new Error('Database unavailable'));
+    await ctx.remove().expect(500);
+    expect(await GitHubAccount.exists({ _id: ctx.account._id })).not.toBeNull();
+    expect(await User.exists({ _id: ctx.user.user.id })).not.toBeNull();
+    cleanup.mockRestore();
+    await ctx.remove().expect(200);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('live access revocation', () => {
   it.each(['membership read', 'adapter join'])('rejects an in-flight %s that predates removal', async (phase) => {
     const server = await startSocketServer();

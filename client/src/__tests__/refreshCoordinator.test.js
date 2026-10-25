@@ -185,6 +185,31 @@ describe('dormant cookie-auth coordinator', () => {
     ctx.coordinator.dispose()
   })
 
+  it('keeps renewal available after deferred GitHub revocation and allows explicit deletion retry', async () => {
+    const ctx = setup()
+    ctx.fetchImpl.mockResolvedValueOnce(response({ code: 'GITHUB_REVOCATION_REQUIRED', message: 'Try again later.' }, 503))
+    await expect(ctx.coordinator.mutate('deleteAccount')).rejects.toMatchObject({
+      code: 'GITHUB_REVOCATION_REQUIRED', recoveryRequired: false,
+    })
+    expect(ctx.fetchImpl).toHaveBeenCalledTimes(1)
+    expect(ctx.sent).toEqual([])
+    await ctx.coordinator.refresh()
+    ctx.fetchImpl.mockResolvedValueOnce(response({ deleted: true }))
+    await ctx.coordinator.mutate('deleteAccount')
+    expect(ctx.fetchImpl).toHaveBeenCalledTimes(3)
+    ctx.coordinator.dispose()
+  })
+
+  it.each([['deleteAccount', 'INTERNAL_SERVER_ERROR'], ['password', 'GITHUB_REVOCATION_REQUIRED']])(
+    'still requires recovery for %s returning %s', async (action, code) => {
+      const ctx = setup()
+      ctx.fetchImpl.mockResolvedValueOnce(response({ code }, 503))
+      await expect(ctx.coordinator.mutate(action)).rejects.toHaveProperty('recoveryRequired', true)
+      await expect(ctx.coordinator.refresh()).rejects.toHaveProperty('code', 'AUTH_RECOVERY_REQUIRED')
+      expect(ctx.fetchImpl).toHaveBeenCalledTimes(1)
+      ctx.coordinator.dispose()
+    })
+
   it.each([{ locks: null }, { storage: null }, { createChannel: () => { throw new Error() } }])('fails closed without required capabilities', async (options) => {
     const ctx = setup(options)
     await expect(ctx.coordinator.refresh()).rejects.toHaveProperty('code', 'AUTH_COORDINATION_UNAVAILABLE')

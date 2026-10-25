@@ -89,10 +89,14 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   whose project is owned by that user. Unrelated records on shared projects are
   preserved. Regression tests cover incorrect credentials, cleanup failure/retry,
   and successful deletion. Socket termination was completed separately.
-  Still required: GitHub cleanup currently deletes stored accounts without calling
-  the provider-revocation path used by explicit disconnect. Define that failure
-  policy and implement it before closing this gate. Account deletion remains a
-  multi-step operation, not an atomic transaction.
+  Account deletion now reuses GitHub token revocation before local cleanup:
+  confirmed revocation/already-absent tokens allow deletion, while unconfirmed
+  results return `503 GITHUB_REVOCATION_REQUIRED` and retain the account and
+  encrypted token for retry. Tests cover success, invalid tokens, timeout, rate
+  limit, configuration/provider failures and retry after local cleanup failure.
+  Still required: validate the end-to-end deletion flow with the production OAuth
+  app on staging. Explicit disconnect remains best-effort. Account deletion is
+  a multi-step operation, not an atomic transaction; see the API spec for limits.
 
 - [ ] **6. Review GitHub OAuth before enabling visitor connections.** Backend
   browser binding and atomic single-use state are implemented, with ten-minute

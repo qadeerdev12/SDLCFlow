@@ -15,6 +15,7 @@ import Workflow from "../models/Workflow.js";
 import GitHubAccount from "../models/GitHubAccount.js";
 import BoardGitHubIntegration from "../models/BoardGitHubIntegration.js";
 import { disconnectUserSockets, revokeBoardAccess } from '../socket.js';
+import { revokeGitHubToken } from '../services/githubService.js';
 import { authBody, accountName, accountEmail, credentialPassword, newAccountPassword, sendAuthError } from '../utils/authValidation.js';
 
 //POST /api/v1/auth/register
@@ -306,6 +307,22 @@ export async function deleteAccount(req, res) {
             return res.status(401).json({
                 error: { code: 'INVALID_CREDENTIALS', message: 'Password is incorrect.' },
             });
+        }
+
+        // Unlike best-effort disconnect, deletion must retain the encrypted
+        // credential for retry if the provider cannot confirm revocation.
+        // Do this before any local cleanup; never expose provider error bodies.
+        const githubAccount = await GitHubAccount.findOne({ user: user._id }).select('+accessToken');
+        if (githubAccount) {
+            try {
+                const result = await revokeGitHubToken(githubAccount.getAccessToken());
+                if (!result.revoked && !result.alreadyRevoked) throw new Error('Revocation unconfirmed');
+            } catch {
+                return res.status(503).json({ error: {
+                    code: 'GITHUB_REVOCATION_REQUIRED',
+                    message: 'We could not confirm GitHub access was revoked. Your account has not been deleted. Please try again later or contact support.',
+                } });
+            }
         }
 
         const ownedBoards = await Board.find({ owner: user._id }).select('_id');

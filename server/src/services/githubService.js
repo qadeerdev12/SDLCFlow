@@ -78,6 +78,7 @@ export async function revokeGitHubToken(accessToken) {
   const credentials = Buffer.from(`${process.env.GITHUB_CLIENT_ID}:${process.env.GITHUB_CLIENT_SECRET}`).toString('base64');
   const response = await fetch(`${GITHUB_API_BASE}/applications/${process.env.GITHUB_CLIENT_ID}/token`, {
     method: 'DELETE',
+    signal: AbortSignal.timeout(10_000),
     headers: {
       Accept: 'application/vnd.github+json',
       Authorization: `Basic ${credentials}`,
@@ -88,11 +89,12 @@ export async function revokeGitHubToken(accessToken) {
   });
 
   if (response.status === 204 || response.status === 404) {
-    return { revoked: response.status === 204 };
+    return { revoked: response.status === 204, alreadyRevoked: response.status === 404 };
   }
 
   await parseGitHubResponse(response);
-  return { revoked: true };
+  // An unexpected successful response is not proof that GitHub revoked access.
+  throw new GitHubApiError('GitHub did not confirm token revocation.');
 }
 
 export async function exchangeCodeForToken(code) {

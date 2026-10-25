@@ -109,7 +109,11 @@ export function createRefreshCoordinator({
         throw failure('AUTH_RECOVERY_REQUIRED', 'Session response was lost. Sign in again; do not retry automatically.')
       }
       if (!response.ok) {
-        const recoveryRequired = response.status >= 500 || TERMINAL.has(payload?.error?.code)
+        // This specific pre-deletion failure guarantees no local session or
+        // account change. Other 5xx responses remain uncertain and fail closed.
+        const deletionDeferred = action === 'deleteAccount' && response.status === 503
+          && payload?.error?.code === 'GITHUB_REVOCATION_REQUIRED'
+        const recoveryRequired = (response.status >= 500 && !deletionDeferred) || TERMINAL.has(payload?.error?.code)
         if (recoveryRequired) {
           writeState({ ...state, blocked: true })
           if (!disposed) publish('recovery-required', state.revision)

@@ -119,6 +119,30 @@ Disconnecting makes a best-effort token revoke call to GitHub, removes
 SDLCFlow's stored GitHub connection, and unlinks projects that depended on that
 account. GitHub rate limits return `429 GITHUB_RATE_LIMITED` with retry metadata
 when GitHub provides it.
+
+Account deletion (`DELETE /auth/me`) has a stricter policy than explicit GitHub
+disconnect. After password confirmation, it revokes the connected token before
+any local cleanup. GitHub `204` (revoked) or `404` (already absent) permits deletion;
+accounts without a GitHub connection skip the provider request. Revocation is
+bounded by a ten-second timeout, including when used by explicit disconnect.
+
+Unconfirmed revocation (network/timeout, rate limit, provider error, missing app
+configuration, or unreadable encrypted token) returns
+`503 { error: { code: "GITHUB_REVOCATION_REQUIRED", message } }`. Local account,
+project, notification and connection data remain unchanged by this attempt;
+the encrypted credential stays available for retry. Provider response bodies and
+tokens are not included in this error. Operators should check app credentials
+and encryption configuration if retries keep failing. The client displays the
+returned message without signing the user out.
+
+Provider revocation and MongoDB cleanup are not a distributed transaction. If
+revocation succeeds but local cleanup fails, the account may temporarily retain
+an unusable GitHub connection. Retry deletion; a subsequent `404` is accepted.
+Explicit disconnect remains best-effort and may remove the locally stored token
+without confirmed provider revocation; this account-deletion policy does not
+recover credentials discarded by an earlier disconnect. Real-provider staging
+verification remains required.
+
 The GitHub dashboard endpoint combines the user's connected GitHub account,
 visible repositories, language counts, commit contribution totals for today,
 the current week, and the current year, daily contribution buckets for graph
