@@ -1,3 +1,7 @@
+// Tests the refresh-session service directly against disposable MongoDB.
+// Digests, absolute expiry and atomic rotation protect credentials at rest and
+// reject replay; HTTP cookie behavior is covered separately in refreshRoutes.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -21,6 +25,8 @@ async function setup() {
     const user = await User.create({ name: 'Test', email: 'refresh@example.com', passwordHash: 'unused', sessionVersion: 3 });
     return { user, session: await createRefreshSession(user) };
 }
+// Explicitly opt into hidden digests only for assertions about storage safety;
+// ordinary model reads below must continue to omit these credential fields.
 const stored = (session) => RefreshSession.findById(session.sessionId).select('+currentDigest +consumedDigests').lean();
 
 describe('refresh-session foundation (not yet connected to HTTP)', () => {
@@ -65,6 +71,8 @@ describe('refresh-session foundation (not yet connected to HTTP)', () => {
         await expect(rotateRefreshSession(other.credential)).resolves.toHaveProperty('credential');
     });
 
+    // Even the winning token becomes unusable after replay is detected: two
+    // successful rotations from one credential would split the session family.
     it('allows only one concurrent rotation and revokes the winning credential on replay', async () => {
         const { session } = await setup();
         const results = await Promise.allSettled([rotateRefreshSession(session.credential), rotateRefreshSession(session.credential)]);
@@ -91,6 +99,8 @@ describe('refresh-session foundation (not yet connected to HTTP)', () => {
         expect((await stored(session)).consumedDigests).toHaveLength(2);
     });
 
+    // Intercept the write boundary to force revocation between read and update.
+    // No timing sleep is needed, and rotation cannot inherit the newer generation.
     it('never upgrades the version when logout-all races a rotation', async () => {
         const { user, session } = await setup();
         const original = RefreshSession.findOneAndUpdate.bind(RefreshSession);

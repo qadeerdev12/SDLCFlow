@@ -1,3 +1,7 @@
+// Tests workspace and project activity rendering with API calls controlled by mocks.
+// Pagination must retain existing rows on failure and ignore old-session results;
+// the workspace feed must not regress to one request per project.
+
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

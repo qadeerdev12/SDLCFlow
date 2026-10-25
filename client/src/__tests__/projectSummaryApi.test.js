@@ -1,3 +1,7 @@
+// Tests the API adapter's serialized GitHub consent flag using mocked fetch.
+// An omitted choice must remain opt-out; this checks the wire payload rather
+// than relying only on the summary dialog's checkbox state.
+
 import { afterEach, expect, it, vi } from 'vitest'
 import { boardApi } from '../lib/api'
 

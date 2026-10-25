@@ -1,3 +1,7 @@
+// Connects real collaborators while mutations travel through REST or sockets.
+// Database writes must finish before a single board-scoped broadcast; failed
+// writes must stay silent and socket senders must not receive duplicate echoes.
+
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import mongoose from 'mongoose';

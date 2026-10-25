@@ -1,3 +1,7 @@
+// Tests environment-to-cookie-policy selection without starting a server.
+// Only explicit development/test environments may relax HTTPS requirements;
+// an absent or misspelled environment must not silently weaken authentication.
+
 import { expect, it } from 'vitest';
 import { authRuntimeOptions } from '../config/authRuntime.js';
 import { createRefreshSecurity } from '../middleware/refreshSecurity.js';

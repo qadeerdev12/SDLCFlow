@@ -1,3 +1,7 @@
+// Integration coverage for project permissions across REST and Socket.IO.
+// Real database fixtures model owners, admins, members and outsiders; assertions
+// cover both returned results and persisted side effects, including cleanup.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
@@ -24,6 +28,8 @@ import { registerNotificationSubscriber } from '../events/notificationSubscriber
 
 let mongo;
 
+// Run the same assignment scenarios through both transports so a REST fallback
+// cannot bypass event publishing or create duplicate notifications.
 describe('assignment notification publishing', () => {
   async function setup(transport) {
     const server = transport === 'socket' ? await startSocketServer() : null;
@@ -147,6 +153,8 @@ describe('assignment notification publishing', () => {
   });
 });
 
+// An old assignee reference is not access: current project membership still
+// decides which tasks and navigation context the authenticated user can see.
 describe('My Tasks access', () => {
   it('returns only the authenticated assignee\'s tasks in current projects with navigation context', async () => {
     const app = createApp();
@@ -179,6 +187,8 @@ describe('My Tasks access', () => {
   });
 });
 
+// Verify atomic item-level edits, not replacement of the whole checklist,
+// so concurrent collaborators do not erase each other's changes.
 describe('card checklists', () => {
   async function fixture(app) {
     const owner = await register(app, 'Owner', 'check-owner@example.com');
@@ -298,6 +308,8 @@ afterAll(async () => {
   await mongo?.stop();
 });
 
+// Issue credentials through the real registration route so permission tests
+// exercise session validation rather than supplying hand-built trusted users.
 async function register(app, name, email) {
   const res = await request(app)
     .post('/api/v1/auth/register')
@@ -351,6 +363,8 @@ function emitWithAck(socket, eventName, payload) {
   });
 }
 
+// Bind the same address used by clients. Each caller owns the returned server
+// and closes it in finally so rooms/listeners cannot leak into later cases.
 async function startSocketServer() {
   const app = createApp();
   const httpServer = createServer(app);
@@ -394,6 +408,8 @@ function waitForConnectError(socket) {
   });
 }
 
+// Remote revocation is a prerequisite for destructive local cleanup. Failure
+// must retain the account and encrypted token so the user can retry safely.
 describe('account deletion GitHub revocation', () => {
   async function setup() {
     vi.stubEnv('GITHUB_CLIENT_ID', 'deletion-fixture');
@@ -492,6 +508,8 @@ describe('account deletion GitHub revocation', () => {
   });
 });
 
+// Removing membership must also remove existing access, including other tabs
+// and joins already in flight; checking only the next REST request is not enough.
 describe('live access revocation', () => {
   it.each(['membership read', 'adapter join'])('rejects an in-flight %s that predates removal', async (phase) => {
     const server = await startSocketServer();
@@ -644,6 +662,8 @@ describe('live access revocation', () => {
   });
 });
 
+// Route-level contract coverage: GitHub integration, workflow migration, work
+// items, collaboration and account settings all use authenticated HTTP calls.
 describe.sequential('REST board permissions', () => {
   it('protects GitHub integration endpoints before an account is connected', async () => {
     const app = createApp();
@@ -2103,6 +2123,8 @@ describe.sequential('REST board permissions', () => {
   });
 });
 
+// Seed a second project to detect overly broad cascades. Failed cleanup must
+// leave the target project available for retry, not just return an error.
 describe('project deletion cleanup', () => {
   const children = [Workflow, List, Card, Comment, Message, BoardGitHubIntegration, Activity, Notification];
 
@@ -2196,6 +2218,8 @@ describe('project deletion cleanup', () => {
   });
 });
 
+// Match the REST permission boundary over live connections and verify the
+// sender acknowledgement agrees with the data collaborators actually receive.
 describe.sequential('Socket.IO board permissions', () => {
   it('rejects invalid JWTs during the handshake', async () => {
     const server = await startSocketServer();

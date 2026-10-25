@@ -1,3 +1,7 @@
+// Exercises the same session-family checks through real HTTP and Socket.IO.
+// An otherwise valid JWT must stop working after family revocation; database
+// outages must block access without being mistaken for permanent logout.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import mongoose from 'mongoose';
@@ -216,6 +220,8 @@ describe('REST and socket access-family validation', () => {
         await denied(ctx, ctx.token, 'SESSION_INVALIDATED');
     });
 
+    // Hold a completed lookup until logout commits, then return its stale value.
+    // The handshake must recheck revocation rather than trust that earlier read.
     it('blocks a stale pending handshake when logout commits during the family lookup', async () => {
         const ctx = await fixture();
         let read, release;
@@ -235,6 +241,8 @@ describe('REST and socket access-family validation', () => {
         expect(io.sockets.sockets.size).toBe(0);
     });
 
+    // The mutation spy proves the operation was blocked, while later success
+    // proves a transient read failure did not permanently revoke credentials.
     it('treats family database outages as temporary in REST, handshakes, and packets', async () => {
         const ctx = await fixture();
         const socket = await ctx.connect();

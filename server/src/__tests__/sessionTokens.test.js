@@ -1,3 +1,7 @@
+// Tests the account-wide session-version boundary with real users and HTTP.
+// Legacy account records may default to version zero, but legacy or malformed
+// JWTs are not accepted, and profile input cannot overwrite internal counters.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
@@ -58,7 +62,8 @@ describe('session version foundation', () => {
         const user = await createUser();
         const oldToken = await issueAccess(user);
         await me(app, oldToken).expect(200);
-        // Simulate a future revocation action without adding one in this slice.
+        // Advance the stored generation directly to isolate token validation
+        // from the password/logout endpoints that normally trigger revocation.
         await User.updateOne({ _id: user._id }, { $inc: { sessionVersion: 1 } });
         const rejected = await me(app, oldToken).expect(401);
         expect(rejected.body.error.code).toBe('SESSION_INVALIDATED');

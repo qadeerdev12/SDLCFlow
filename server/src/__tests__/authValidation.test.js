@@ -1,3 +1,7 @@
+// Covers account input helpers and their integration with real HTTP handlers.
+// Invalid input must be rejected before mutation, while normalized account
+// fields, legacy password login and safe error responses remain compatible.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';

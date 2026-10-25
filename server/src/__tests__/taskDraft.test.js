@@ -1,3 +1,7 @@
+// Tests AI drafting as a preview, not an automatic card mutation.
+// Real membership checks run against disposable MongoDB; mocked provider replies
+// cover input/output validation, privacy, throttling and failure handling.
+
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import request, { issueAccess } from './helpers/auth.js';
@@ -30,6 +34,8 @@ afterEach(async () => {
 });
 afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 
+// Stored private notes deliberately differ from submitted text: outbound-body
+// assertions catch accidental inclusion of existing task data in the AI prompt.
 async function fixture(role = 'member') {
   const user = await User.create({ name: 'Alex', email: 'alex@example.com', passwordHash: 'unused' });
   const board = await Board.create({ name: 'Private project', owner: user._id, members: role ? [{ user: user._id, role }] : [] });

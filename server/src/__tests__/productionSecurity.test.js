@@ -1,3 +1,7 @@
+// Tests startup rejection of unsafe production configuration with fixture keys.
+// No deployment or provider connection is made. Optional integrations can stay
+// disabled, but partial configuration and shared/weak secrets must fail safely.
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { validateProductionSecurity } from '../config/productionSecurity.js';
 import { decryptGitHubToken, encryptGitHubToken } from '../models/GitHubAccount.js';

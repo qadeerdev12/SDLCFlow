@@ -1,3 +1,7 @@
+// Tests the read-only summary dialog with mocked generation results.
+// Explicit generation/consent, safe evidence rendering, focus management and
+// manual retry protect the review flow without calling AI or GitHub providers.
+
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,6 +18,8 @@ const props = { board: { _id: 'board-1', name: 'Uptime Desk' }, token: 'token', 
 function show() { return render(<MemoryRouter><ProjectSummaryPanel {...props} /></MemoryRouter>) }
 beforeEach(() => { vi.resetAllMocks(); mocks.summarize.mockResolvedValue({ data: { summary } }) })
 afterEach(() => { cleanup(); vi.useRealTimers() })
+// These cases cover the default task-only review experience. Returned text is
+// untrusted display content, and generation remains a deliberate user action.
 describe('project summary panel', () => {
   it('renders long task sources as wrapping plain text without interpreting markup', async () => {
     const title = '<img src=x onerror=alert(1)>' + 'LongTaskIdentifier'.repeat(12)
@@ -101,6 +107,8 @@ const github = {
   included: 1, limit: 10, sampledAt: '2026-09-10T10:00:00Z',
   bullets: [{ text: 'Commit reports an API fix.', commits: [{ sha: 'abcdef123456', title: 'Fix API', htmlUrl: 'https://github.com/team/app/commit/abcdef123456' }] }],
 }
+// Changing sources invalidates the old snapshot and reopening resets consent.
+// A cooldown enables a later manual retry; it must never schedule generation.
 describe('GitHub summary opt-in', () => {
   it.each(['main', 'release/2026-09', null])('shows the sampled branch without inventing a default: %s', async (defaultBranch) => {
     mocks.summarize.mockResolvedValue({ data: { summary: { ...summary, github: { ...github, repository: { ...github.repository, defaultBranch } } } } })

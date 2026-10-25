@@ -1,3 +1,7 @@
+// Tests logout interaction with a mocked authentication action and real routing.
+// The header must wait for confirmed server logout, suppress duplicate clicks,
+// and retain the current page with feedback when confirmation fails.
+
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'

@@ -1,3 +1,7 @@
+// Tests the deployment preflight as a pure configuration check.
+// Local and production examples catch hostname, port, cookie and proxy mismatches
+// before deployment; passing these cases does not verify a live deployment.
+
 import { describe, expect, it } from 'vitest';
 import { checkAuthDeployment } from '../config/authDeployment.js';
 

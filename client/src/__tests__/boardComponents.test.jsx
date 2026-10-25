@@ -1,3 +1,7 @@
+// Tests extracted board controls as components driven by props and callbacks.
+// These checks protect request payloads, role-based actions and error recovery
+// after refactoring; they do not exercise server-side permission enforcement.
+
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -18,6 +22,8 @@ afterEach(cleanup)
 const template = { id: 'software-sprint', name: 'Software Sprint', icon: 'workflow', lists: ['Backlog', 'Done'], cards: [], summary: 'Sprint planning' }
 const workflows = [{ _id: 'general', name: 'General' }, { _id: 'sprint', name: 'Software Sprint' }]
 
+// Custom and templated creation share callbacks. Failure must preserve user
+// input, and permission/pending props must prevent unavailable actions.
 describe('workflow components', () => {
   it('creates a custom workflow with the unchanged request payload', async () => {
     const onCreate = vi.fn().mockResolvedValue({}), onClose = vi.fn()
@@ -90,6 +96,8 @@ describe('workflow components', () => {
   })
 })
 
+// Presentation components forward events instead of owning board state; assert
+// callback payloads and navigation targets as well as visible labels.
 describe('board page presentation', () => {
   it('forwards filter controls, clear, and filtered counts', () => {
     const onSearchChange = vi.fn(), onTagChange = vi.fn(), onStatusChange = vi.fn(), onClear = vi.fn()

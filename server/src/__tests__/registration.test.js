@@ -1,3 +1,7 @@
+// Tests registration admission with controller spies instead of account writes.
+// The server policy is fixed when the app is created; hidden UI or forged body
+// fields cannot bypass restricted mode, CSRF checks or signup throttling.
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import request from './helpers/auth.js';
 import { createApp } from '../app.js';

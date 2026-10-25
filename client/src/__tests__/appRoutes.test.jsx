@@ -1,3 +1,7 @@
+// Tests route composition and lazy-loading boundaries, not individual page UI.
+// Stub pages and a manually released import expose loading/error states and prove
+// that protected code is not imported before authentication permits navigation.
+
 import { lazy, Suspense } from 'react'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
@@ -6,6 +10,8 @@ import App from '../App'
 import PageErrorBoundary from '../components/PageErrorBoundary'
 import PageLoading from '../components/PageLoading'
 
+// The lazy board module deliberately stays pending until the test releases it.
+// This reveals whether auth gating prevents imports and Suspense preserves URLs.
 const mocks = vi.hoisted(() => {
   let releaseBoard
   const boardReady = new Promise((resolve) => { releaseBoard = resolve })

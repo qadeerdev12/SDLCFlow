@@ -1,3 +1,7 @@
+// Tests classification of mocked GitHub responses, not live quota availability.
+// Primary/secondary throttling must retain useful retry metadata, while malformed
+// timing and ordinary permission failures must not produce misleading errors.
+
 import { afterEach, expect, it, vi } from 'vitest';
 import { fetchGitHubCommits } from '../services/githubService.js';
 

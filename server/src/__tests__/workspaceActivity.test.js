@@ -1,3 +1,7 @@
+// Tests the workspace-wide activity endpoint against disposable MongoDB.
+// Membership filtering must happen before pagination, with stable ordering for
+// tied timestamps and no leakage from private or deleted projects.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import request, { issueAccess } from './helpers/auth.js';
@@ -57,6 +61,8 @@ describe('workspace activity', () => {
     expect(res.body.data.activities.find((a) => a.board === ctx.board.id)).toMatchObject({ boardName: 'Uptime Desk', actor: { name: 'Sam' } });
   });
 
+  // Equal timestamps force the ID tie-breaker to matter. A newer insert between
+  // pages must not shift the cursor or cause existing activity to be repeated.
   it('paginates tied timestamps without duplicates or newly inserted events', async () => {
     const ctx = await fixture();
     const seeded = [];

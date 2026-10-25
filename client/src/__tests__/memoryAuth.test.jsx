@@ -1,3 +1,7 @@
+// Tests the auth provider with real client coordination and mocked browser I/O.
+// Access tokens stay in memory; renewal, account changes and late responses must
+// preserve the right UI identity without reviving stale or revoked credentials.
+
 import { StrictMode } from 'react'
 import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -19,6 +23,9 @@ const MemoryProvider = ({ children }) => <AuthProvider mode="memory">{children}<
 const hook = () => renderHook(() => useAuth(), { wrapper: MemoryProvider })
 let fetchMock, channels
 
+// Recreate storage, lock scheduling and broadcast listeners for each case.
+// The provider and API adapter remain real; only browser/network boundaries
+// are replaced so response order can be controlled without real credentials.
 beforeEach(() => {
   localStorage.clear()
   sessionStorage.clear()
@@ -231,6 +238,8 @@ describe('opt-in memory authentication provider', () => {
     expect(sessionStorage.length).toBe(0)
   })
 
+  // React may replay effects in development. That must not rotate a one-use
+  // refresh credential twice or install a discarded bootstrap's user data.
   it('creates only one active bootstrap under StrictMode replay', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper: ({ children }) => <StrictMode><MemoryProvider>{children}</MemoryProvider></StrictMode> })
     await waitFor(() => expect(result.current.user).toEqual(user))

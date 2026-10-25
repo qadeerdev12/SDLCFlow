@@ -1,3 +1,7 @@
+// Tests socket authentication lifecycle through a controllable Socket.IO double.
+// Expiry may renew credentials, but mutation acknowledgements must not cause an
+// automatic replay; replaced sockets and cleanup must suppress stale callbacks.
+
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { io } from 'socket.io-client'
@@ -7,6 +11,8 @@ import { registerSessionRenewal } from '../lib/sessionRenewal'
 
 vi.mock('socket.io-client', () => ({ io: vi.fn() }))
 let sockets, failures, stop, unregister
+// receive() injects server events and ack captures a pending mutation reply.
+// Keeping old doubles lets tests deliver late callbacks after token replacement.
 beforeEach(() => {
   sockets = []
   failures = vi.fn()
@@ -46,6 +52,8 @@ it.each(['connect_error', 'session:invalidated'])('renews %s expiry once and rep
   expect(sockets[0].connect).not.toHaveBeenCalled()
 })
 
+// Renewal repairs future connectivity, not the outcome of an already submitted
+// command. Replaying here could create the same task twice.
 it('renews an expired acknowledgement without replaying the mutation', async () => {
   const renew = vi.fn(async () => 'new')
   unregister = registerSessionRenewal({ renew, isCurrent: () => true })

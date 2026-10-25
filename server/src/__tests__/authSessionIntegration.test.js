@@ -1,3 +1,7 @@
+// Exercises account actions through the assembled app with disposable MongoDB.
+// Checks that cookies, access tokens and stored families agree on success and
+// that failed account operations do not falsely log out an existing session.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import mongoose from 'mongoose';

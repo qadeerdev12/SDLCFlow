@@ -1,3 +1,7 @@
+// Verifies the database-backed daily AI request allowance, not a dollar budget.
+// Disposable MongoDB keeps concurrent reservations real; mocked fetch responses
+// exercise provider failures without spending credits or sending task data.
+
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -54,6 +58,8 @@ it('defaults production to disabled and validates configuration at startup', () 
   expect(() => createApp()).toThrow('AI_ENABLED');
 });
 
+// All callers contend for one UTC-day document. Checking both admissions and
+// the saved count catches a read-then-write race that sequential calls would miss.
 it('atomically admits only the daily allowance under concurrent requests', async () => {
   const results = await Promise.allSettled(Array.from({ length: 20 }, () => reserveAIRequest()));
   expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(3);
@@ -72,6 +78,8 @@ it('survives a new database connection and renews the allowance at midnight UTC'
   expect(await AIUsage.countDocuments()).toBe(2);
 });
 
+// A failed response may still represent billed provider work. Refunding here
+// would allow repeated failures to bypass the application's request allowance.
 it.each(['provider failure', 'malformed output'])('counts %s without refunding attempts', async (kind) => {
   vi.stubEnv('AI_DAILY_REQUEST_LIMIT', '1');
   if (kind === 'provider failure') fetch.mockRejectedValue(new Error('private failure'));

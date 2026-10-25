@@ -1,3 +1,7 @@
+// Tests drag handlers with React state and synthetic dnd-kit event metadata.
+// Empty-list drops, optimistic rollback and workflow isolation are behavioral
+// regressions; pointer geometry and actual browser dragging are not simulated.
+
 import { useEffect, useRef, useState } from 'react'
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -13,6 +17,8 @@ vi.mock('@dnd-kit/core', async (original) => ({
 beforeEach(() => { vi.resetAllMocks() })
 afterEach(cleanup)
 
+// Include an empty destination and a second workflow in every fixture. The
+// shared cards ref follows state updates to match incoming collaboration data.
 function setup({ rest = false } = {}) {
   const initialLists = [
     { _id: 'a', workflow: 'sprint', position: 1000 },
@@ -141,6 +147,8 @@ describe('board drag behavior', () => {
   })
 })
 
+// Synthetic collision candidates isolate target selection from DOM geometry.
+// Empty card containers must beat their enclosing list so empty-list drops work.
 describe('drop target collision priority', () => {
   it('prefers cards, then empty card containers, before list containers', () => {
     const ctx = setup()

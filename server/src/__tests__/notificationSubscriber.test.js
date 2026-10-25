@@ -1,3 +1,7 @@
+// Tests the adapter between domain events, persistence and personal-room signals.
+// The persistence service and socket server are doubles: this suite verifies
+// mapping, ordering and subscription cleanup, not database or network delivery.
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createEventBus, EVENTS } from '../events/eventBus.js';
 import { registerNotificationSubscriber } from '../events/notificationSubscriber.js';

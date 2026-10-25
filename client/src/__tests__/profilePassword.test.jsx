@@ -1,3 +1,7 @@
+// Tests the profile's password form with a mocked auth-provider operation.
+// Successful changes navigate to login; rejected changes keep the form/page
+// available with error feedback. Server credential validation is tested separately.
+
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'

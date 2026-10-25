@@ -1,3 +1,7 @@
+// Tests GitHub error metadata and the retry button's countdown separately.
+// Mocked fetch and fake time verify a finite, conservative deadline and timer
+// cleanup without waiting for real quotas or issuing provider requests.
+
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { githubRetryAt } from '../lib/githubRetry'
@@ -30,6 +34,8 @@ describe('GitHub retry metadata', () => {
   })
 })
 
+// Advancing fake time verifies the UI unlocks at the deadline and releases its
+// timer on unmount; it does not represent an automatic network retry.
 describe('retry button cooldown', () => {
   it('re-enables at the deadline and cleans up its timer on unmount', async () => {
     vi.useFakeTimers()

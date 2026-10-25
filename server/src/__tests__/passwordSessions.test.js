@@ -1,3 +1,7 @@
+// Exercises password changes against real hashes and disposable MongoDB.
+// A committed password change must invalidate old sessions exactly once; failed
+// or overlapping writes must not overwrite newer credentials or revocations.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';

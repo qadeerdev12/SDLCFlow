@@ -1,3 +1,7 @@
+// Tests cross-tab authentication coordination with injected browser/network doubles.
+// Locks and revision markers serialize cookie rotation without sharing secrets;
+// ambiguous responses require recovery instead of blindly replaying a used token.
+
 import { describe, expect, it, vi } from 'vitest'
 import { createRefreshCoordinator } from '../lib/refreshCoordinator'
 
@@ -6,6 +10,8 @@ function deferred() {
   const promise = new Promise((done) => { resolve = done })
   return { promise, resolve }
 }
+// Model multiple tabs sharing one lock queue and revision store, but separate
+// channels. This makes ordering explicit without real browser tabs or cookies.
 function environment() {
   const values = new Map(), channels = new Set()
   let tail = Promise.resolve()
@@ -142,6 +148,8 @@ describe('dormant cookie-auth coordinator', () => {
     a.dispose(); b.dispose()
   })
 
+  // A network failure cannot tell us whether the server already rotated the
+  // cookie. Retrying that credential could trigger replay revocation.
   it('blocks refresh across tabs after a lost response, and a fresh login clears recovery', async () => {
     const env = environment()
     const fetchImpl = vi.fn().mockRejectedValueOnce(new TypeError('Network failed')).mockResolvedValue(response())

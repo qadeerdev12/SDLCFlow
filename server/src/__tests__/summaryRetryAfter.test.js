@@ -1,3 +1,7 @@
+// Tests conversion of provider retry metadata into bounded waiting seconds.
+// Fixed time makes rounding and absolute deadlines deterministic; the later valid
+// deadline wins, and unusable metadata must yield a finite fallback.
+
 import { expect, it } from 'vitest';
 import { summaryRetryAfter } from '../utils/summaryRetryAfter.js';
 

@@ -1,3 +1,7 @@
+// Tests Express serving a tiny temporary build, not the actual React bundle.
+// Known SPA routes may receive HTML, but missing API/assets must remain errors;
+// cache headers and Socket.IO routing must survive same-origin hosting.
+
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,6 +15,8 @@ let directory;
 let app;
 const html = '<!doctype html><html><body>SDLCFlow test build</body></html>';
 
+// Build only the files needed to test routing/cache behavior, outside the repo.
+// The hidden fixture checks that static hosting does not expose dotfiles.
 beforeAll(() => {
     directory = mkdtempSync(join(tmpdir(), 'sdlcflow-static-'));
     mkdirSync(join(directory, 'assets'));

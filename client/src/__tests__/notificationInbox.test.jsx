@@ -1,3 +1,7 @@
+// Tests inbox synchronization and bell interaction with controlled REST/socket doubles.
+// Signals trigger authoritative reads rather than carrying private notification
+// content; races must not lose updates, duplicate listeners or leak account data.
+
 import { StrictMode } from 'react'
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
@@ -14,6 +18,8 @@ vi.mock('../context/useAuth', () => ({ useAuth: vi.fn() }))
 
 let sockets
 
+// Keep individual REST calls pending while socket signals or account changes
+// occur, then release them in the order needed to reproduce stale-response races.
 function deferred() {
   let resolve, reject
   const promise = new Promise((yes, no) => { resolve = yes; reject = no })
@@ -68,6 +74,8 @@ afterEach(() => { cleanup(); vi.clearAllTimers(); vi.useRealTimers() })
 const advance = (ms = 100) => act(() => vi.advanceTimersByTimeAsync(ms))
 const receive = (name = 'notifications:changed', socket = sockets.at(-1)) => act(() => socket.receive(name))
 
+// Exercise the hook separately from the bell so request coalescing, pagination
+// and pending-write races can be asserted without opening/closing UI controls.
 describe('live inbox requests', () => {
   it('loads through REST even without a socket connection', async () => {
     notificationApi.list.mockResolvedValue(snapshot([item()]))
@@ -240,6 +248,8 @@ function LocationProbe() {
 
 const bell = () => <MemoryRouter><NotificationBell /><LocationProbe /></MemoryRouter>
 
+// UI coverage includes background updates while closed and read-before-navigate.
+// Opening the popover must not create another subscription or reset live rows.
 describe('live notification bell', () => {
   it('keeps the inbox open and rows visible during renewal, then resets on a new session', async () => {
     useAuth.mockReturnValue({ token: 'old-token', sessionKey: 'same-session' })

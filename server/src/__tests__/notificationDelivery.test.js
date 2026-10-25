@@ -1,3 +1,7 @@
+// Integrates the event subscriber, database and real authenticated sockets.
+// Checks that persisted inbox changes signal all recipient tabs, not other users,
+// and that delivery failure does not undo an already successful database write.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import mongoose from 'mongoose';

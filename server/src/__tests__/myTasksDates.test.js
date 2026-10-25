@@ -1,3 +1,7 @@
+// Runs the shared client date helpers as pure tests in the server suite.
+// Fixed local calendar dates catch timezone/year-boundary grouping regressions;
+// completed work stays separate even when its due date would otherwise be late.
+
 import { describe, expect, it } from 'vitest';
 import { taskGroup, taskDateLabel } from '../../../client/src/lib/myTasks.js';
 

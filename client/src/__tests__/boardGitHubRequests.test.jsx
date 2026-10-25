@@ -1,3 +1,7 @@
+// Tests the real board page's lazy GitHub requests under React StrictMode.
+// Mocked APIs and controlled time distinguish deliberate user retries from effect
+// loops, including cooldowns and reopening a panel after an earlier failure.
+
 import { StrictMode } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'

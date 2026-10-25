@@ -14,7 +14,9 @@ function notificationData(overrides = {}) {
 }
 
 // validate() exercises Mongoose's document rules without connecting to MongoDB.
-// Persistence, permissions, and delivery will be tested with their later slices.
+// Persistence and access checks live in notificationService/notificationInbox;
+// live transport behavior lives in notificationDelivery. This suite only checks
+// which document shapes are valid and how unread/read defaults behave.
 describe('Notification model', () => {
   it('starts an assignment notification unread', async () => {
     const notification = new Notification(notificationData());

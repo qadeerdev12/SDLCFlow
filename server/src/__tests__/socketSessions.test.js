@@ -1,3 +1,7 @@
+// Exercises account-wide revocation on live Socket.IO connections and HTTP.
+// Existing rooms, reconnects, in-flight handshakes and idle expiry must all honor
+// the current session generation without treating storage outages as logout.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import mongoose from 'mongoose';

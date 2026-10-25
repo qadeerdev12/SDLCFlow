@@ -1,3 +1,7 @@
+// Tests the GitHub evidence collector separately from AI generation and HTTP.
+// Stored project links are real; commit fetching is mocked so malformed samples,
+// privacy filtering and link/access changes during consumption are deterministic.
+
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';

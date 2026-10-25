@@ -1,3 +1,7 @@
+// Uses fake time and mocked fetch to exercise the whole commit-read deadline.
+// Both waiting for headers and reading the body must be abortable, with timers
+// cleaned up after success or failure and existing provider errors preserved.
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchGitHubCommits } from '../services/githubService.js';
 

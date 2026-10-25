@@ -1,3 +1,7 @@
+// Checks how createApp composes CORS, cookie guards and bearer-only routes.
+// These HTTP probes stop at security boundaries without needing a database;
+// startup validation must reject conflicting origin or cookie configurations.
+
 import { afterEach, expect, it, vi } from 'vitest';
 import request from './helpers/http.js';
 import { createApp } from '../app.js';

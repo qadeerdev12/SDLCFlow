@@ -1,3 +1,7 @@
+// Tests the distinction between token renewal and a genuinely new UI session.
+// Rerendering with fresh credentials must preserve unsaved profile/AI edits;
+// a new session identity must reset private state instead of carrying it over.
+
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -10,6 +14,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../context/useAuth', () => ({ useAuth: () => mocks.auth }))
 vi.mock('../context/useToast', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 vi.mock('../components/AppHeader', () => ({ default: () => null }))
+// An uncontrolled input exposes unwanted remounts: losing this DOM instance
+// would erase the user's in-progress brief when only the access token changes.
 vi.mock('../components/TaskDraftPanel', () => ({
   default: ({ token }) => <input aria-label="AI brief" data-token={token} defaultValue="" />,
 }))

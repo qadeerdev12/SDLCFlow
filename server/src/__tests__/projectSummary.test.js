@@ -1,3 +1,7 @@
+// Tests read-only AI summaries with real project storage and mocked providers.
+// Assertions inspect submitted context and returned citations: only authorized,
+// bounded evidence may leave the app, and access must still hold on completion.
+
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import request, { issueAccess } from './helpers/auth.js';
@@ -14,6 +18,8 @@ let mongo;
 const app = createApp();
 const statuses = ['Done', 'In Progress', 'Blocked'];
 function provider(value) { return { ok: true, json: async () => ({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(value) }] }] }) }; }
+// Generate fixture citations from the actual submitted sample. Individual
+// cases corrupt this result to prove the server rejects unsupported evidence.
 function summaryFor(options) {
   const input = JSON.parse(JSON.parse(options.body).input[0].content);
   const groups = input.tasks || input;
@@ -49,6 +55,8 @@ function mockGitHubAndAI(transform = (value) => value, githubCommits = [{ sha: c
   });
 }
 
+// Repository context requires explicit consent in addition to membership.
+// Snapshot checks after generation prevent returning stale private evidence.
 describe('opt-in GitHub AI summaries', () => {
   it('surfaces commit timeouts without calling OpenAI and releases the summary limiter', async () => {
     const ctx = await fixture();
@@ -198,6 +206,8 @@ async function fixture(role = 'member') {
   };
 }
 
+// Task-only summaries stay read-only and project-scoped. Citation validation
+// checks identifiers/status sections, not the factual quality of a live model.
 describe('project AI summaries', () => {
   it.each(['member', 'admin', 'owner'])('allows %s and returns grounded citations without writes', async (role) => {
     const ctx = await fixture(role);

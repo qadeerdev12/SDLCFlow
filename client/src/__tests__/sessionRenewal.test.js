@@ -1,3 +1,7 @@
+// Tests the REST adapter's renewal boundary with mocked fetch and a registered renewer.
+// Only an explicit expired-access response permits one replay with the original
+// body; uncertain failures and account changes must not duplicate a mutation.
+
 import { afterEach, expect, it, vi } from 'vitest'
 import { authApi, integrationApi } from '../lib/api'
 import { registerSessionRenewal } from '../lib/sessionRenewal'

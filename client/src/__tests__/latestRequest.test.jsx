@@ -1,3 +1,7 @@
+// Tests request tickets independently of network calls or any particular page.
+// A newer read invalidates only its own resource; unmount invalidates all tickets
+// so stale callbacks cannot update a disposed component, including in StrictMode.
+
 import { StrictMode } from 'react'
 import { cleanup, renderHook } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'

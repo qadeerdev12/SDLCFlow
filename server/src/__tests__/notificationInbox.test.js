@@ -1,3 +1,7 @@
+// Exercises notification reads and read-state writes through authenticated HTTP.
+// Real MongoDB fixtures test recipient ownership, current project access, stable
+// pagination and concurrent updates rather than only checking response shapes.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import request, { issueAccess } from './helpers/auth.js';
@@ -44,6 +48,8 @@ async function fixture() {
   };
 }
 
+// Bulk reads select accessible history at request time. Later arrivals stay
+// unread, and overlapping single-item reads keep their original timestamps.
 describe('mark all notifications as read', () => {
   const markAll = (ctx, body = {}) => request(app).patch('/api/v1/notifications/read-all')
     .set('Authorization', `Bearer ${ctx.token}`).send(body);
@@ -137,6 +143,8 @@ describe('mark all notifications as read', () => {
   });
 });
 
+// Repeated or concurrent reads are idempotent. Ownership/access failures must
+// not reveal whether another recipient's notification exists.
 describe('mark one notification as read', () => {
   function mark(ctx, id, body = {}) {
     return request(app).patch(`/api/v1/notifications/${id}/read`)
@@ -221,6 +229,8 @@ describe('mark one notification as read', () => {
   });
 });
 
+// Reading the inbox is side-effect free. Apply access filtering before limits
+// and unread counts so pagination cannot leak hidden project history.
 describe('notification read API', () => {
   it('requires authentication and returns an empty inbox without creating or marking records', async () => {
     const ctx = await fixture();

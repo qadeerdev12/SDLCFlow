@@ -1,3 +1,7 @@
+// Tests the repository picker and linked-repository view with supplied props.
+// User actions must forward the chosen repository and respect read-only roles;
+// network loading/retry behavior lives in boardGitHubRequests.test.jsx.
+
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'

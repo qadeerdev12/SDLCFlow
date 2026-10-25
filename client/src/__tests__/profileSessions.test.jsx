@@ -1,3 +1,7 @@
+// Tests confirmation, pending and failure states for destructive profile actions.
+// Mocked auth operations let assertions pause before completion: cancellation must
+// not submit, repeated clicks must not duplicate work, and failure must be retryable.
+
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'

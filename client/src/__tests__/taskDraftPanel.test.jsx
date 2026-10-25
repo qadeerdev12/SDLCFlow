@@ -1,3 +1,7 @@
+// Tests the AI suggestion review flow with mocked generation and save callbacks.
+// Generating a draft must not mutate a task: only explicit reviewed additions
+// save, while rejection, discard and unmount keep suggestions from leaking through.
+
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TaskDraftPanel from '../components/TaskDraftPanel'
@@ -19,6 +23,8 @@ async function generate() {
   return screen.findByLabelText('Suggested description')
 }
 
+// Save callback counts are part of the contract: seeing generated text must not
+// imply persistence, and failed additions must leave the editable draft intact.
 describe('task draft preview', () => {
   it('requires explicit generation and review before changing anything', async () => {
     render(<TaskDraftPanel {...props} />)

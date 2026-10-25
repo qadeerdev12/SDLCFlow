@@ -1,3 +1,7 @@
+// Tests notification persistence directly against disposable MongoDB.
+// Stale references and self-notifications intentionally produce no record;
+// malformed input and storage failures must remain distinguishable from skips.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';

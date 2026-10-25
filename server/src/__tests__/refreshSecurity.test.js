@@ -1,3 +1,7 @@
+// Tests cookie and CSRF middleware in a small Express app, without MongoDB.
+// Request variants exercise exact origins, custom headers and parser ordering;
+// CORS permission alone must never authorize a cookie-changing operation.
+
 import { describe, expect, it } from 'vitest';
 import express from 'express';
 import cors from 'cors';

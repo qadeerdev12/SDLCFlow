@@ -1,3 +1,7 @@
+// Checks request admission at the HTTP boundary, including proxy/IP handling.
+// Controller spies distinguish a rejected request from one that reached account
+// logic, so parser ordering and independent login/signup budgets stay protected.
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from './helpers/auth.js';
 import { createApp } from '../app.js';

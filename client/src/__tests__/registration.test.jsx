@@ -1,3 +1,7 @@
+// Tests signup policy loading with mocked policy and registration operations.
+// The form stays unavailable until open registration is confirmed, and a policy
+// change after page load must show feedback rather than falsely navigate.
+
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'

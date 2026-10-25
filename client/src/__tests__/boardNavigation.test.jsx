@@ -1,3 +1,7 @@
+// Tests project/session state isolation in the real board page with mocked I/O.
+// Deferred replies and controlled socket events deliberately arrive out of order;
+// old work must not overwrite the current project, identity or newer snapshot.
+
 import { StrictMode } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -26,6 +30,8 @@ vi.mock('../components/board/GitHubIntegrationPanel', () => ({ default: (props) 
 vi.mock('../components/ChatPanel', () => ({ default: (props) => <output data-testid="panel">{JSON.stringify(props)}</output> }))
 vi.mock('../components/ActivityPanel', () => ({ default: (props) => <output data-testid="panel">{JSON.stringify(props)}</output> }))
 
+// Tests choose completion order explicitly, including success and failure after
+// navigation. A fixed delay would not reliably reproduce the race.
 function deferred() {
   let resolve, reject
   const promise = new Promise((yes, no) => { resolve = yes; reject = no })
@@ -72,6 +78,8 @@ beforeEach(() => {
   mocks.integrationApi.listGitHubRepos.mockResolvedValue(data({ repositories: [] }))
 })
 
+// The same saved entity can arrive over HTTP and a reconnecting socket. Both
+// delivery orders must converge on one card/list without replacing newer state.
 describe('REST create response and socket echo', () => {
   it.each(['card', 'list'].flatMap((kind) => ['socket-first', 'http-first'].map((order) => [kind, order])))('merges %s creation once (%s)', async (kind, order) => {
     const pending = deferred()
@@ -114,6 +122,8 @@ describe('REST create response and socket echo', () => {
 })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
+// A project ID alone is not a request identity: returning to the same route
+// or changing accounts must still invalidate work from its earlier lifetime.
 describe('project request isolation', () => {
   it('preserves a draft through token renewal, but resets it for a new sign-in', async () => {
     mocks.auth.sessionKey = 'session-one'

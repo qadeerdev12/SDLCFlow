@@ -1,3 +1,7 @@
+// Tests the refresh/logout HTTP contract with disposable session storage.
+// An isolated router fixture exposes cookie, CSRF, rotation and throttling behavior;
+// mounted-app checks ensure the same guards are present in application routing.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';

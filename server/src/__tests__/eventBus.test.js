@@ -1,3 +1,7 @@
+// Tests the in-process pub/sub contract independently of HTTP and MongoDB.
+// Publication waits for every subscriber and reports failures without stopping
+// healthy handlers; it is not a durable queue and does not replay past events.
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createEventBus, EVENTS } from '../events/eventBus.js';
 
@@ -18,6 +22,8 @@ describe('internal event bus', () => {
     expect(unrelated).not.toHaveBeenCalled();
   });
 
+  // Release the subscriber explicitly so the assertion observes pending work,
+  // not a race against a timer or the machine's execution speed.
   it('waits for async subscribers before finishing publication', async () => {
     const bus = createEventBus();
     let release;

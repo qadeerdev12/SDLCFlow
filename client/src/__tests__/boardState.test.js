@@ -1,3 +1,7 @@
+// Tests pure reducers for duplicate REST responses and socket create events.
+// Repeated delivery must not duplicate entities, mutate prior state or replace
+// newer edits/moves; newly inserted entities still follow position ordering.
+
 import { expect, it } from 'vitest'
 import { addCreatedCard, addCreatedList } from '../lib/boardState'
 

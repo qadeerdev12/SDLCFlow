@@ -1,3 +1,7 @@
+// Protects project loading while migrating older unscoped lists and cards.
+// Real database fixtures distinguish modern read-only loads from one-time
+// repairs; query spies also guard against unnecessary or sequential reads.
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import request, { issueAccess } from './helpers/auth.js';
@@ -33,6 +37,8 @@ async function fixture({ legacy = false } = {}) {
   return { user, board, workflow, list, card, get: () => request(app).get(`/api/v1/boards/${board.id}`).set('Authorization', `Bearer ${token}`) };
 }
 
+// Observe migration writes without replacing them: the assertions check both
+// persisted repairs and that subsequent reads do not perform those repairs again.
 function observeWrites() {
   return [vi.spyOn(Workflow, 'findOneAndUpdate'), vi.spyOn(List, 'updateMany'), vi.spyOn(Card, 'updateMany')];
 }

@@ -1,3 +1,7 @@
+// Tests pure mapping from summary failures to actionable retry guidance.
+// GitHub deadlines and reconnect/context failures need different recovery paths;
+// AI throttling must not be presented as a repository integration problem.
+
 import { describe, expect, it } from 'vitest'
 import { projectSummaryError } from '../lib/projectSummaryError'
 

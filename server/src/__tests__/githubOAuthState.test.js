@@ -1,3 +1,7 @@
+// Exercises OAuth state consumption with real storage and mocked GitHub calls.
+// A callback must belong to the initiating browser and current session, be usable
+// only once, and never persist credentials after access is revoked mid-flight.
+
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import request from './helpers/http.js';
@@ -116,6 +120,8 @@ it.each(['missing cookie', 'wrong cookie', 'duplicate cookie', 'tampered state',
     },
 );
 
+// State must be consumed atomically before provider exchange; two callbacks
+// from the same authorization attempt must never both reach GitHub.
 it('only permits one concurrent callback to exchange the code', async () => {
     const attempt = await start();
     const responses = await Promise.all([callback(attempt), callback(attempt)]);
@@ -162,6 +168,8 @@ it('requires a fresh attempt after a provider failure without logging provider s
     expect(JSON.stringify(console.warn.mock.calls)).not.toContain('sensitive-provider-response');
 });
 
+// Authorization at callback entry is insufficient: a slow provider response
+// must not reconnect an account after its initiating session was invalidated.
 it('does not save an account if the session is revoked during provider requests', async () => {
     const attempt = await start();
     fetchGitHubProfile.mockImplementationOnce(async () => {

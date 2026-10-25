@@ -1,3 +1,7 @@
+// Tests independent project and GitHub loading in the real dashboard.
+// Manually settled requests prove either section can finish or fail first without
+// blocking the other or installing data from a previous authenticated session.
+
 import { StrictMode } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -18,6 +22,8 @@ vi.mock('../lib/api', () => ({
   integrationApi: { getGitHubDashboard: mocks.github },
 }))
 
+// Leave one section pending while the other settles to catch accidental coupling
+// through a shared loading state or an all-or-nothing request batch.
 function deferred() {
   let resolve, reject
   const promise = new Promise((yes, no) => { resolve = yes; reject = no })
