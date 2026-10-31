@@ -24,6 +24,9 @@ beforeAll(() => {
     writeFileSync(join(directory, 'assets', 'app-Abc123.js'), 'console.log("fixture");');
     writeFileSync(join(directory, 'logo.svg'), '<svg></svg>');
     writeFileSync(join(directory, '.secret'), 'must not be served');
+    // A public asset must never shadow an operational endpoint namespace.
+    mkdirSync(join(directory, 'ready'));
+    writeFileSync(join(directory, 'ready', 'status.json'), '{"status":"ready"}');
     app = createApp({ clientBuild: directory });
 });
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
@@ -45,7 +48,7 @@ it('supports HEAD and distinguishes immutable assets from public files', async (
     await request(app).get('/logo.svg').expect(200).expect('Cache-Control', 'no-cache');
 });
 
-it.each(['/api/v1/missing', '/api', '/socket.io/missing', '/health/missing',
+it.each(['/api/v1/missing', '/api', '/socket.io/missing', '/health/missing', '/ready/status.json',
     '/assets/missing.js', '/missing.js', '/.secret', '/unknown-page', '/boards/missing.js'])(
     'does not turn %s into a successful HTML response', async (path) => {
         const response = await request(app).get(path).expect(404).expect('Content-Type', /json/);

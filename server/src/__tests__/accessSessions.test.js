@@ -4,6 +4,7 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
+import express from 'express';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import request from './helpers/http.js';
@@ -17,6 +18,7 @@ import { createAccessToken } from '../utils/accessTokens.js';
 import { createRefreshSession } from '../services/refreshSessionService.js';
 import RefreshSession, { MAX_REFRESH_ROTATIONS } from '../models/RefreshSession.js';
 import User from '../models/User.js';
+import { createServerLifecycle } from '../services/serverLifecycle.js';
 
 let mongo, io;
 const clients = [];
@@ -38,13 +40,17 @@ async function fixture() {
     const user = await User.create({ name: 'Test', email: 'access@example.com', passwordHash: 'unused', sessionVersion: 2 });
     const family = await createRefreshSession(user);
     const { token } = createAccessToken(family);
-    const app = createApp();
-    // A separate mount exercises isolated family rotation/eviction scenarios.
+    const app = express();
+    const lifecycle = createServerLifecycle();
+    const api = createApp({ lifecycle });
+    // Mount the isolated router before the production app's terminal 404.
     app.use('/test-auth', createRefreshRoutes({ origins: ['https://app.example.com'] }));
+    app.use(api);
     const http = createServer(app);
     io = new Server(http);
     app.set('io', io);
-    configureSockets(io);
+    api.set('io', io);
+    configureSockets(io, { lifecycle });
     await new Promise((resolve) => http.listen(0, '127.0.0.1', resolve));
     const connect = (credential = token) => {
         const socket = createClient(`http://127.0.0.1:${http.address().port}`, {
@@ -57,7 +63,7 @@ async function fixture() {
             socket.connect();
         });
     };
-    return { app, user, family, token, connect,
+    return { app, user, family, token, connect, lifecycle,
         me: (credential = token) => request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${credential}`),
         action: (path, credential = family.credential) => request(app).post(`/test-auth/${path}`)
             .set('Origin', 'https://app.example.com').set('X-SDLCFlow-CSRF', '1')
@@ -81,6 +87,21 @@ async function denied(ctx, token, code) {
 }
 
 describe('REST and socket access-family validation', () => {
+    it('releases mutation tracking on failure and rejects new socket work during drain', async () => {
+        const ctx = await fixture();
+        const socket = await ctx.connect();
+        const release = vi.fn();
+        const track = vi.spyOn(ctx.lifecycle, 'track').mockReturnValue(release);
+        const invalid = await socket.timeout(2000).emitWithAck('message:create', {});
+        expect(invalid.ok).toBe(false);
+        expect(track).toHaveBeenCalledTimes(1);
+        expect(release).toHaveBeenCalledTimes(1);
+        ctx.lifecycle.beginDrain();
+        const draining = await socket.timeout(2000).emitWithAck('message:create', {});
+        expect(draining.error.code).toBe('SERVER_DRAINING');
+        expect(track).toHaveBeenCalledTimes(1);
+    });
+
     it('accepts a current family but rejects legacy JWTs over both transports', async () => {
         const ctx = await fixture();
         await ctx.me().expect(200);

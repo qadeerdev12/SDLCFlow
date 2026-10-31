@@ -203,21 +203,29 @@ async function requireBoardRole(socket, boardId, allowedRoles) {
 // wrapper around this shape, so keep `{ ok, data/error }` stable.
 function registerMutation(socket, eventName, handler) {
   socket.on(eventName, async (payload = {}, callback) => {
+    const lifecycle = socket.data.lifecycle;
+    let complete;
     try {
+      if (lifecycle?.draining) throw Object.assign(new Error('Server restarting. Please try again shortly.'), { code: 'SERVER_DRAINING' });
+      complete = lifecycle?.track();
       const result = await handler(payload);
       if (typeof callback === 'function') callback(ackSuccess(result));
     } catch (err) {
       console.error(`${eventName} socket error:`, err.message);
       if (typeof callback === 'function') callback(socketError(err));
       else socket.emit('board:error', socketError(err).error);
+    } finally {
+      complete?.();
     }
   });
 }
 
-export function configureSockets(io) {
+export function configureSockets(io, { lifecycle } = {}) {
   configureSocketSessions(io);
 
   io.on('connection', (socket) => {
+    if (lifecycle?.draining) return socket.disconnect(true);
+    socket.data.lifecycle = lifecycle;
     if (!startSocketSession(socket)) return;
     // Identity comes from the verified JWT, never a client-selected room/user ID.
     // All of this user's tabs join automatically, even outside a project page.

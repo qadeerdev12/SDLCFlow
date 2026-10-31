@@ -20,7 +20,7 @@ export function mountClientBuild(app, directory) {
 
     // These namespaces belong to the backend even when their route is unknown.
     // Socket.IO intercepts its own traffic on the shared HTTP server.
-    app.use(['/api', '/socket.io', '/health'], (req, res) => {
+    app.use(['/api', '/socket.io', '/health', '/ready'], (req, res) => {
         res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Endpoint not found' } });
     });
     app.use(express.static(root, {

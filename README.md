@@ -485,6 +485,7 @@ server/src/
 | [AI project summaries](docs/ai-project-summaries.md) | Task and optional GitHub snapshots, source citations, consent, and recovery |
 | [Summary verification](docs/project-summary-verification.md) | Isolated browser/API checks, setup, covered scenarios, and manual quality review |
 | [First deployment plan](docs/deployment-plan.md) | Selected single-service topology, public URLs, configuration checks and remaining deployment gates |
+| [Production operations](docs/production-operations.md) | Readiness, shutdown, HTTP safety, local verification and remaining hosting gates |
 | [Production security review](docs/production-security-review.md) | Secret startup checks, dependency remediation, proxy policy and unresolved release blockers |
 
 ---

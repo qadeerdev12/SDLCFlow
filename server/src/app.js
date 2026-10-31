@@ -12,6 +12,8 @@ import taskRoutes from './routes/taskRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
 import { mountClientBuild } from './config/clientBuild.js';
+import { databaseReady } from './services/serverLifecycle.js';
+import { httpSafety, httpError } from './middleware/httpSafety.js';
 
 export function allowedClientOrigins() {
   return (process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
@@ -20,7 +22,8 @@ export function allowedClientOrigins() {
     .filter(Boolean);
 }
 
-export function createApp({ io, refresh = authRuntimeOptions(), clientBuild = null } = {}) {
+export function createApp({ io, refresh = authRuntimeOptions(), clientBuild = null,
+  lifecycle, readiness = databaseReady } = {}) {
   aiUsageOptions(); // Reject invalid safety settings before accepting requests.
   // Configuration cannot disable cookie authentication or restore legacy JWTs.
   if (!refresh || typeof refresh !== 'object' || Array.isArray(refresh)) {
@@ -30,6 +33,25 @@ export function createApp({ io, refresh = authRuntimeOptions(), clientBuild = nu
     throw new Error('Configure refresh origins through CLIENT_ORIGIN, not a separate allowlist');
   }
   const app = express();
+  app.disable('x-powered-by');
+  app.use(httpSafety);
+  app.get('/health', (req, res) => {
+    res.set('Cache-Control', 'no-store').json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+  app.get('/ready', async (req, res) => {
+    let ready = false;
+    try { ready = !lifecycle?.draining && await readiness(); } catch { /* Fail closed, without diagnostic details. */ }
+    ready = ready && !lifecycle?.draining;
+    res.set('Cache-Control', 'no-store').status(ready ? 200 : 503)
+      .json({ status: ready ? 'ready' : 'unavailable' });
+  });
+  app.use((req, res, next) => {
+    if (lifecycle?.draining) {
+      return res.set({ 'Cache-Control': 'no-store', 'Retry-After': '5' }).status(503)
+        .json({ error: { code: 'SERVER_DRAINING', message: 'Server restarting. Please try again shortly.' } });
+    }
+    next();
+  });
   app.set('trust proxy', trustedProxies());
   const clientOrigins = allowedClientOrigins();
 
@@ -62,12 +84,10 @@ export function createApp({ io, refresh = authRuntimeOptions(), clientBuild = nu
     });
   });
 
-  app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
-
   // Opt in at production startup; tests and local Vite retain API-only mode.
   if (clientBuild) mountClientBuild(app, clientBuild);
+  app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Endpoint not found' } }));
+  app.use(httpError);
 
   return app;
 }

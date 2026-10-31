@@ -133,9 +133,11 @@ than claiming every advisory is reachable. Re-run `npm audit --json` and
   the selected host honors the runtime pins and deep links at staging.
 - [ ] Serve the backend on a WebSocket-capable host with HTTPS. Verify two-account
   collaboration and reconnection against deployed URLs, not just localhost.
-- [ ] Configure baseline response security headers, JSON error handling, readiness
-  checks, graceful shutdown, and privacy-conscious error monitoring. The current
-  `/health` response reports process liveness, not database readiness.
+- [ ] Verify operations on the host: baseline Express response headers, terminal
+  JSON errors, `/ready` database probes and bounded SIGTERM/SIGINT shutdown are
+  implemented and locally tested. See [production operations](production-operations.md).
+  Still required: pinned-runtime CI/release checks, hosted lifecycle verification,
+  privacy-reviewed monitoring/logging and final CSP/HTTPS header review.
 - [ ] Create a repeatable fictional demo dataset and a reset/isolation policy.
   Exercise profile deletion, roles, chat, notifications, workflows, GitHub, and
   optional AI with staging accounts. Verify HTTP and Socket.IO access separately.

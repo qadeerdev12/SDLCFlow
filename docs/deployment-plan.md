@@ -28,6 +28,7 @@ One persistent Node process
   |-- /api/v1/*       Express API, including GitHub callback
   |-- /socket.io/*    Socket.IO polling + WebSocket upgrade
   |-- /health         existing process liveness endpoint
+  |-- /ready          active database readiness; unavailable during drain
   |
   |-- MongoDB Atlas  users, projects, refresh sessions, messages
   |-- GitHub         OAuth + repository APIs
@@ -136,8 +137,9 @@ to use `npm run dev` and `npm run check:auth-config -- --local`.
    client-IP handling; do not use blanket trust or guessed provider address ranges.
 4. Review secrets, dependency/security findings, database network access and backup
    needs. Keep staging data separate from real user data.
-5. Review shutdown/restart handling and health checks. `/health` currently reports
-   process liveness, not an active database-readiness check.
+5. Readiness and bounded shutdown are implemented in the
+   [operations foundation](production-operations.md). Configure `/ready` on the
+   selected host and verify its signal delivery, restart and grace-period behavior.
 6. Deploy staging only after approval, then verify HTTPS cookies, OAuth redirects,
    deep links, Socket.IO polling/upgrades, reconnect and account revocation there.
 
@@ -231,8 +233,8 @@ reported unapproved optional/development install scripts without failing checks.
   mutable public files outside that directory; other public files revalidate.
 - Missing API, socket, asset and unknown page URLs return JSON 404s, never the SPA.
   Unknown server URLs therefore differ from client-side navigation's home redirect.
-- API authentication and `/health` retain their existing behavior. Health remains
-  liveness only, not database readiness. Socket.IO owns its transport endpoint on
+- API authentication and `/health` retain their existing behavior. `/ready`
+  separately probes database availability. Socket.IO owns its transport endpoint on
   the shared HTTP server before Express handles unmatched requests.
 
 Run `npm test -- src/__tests__/clientBuild.test.js` from `server/` to verify routing

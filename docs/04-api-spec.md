@@ -9,6 +9,28 @@ Defines the contract between client and server: the REST API (request/response w
 
 ## 1. Conventions
 
+### Operational Endpoints
+
+These public endpoints live outside `/api/v1` and return `Cache-Control: no-store`:
+
+| Method | Path | Response |
+|---|---|---|
+| GET / HEAD | `/health` | `200 { "status": "ok", "timestamp": "..." }` while the HTTP process is serving |
+| GET / HEAD | `/ready` | `200 { "status": "ready" }` after a successful database ping, otherwise `503 { "status": "unavailable" }` |
+
+HEAD returns headers/status without a body. Readiness is unavailable during
+shutdown, even if a probe started before draining succeeds afterward. The ping
+has a one-second driver timeout; responses never include database diagnostics.
+Optional GitHub/AI availability does not determine readiness.
+
+During drain, new requests reaching Express (other than these probes) return
+`503 SERVER_DRAINING` with `Retry-After: 5`. The listener then closes, so later
+clients may receive a connection failure rather than an HTTP response. Already
+accepted HTTP responses and tracked socket mutations have a shared 15-second
+shutdown deadline. A lost acknowledgement is not evidence that a write failed;
+refetch before deciding whether to repeat a mutation. See
+[production operations](production-operations.md) for scope and limitations.
+
 ### Registration Admission
 
 `GET /api/v1/auth/registration` is public and returns
