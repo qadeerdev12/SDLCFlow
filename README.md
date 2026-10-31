@@ -488,7 +488,7 @@ server/src/
 | [Production operations](docs/production-operations.md) | Readiness, shutdown, HTTP safety, local verification and remaining hosting gates |
 | [Continuous integration](docs/continuous-integration.md) | GitHub Actions checks, isolated test data, local reproduction and required-check setup |
 | [Email delivery](docs/email-delivery.md) | Brevo sender setup, manual delivery probe and remaining public-signup gates |
-| [Password recovery](docs/password-recovery.md) | Internal reset-token lifecycle, tests and remaining endpoint integration requirements |
+| [Password recovery](docs/password-recovery.md) | Reset tokens, completion endpoint, session revocation and remaining email/UI integration |
 | [Production security review](docs/production-security-review.md) | Secret startup checks, dependency remediation, proxy policy and unresolved release blockers |
 
 ---

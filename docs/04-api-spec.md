@@ -88,10 +88,23 @@ policy information. See the deployment plan for `REGISTRATION_MODE` defaults.
 | GET | `/auth/profile` | ✅ | – | `200 { user, stats }` |
 | PATCH | `/auth/profile` | ✅ | `{ name?, email? }` | `200 { user }` |
 | PATCH | `/auth/password` | ✅ | `{ currentPassword, newPassword }` | `200 { updated: true }` |
+| POST | `/auth/reset-password` | Reset token + Origin/CSRF | `{ token, newPassword }` | `200 { updated: true }` |
 | DELETE | `/auth/me` | ✅ | `{ password }` | `200 { deleted: true }` |
 
 `user` never includes `passwordHash`.
-Profile email updates reject duplicate emails with `409 EMAIL_TAKEN`. Password updates require the current password and a new password of at least 8 characters.
+Profile email updates reject duplicate emails with `409 EMAIL_TAKEN`. Authenticated password updates require the current password. New passwords must contain at least 15 characters and at most 72 UTF-8 bytes.
+
+Reset completion does not require a login, but requires the configured Origin,
+`X-SDLCFlow-CSRF: 1`, and JSON (4 KB maximum). Its independent per-IP limit is 10
+attempts per 15 minutes. Password validation precedes one-time token consumption.
+The password hash and session-version increment commit atomically, invalidating
+old access/refresh sessions and disconnecting old sockets. Success clears the
+refresh cookie and never returns a new login token.
+Invalid/expired/replayed tokens return `400 PASSWORD_RESET_INVALID`; concurrent
+account changes return `409 PASSWORD_RESET_CONFLICT`. Throttling returns
+`429 AUTH_RATE_LIMITED` with Retry-After. Failures after consumption require a new
+reset link. No request-email endpoint or reset UI exists yet; see
+[password recovery](password-recovery.md) for the complete contract and remaining work.
 Deleting an account removes owned boards and their lists/cards/comments/activity, removes the user from shared boards, clears their card assignments, and deletes their comments/activity records.
 
 ### 2.2 Workflow templates

@@ -24,7 +24,7 @@ export async function issuePasswordResetToken(userId) {
 }
 
 /** Internal one-time claim, NOT a completed password reset or a login grant.
- * The eventual password writer MUST compare-and-swap the returned sessionVersion
+ * The password-reset controller MUST compare-and-swap the returned sessionVersion
  * and increment it with the password update. A revocation can race this check.
  * Validate the new password before claiming; failures after claiming require a
  * fresh reset request. Never consume on GET (mail scanners may open links).

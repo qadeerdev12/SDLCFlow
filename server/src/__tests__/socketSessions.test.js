@@ -15,6 +15,7 @@ import { createApp } from '../app.js';
 import { configureSockets } from '../socket.js';
 import { revokeSocketSessions } from '../services/socketSessionService.js';
 import User from '../models/User.js';
+import { issuePasswordResetToken } from '../services/passwordResetTokenService.js';
 
 let mongo, io;
 const clients = [];
@@ -72,7 +73,8 @@ describe('socket session lifecycle', () => {
     expect(io.sockets.sockets.size).toBe(0);
   });
 
-  it('revokes all old connections and rooms, rejects reconnect, and allows fresh login', async () => {
+  // Exercise the same real sockets through both credential-changing endpoints.
+  it.each(['password change', 'password reset'])('%s revokes old connections and rooms, rejects reconnect, and allows fresh login', async (action) => {
     const ctx = await fixture();
     const first = await ctx.connect();
     const second = await ctx.connect();
@@ -82,7 +84,11 @@ describe('socket session lifecycle', () => {
     expect((await first.timeout(2000).emitWithAck('board:join', { boardId: board._id })).ok).toBe(true);
     const firstEnded = ended(first);
     const secondEnded = ended(second);
-    await ctx.change().expect(200);
+    if (action === 'password reset') {
+      const { token } = await issuePasswordResetToken(ctx.user._id);
+      await request(ctx.app).post('/api/v1/auth/reset-password')
+        .send({ token, newPassword: 'replacement passphrase' }).expect(200);
+    } else await ctx.change().expect(200);
     expect(await firstEnded).toEqual(['SESSION_INVALIDATED']);
     expect(await secondEnded).toEqual(['SESSION_INVALIDATED']);
     expect(io.sockets.adapter.rooms.has(`user:${ctx.user.id}`)).toBe(false);

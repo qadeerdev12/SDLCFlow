@@ -3,6 +3,7 @@ import { rateLimit } from 'express-rate-limit';
 export const AUTH_LIMITS = {
   login: { limit: 20, windowMs: 15 * 60 * 1000 },
   register: { limit: 10, windowMs: 60 * 60 * 1000 },
+  resetPassword: { limit: 10, windowMs: 15 * 60 * 1000 },
 };
 
 export function createAuthRateLimit(action) {
@@ -19,7 +20,7 @@ export function createAuthRateLimit(action) {
       return res.status(429).json({
         error: {
           code: 'AUTH_RATE_LIMITED',
-          message: `Too many ${action === 'login' ? 'sign-in' : 'signup'} attempts. Try again in ${Math.ceil(retryAfter / 60)} minute(s).`,
+          message: `Too many ${action === 'resetPassword' ? 'password-reset' : action === 'login' ? 'sign-in' : 'signup'} attempts. Try again in ${Math.ceil(retryAfter / 60)} minute(s).`,
           retryAfter,
           resetAt: req.rateLimit.resetTime.toISOString(),
         },

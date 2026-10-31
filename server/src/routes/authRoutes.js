@@ -5,6 +5,7 @@ import { createAuthRateLimit } from '../middleware/authRateLimit.js';
 import { createRefreshSecurity } from '../middleware/refreshSecurity.js';
 import createRefreshRoutes from './refreshRoutes.js';
 import { registrationMode } from '../config/registration.js';
+import { completePasswordReset } from '../controllers/passwordResetController.js';
 
 
 // createApp supplies validated cookie options and its credentialed CORS origins.
@@ -25,6 +26,10 @@ export default function createAuthRoutes({ refresh } = {}) {
   // Each app owns its counters. Limit before JSON parsing, database access, or bcrypt.
   router.post('/register', createAuthRateLimit('register'));
   router.post('/login', createAuthRateLimit('login'));
+  // Recovery needs no access token, but retains the same browser-origin policy.
+  // A separate parser keeps reset requests small before the general JSON parser.
+  router.post('/reset-password', createAuthRateLimit('resetPassword'), security.guard,
+    express.json({ limit: '4kb' }), completePasswordReset);
   router.post('/register', security.guard);
   // Preserve CSRF and throttling, but reject closed signup before parsing JSON,
   // querying users, hashing passwords, or creating any session cookies.

@@ -1,11 +1,11 @@
-# Password recovery: token foundation
+# Password recovery backend
 
 ## Current scope
 
-This iteration adds internal storage and token services only. There are no new
-HTTP endpoints, reset emails, forms, password changes, or automatic logins yet.
-Existing authentication behavior is unchanged. Public signup remains gated on
-completed recovery, verification, and reliable email delivery.
+Internal token storage and the POST reset-completion endpoint are implemented.
+There is no public token-request endpoint, reset email delivery, or recovery UI
+yet. Completion never logs the user in automatically. Public signup remains gated
+on completed recovery, verification, and reliable email delivery.
 
 ## Lifecycle
 
@@ -30,27 +30,48 @@ itself, including rejecting the exact expiry boundary. TTL timing is never a
 security boundary. Deleted accounts cannot claim a token; pending orphan rows
 expire automatically. Legacy accounts without a session version use generation 0.
 
-## Integration requirements for the next slice
+## Completion endpoint
 
-Consumption is not password reset completion. The future writer must validate the
-new password before consumption, then conditionally update the account matching
-the claimed session version and atomically increment that version with the new
-password hash. A plain `findByIdAndUpdate` would permit a stale claimant to race a
-password change or revocation. The final write must guard against that race.
+`POST /api/v1/auth/reset-password` accepts `{ token, newPassword }` without an
+access token. It requires the configured Origin, `X-SDLCFlow-CSRF: 1`, and JSON,
+matching other authentication actions. It accepts at most 4 KB of JSON. A separate
+per-IP budget allows 10 attempts per 15 minutes, including successful attempts,
+before parsing, database lookup, or bcrypt. Counters are per process, not shared
+between replicas; initial deployment remains single-instance.
+
+The controller validates the password (15 characters minimum, 72 UTF-8 bytes
+maximum, never trimmed) before consuming the token. It then hashes with bcrypt
+cost 10 and conditionally updates the account matching the claimed session
+version. Password replacement and the version increment are one atomic write.
+A racing reset, password change, deletion, or logout-all cannot be overwritten.
+
+Success is `200 { data: { updated: true } }`, with no access token. Old access and
+refresh credentials fail the account-generation checks, and older live/pending
+sockets are revoked. Newer login families are not removed. The caller's refresh
+cookie is cleared; the user must sign in again. Refresh rows can remain until TTL
+cleanup; their old generation is no longer authorized.
+
+Errors: `400 VALIDATION` for password/body errors, `400 PASSWORD_RESET_INVALID`
+for malformed, expired, spent, revoked or unknown claims, `409 PASSWORD_RESET_CONFLICT`
+for a lost account-write race, `403 CSRF_REJECTED` for browser-policy failures,
+`413 VALIDATION` for oversized JSON, `429 AUTH_RATE_LIMITED` with Retry-After, and
+generic `500 INTERNAL_SERVER_ERROR` for storage/hash failures. All auth responses
+are no-store; raw tokens/passwords/provider errors are not logged.
 
 A failure after consumption burns the token; the user must request a fresh link.
-Do not restore the token on failure. Successful reset must invalidate existing
-refresh/access sessions and live sockets using the existing revocation machinery.
+Do not restore the token on failure. Invalid new passwords do not consume tokens.
+GET has no completion handler, so opening links cannot reset passwords.
 
-Before exposing this service publicly, add:
+## Remaining integration
 
-- Rate-limited request/completion endpoints and generic request responses that do
+Before enabling the full public recovery flow, add:
+
+- A rate-limited request endpoint and generic request responses that do
   not reveal account existence, including careful timing and failure handling.
 - Delivery only to the stored account address; never a client-selected recipient.
 - HTTPS reset links from trusted server configuration, not request Host headers.
-- POST-only completion; opening a link must not consume it (email scanners open links).
-- No token logging, analytics capture, or referrer leakage; no-store responses.
-- End-to-end race tests for password writes, reset requests and session revocation.
+- Forms that avoid token analytics capture and referrer leakage.
+- End-to-end delivery/UI tests, including concurrent reset requests.
 - A separate email-verification design; these tokens are not interchangeable.
 
 Reference: [OWASP Forgot Password Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html).
@@ -58,7 +79,7 @@ Reference: [OWASP Forgot Password Cheat Sheet](https://cheatsheetseries.owasp.or
 ## Verification
 
 ```sh
-npm --prefix server test -- src/__tests__/passwordResetTokens.test.js src/__tests__/passwordSessions.test.js
+npm --prefix server test -- src/__tests__/passwordResetTokens.test.js src/__tests__/passwordResetCompletion.test.js src/__tests__/passwordSessions.test.js src/__tests__/socketSessions.test.js src/__tests__/authRateLimit.test.js --maxWorkers=2
 ```
 
 Tests use disposable MongoDB and fake users, with no private environment files or
