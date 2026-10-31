@@ -90,3 +90,7 @@ findings (8 moderate, 2 high). Server high findings include `body-parser` and
 dependency advisories, not proof that each path is exploitable in this app.
 No dependencies were changed in this CI slice. Triage runtime/build exposure and
 compatible fixes before public release; passing CI is not security clearance.
+
+Subsequent dependency remediation is recorded in the
+[security review](production-security-review.md#dependency-follow-up-2026-11-01).
+The numbers above describe the original CI setup, not the updated lockfiles.

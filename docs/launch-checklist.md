@@ -81,6 +81,11 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   result is historical, not current clearance. Review runtime versus tooling
   exposure, apply compatible fixes and rerun tests/build/audits. No dependency
   upgrades were made in the CI slice; see [CI verification](continuous-integration.md#verification-record).
+  Follow-up compatible lockfile updates now clear all server findings and all
+  high/critical client findings; both production-only audits report zero. Six
+  moderate client tooling findings remain in the ESLint/minimatch chain. Keep
+  this item open pending an upstream-compatible fix or an explicit residual-risk
+  decision. See [dependency follow-up](production-security-review.md#dependency-follow-up-2026-11-01).
 
 - [ ] **4. Bound public-demo abuse and cost.** Registration admission is implemented:
   `REGISTRATION_MODE=restricted` closes public self-signup while preserving login.
