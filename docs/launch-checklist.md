@@ -75,6 +75,13 @@ databases, not live accounts; hosted two-account testing remains a staging gate.
   both packages. Server/client tests, build/lint and browser checks are recorded
   in the production security review; rerun audits before deployment.
 
+- [ ] **3a. Review newly reported dependency advisories before public release.**
+  On 2026-11-01, clean CI verification reported 5 server findings (3 moderate,
+  2 high) and 10 client findings (8 moderate, 2 high). The earlier zero-finding
+  result is historical, not current clearance. Review runtime versus tooling
+  exposure, apply compatible fixes and rerun tests/build/audits. No dependency
+  upgrades were made in the CI slice; see [CI verification](continuous-integration.md#verification-record).
+
 - [ ] **4. Bound public-demo abuse and cost.** Registration admission is implemented:
   `REGISTRATION_MODE=restricted` closes public self-signup while preserving login.
   Production defaults to restricted; local development/test defaults to open.
@@ -166,7 +173,10 @@ to develop and test them without enabling public registration.
 - [ ] Refresh screenshots and record a short two-account collaboration demo.
 - [ ] Write the architecture/trade-offs case study and link the demo/repository.
 - [ ] Reconcile README license claims with package license metadata before publishing.
-- [ ] Optionally add CI to automate the existing suites and build checks.
+- [x] Add CI to automate clean installs, server/client suites, lint and production
+  build/configuration checks. See [continuous integration](continuous-integration.md).
+- [ ] Confirm the first GitHub-hosted CI run passes, then require both job checks
+  on `main` through repository rules. Workflow files alone do not enforce merges.
 
 New product features, direct-message chat, an autonomous task agent, multi-instance
 scaling, and a GitHub App migration are not required for this portfolio launch.

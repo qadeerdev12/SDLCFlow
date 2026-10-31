@@ -87,7 +87,9 @@ paid provider calls were used; isolated test servers and databases were closed.
 
 ## Remaining Release Work
 
-1. Automate clean installs, suites, lint and build in CI using the pinned runtime.
+1. The [CI workflow](continuous-integration.md) automates clean installs, suites,
+   lint and build using the pinned runtime. Confirm its first hosted Linux run
+   and require both checks on `main`; remote branch rules are not yet configured.
 2. Implement and verify the committed recovery/email-verification flows before
    unrestricted signup. Choose an email provider and sender domain first.
 3. Select hosting, review proxy trust and configure isolated staging secrets and

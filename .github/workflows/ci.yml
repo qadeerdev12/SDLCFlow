@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# PR code runs without deployment credentials or repository write access.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server tests and production config
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # Download explicitly before Vitest so a cold download does not consume a
+      # database suite's setup timeout. No Atlas service or credentials are used.
+      MONGOMS_DISABLE_POSTINSTALL: 'true'
+      MONGOMS_VERSION: '8.2.6'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up pinned Node runtime
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install locked server dependencies
+        run: npm --prefix server ci --include=dev
+      - name: Prepare disposable MongoDB binary
+        working-directory: server
+        run: |
+          node --input-type=module -e '
+            import { MongoMemoryServer } from "mongodb-memory-server";
+            const mongo = await MongoMemoryServer.create();
+            await mongo.stop();
+          '
+      - name: Run server regression tests
+        # Bound concurrent MongoDB processes to the hosted runner memory budget.
+        run: npm --prefix server test -- --maxWorkers=2
+      - name: Verify production-only dependency install
+        run: npm --prefix server ci --omit=dev
+      - name: Check production URL configuration
+        run: npm run check:auth-config
+        env:
+          NODE_ENV: production
+          CLIENT_ORIGIN: https://app.example.com
+          CLIENT_URL: https://app.example.com
+          VITE_API_URL: https://app.example.com/api/v1
+          VITE_SOCKET_URL: https://app.example.com
+
+  client:
+    name: Client tests lint and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up pinned Node runtime
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install locked client dependencies
+        run: npm --prefix client ci --include=dev
+      - name: Run client regression tests
+        run: npm --prefix client test -- --maxWorkers=2
+      - name: Lint client
+        run: npm run lint
+      - name: Build production client
+        # This build is a check, not a deployable artifact with real host URLs.
+        run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_API_URL: https://app.example.com/api/v1
+          VITE_SOCKET_URL: https://app.example.com

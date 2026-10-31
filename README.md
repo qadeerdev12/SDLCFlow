@@ -486,6 +486,7 @@ server/src/
 | [Summary verification](docs/project-summary-verification.md) | Isolated browser/API checks, setup, covered scenarios, and manual quality review |
 | [First deployment plan](docs/deployment-plan.md) | Selected single-service topology, public URLs, configuration checks and remaining deployment gates |
 | [Production operations](docs/production-operations.md) | Readiness, shutdown, HTTP safety, local verification and remaining hosting gates |
+| [Continuous integration](docs/continuous-integration.md) | GitHub Actions checks, isolated test data, local reproduction and required-check setup |
 | [Production security review](docs/production-security-review.md) | Secret startup checks, dependency remediation, proxy policy and unresolved release blockers |
 
 ---
