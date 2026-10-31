@@ -487,6 +487,7 @@ server/src/
 | [First deployment plan](docs/deployment-plan.md) | Selected single-service topology, public URLs, configuration checks and remaining deployment gates |
 | [Production operations](docs/production-operations.md) | Readiness, shutdown, HTTP safety, local verification and remaining hosting gates |
 | [Continuous integration](docs/continuous-integration.md) | GitHub Actions checks, isolated test data, local reproduction and required-check setup |
+| [Email delivery](docs/email-delivery.md) | Brevo sender setup, manual delivery probe and remaining public-signup gates |
 | [Production security review](docs/production-security-review.md) | Secret startup checks, dependency remediation, proxy policy and unresolved release blockers |
 
 ---

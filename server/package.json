@@ -10,6 +10,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "check:email": "node scripts/check-email.mjs",
     "check:auth-config": "node scripts/check-auth-config.mjs",
     "test": "vitest run",
     "test:auth-browser": "node scripts/check-auth-browser.mjs",
