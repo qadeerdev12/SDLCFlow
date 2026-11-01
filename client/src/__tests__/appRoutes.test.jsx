@@ -23,6 +23,7 @@ vi.mock('../pages/LoginPage', () => ({ default: () => <h1>Login</h1> }))
 vi.mock('../pages/RegisterPage', () => ({ default: () => <h1>Register</h1> }))
 vi.mock('../pages/ForgotPasswordPage', () => ({ default: () => <h1>Forgot Password</h1> }))
 vi.mock('../pages/ResetPasswordPage', () => ({ default: () => <h1>Reset Password</h1> }))
+vi.mock('../pages/VerifyEmailPage', () => ({ default: () => <h1>Verify Email</h1> }))
 vi.mock('../pages/DashboardPage', () => ({ default: () => <h1>Dashboard</h1> }))
 vi.mock('../pages/ProfilePage', () => ({ default: () => <h1>Profile</h1> }))
 vi.mock('../pages/MyTasksPage', () => ({ default: () => <h1>My Tasks</h1> }))
@@ -49,7 +50,7 @@ afterEach(() => {
 })
 
 describe('lazy application routes', () => {
-  it.each([['/forgot-password', 'Forgot Password'], ['/reset-password', 'Reset Password']])(
+  it.each([['/forgot-password', 'Forgot Password'], ['/reset-password', 'Reset Password'], ['/verify-email', 'Verify Email']])(
     'allows signed-out visitors to open %s', async (path, heading) => {
       mocks.auth = { user: null, loading: false }
       show(path)

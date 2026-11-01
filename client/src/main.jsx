@@ -7,8 +7,10 @@ import { ToastProvider } from './context/ToastContext'
 import './index.css'
 import App from './App.jsx'
 import { captureRecoveryLink } from './lib/recoveryLink'
+import { captureVerificationLink } from './lib/verificationLink'
 
 captureRecoveryLink()
+captureVerificationLink()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

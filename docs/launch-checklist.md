@@ -178,9 +178,11 @@ owner reported a successful local password-reset test. Spam placement and hosted
 delivery checks remain open. The [email verification foundation](email-verification.md)
 now covers internal status, hashed one-time tokens, email-change invalidation,
 request/confirmation routes, opt-in Brevo delivery and owner status responses.
-Verification UI and existing-account access policy are still pending. No existing
+Verification UI now includes a public explicit-confirmation page and profile
+status/resend controls. Controlled live verification and existing-account access
+policy are still pending. No existing
 account has been automatically marked verified or blocked; verification delivery
-remains off by default until its page is ready.
+remains off by default pending controlled delivery testing.
 
 ## Portfolio packaging / can wait
 

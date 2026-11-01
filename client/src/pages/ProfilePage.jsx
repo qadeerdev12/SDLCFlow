@@ -3,6 +3,7 @@ import { LogOut } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppHeader from '../components/AppHeader'
 import ConfirmDialog from '../components/ConfirmDialog'
+import EmailVerificationStatus from '../components/EmailVerificationStatus'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
 import { authApi, integrationApi } from '../lib/api'
@@ -387,6 +388,7 @@ function ProfileSession() {
                 {savingProfile ? 'Saving...' : 'Save details'}
               </button>
             </div>
+            {!loading && !error && <EmailVerificationStatus account={account} token={token} disabled={savingProfile || profileChanged} />}
           </form>
 
           <form onSubmit={handleSavePassword} className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">

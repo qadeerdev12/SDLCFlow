@@ -1,11 +1,12 @@
-# Email verification backend
+# Email verification
 
 ## Current scope
 
 Verification state, one-time proof tokens, request/resend and confirmation endpoints,
-and Brevo delivery are implemented. Delivery defaults off until the verification
-page and sender checks are ready. No resend UI or restrictions on unverified
-accounts exist yet. Existing signup, login, recovery, REST access and sockets
+and Brevo delivery are implemented, alongside the public verification page and
+profile status/resend controls. Delivery still defaults off pending controlled
+delivery checks. No restrictions on unverified accounts exist yet.
+Existing signup, login, recovery, REST access and sockets
 remain available under their current policies. Signup does not automatically send mail.
 
 ## Configuration
@@ -18,7 +19,7 @@ EMAIL_VERIFICATION_ENABLED=false
 EMAIL_VERIFICATION_ORIGIN=http://localhost:5173
 ```
 
-Keep the flag false until `/verify-email` is implemented. The origin must exactly
+Enable the flag deliberately for a controlled local delivery test. The origin must exactly
 match an entry in `CLIENT_ORIGIN`, without trailing slash, credentials, path,
 query or fragment. Production requires non-loopback HTTPS; local development/test
 may use HTTP loopback. Enabled invalid configuration fails app startup and auth
@@ -145,9 +146,8 @@ not a complete secure email-change workflow.
 
 ## Remaining slices
 
-1. Add the verification page and owner-facing status/resend controls. Read and clear
-   the URL fragment, confirm only on user action, and do not automatically retry
-   ambiguous confirmation failures. Do not persist proof tokens in browser storage.
+1. Test the complete verification flow locally with the configured sender, including
+   replay and profile status. Automated UI tests deliberately mock all delivery.
 2. Decide unverified-account permissions, enforce them in REST and sockets, and
    define how existing users verify without an accidental lockout.
 3. Verify sender delivery, spam placement, link tracking/retention and production
@@ -155,11 +155,31 @@ not a complete secure email-change workflow.
 
 Reference: [OWASP email verification guidance](https://cheatsheetseries.owasp.org/cheatsheets/Email_Validation_and_Verification_Cheat_Sheet.html).
 
+## Frontend behavior
+
+`/verify-email` is public. Bootstrap captures and strips fragment proof before
+BrowserRouter mounts; query-only tokens are rejected. The mounted page retains
+proof only in memory. Reload requires reopening the original email link. Same-tab
+fragment navigation supports reopening mail without restoring a consumed proof.
+Only clicking **Verify email** posts proof; rendering or link scanners do not.
+Validation/CSRF/rate rejection permits an explicit retry; expired/reused proof and
+ambiguous failures discard it. Success does not log in or change cookies. Signed-in
+owner state is reloaded, never inferred from proof that might belong to someone else.
+
+Profile displays stored-address verification status and a deliberate send action.
+Unsaved account edits disable sending. Acknowledgement is account-neutral, not a
+delivery receipt. A fifteen-minute local cooldown reduces repeat clicks; server
+limits remain authoritative across tabs/remounts. Signup sends no mail automatically.
+No private environment configuration is changed by this implementation.
+
 ## Tests
 
 ```sh
 npm --prefix server test -- src/__tests__/emailVerification.test.js src/__tests__/authValidation.test.js --maxWorkers=2
 npm --prefix server test -- src/__tests__/emailVerificationRoutes.test.js src/__tests__/emailVerificationDelivery.test.js src/__tests__/forgotPassword.test.js src/__tests__/passwordRecoveryConfig.test.js src/__tests__/passwordRecoveryEmail.test.js --maxWorkers=2
+npm --prefix client test -- src/__tests__/emailVerification.test.jsx src/__tests__/emailVerificationApi.test.js src/__tests__/appRoutes.test.jsx --maxWorkers=2
+# With a local Vite server running (all API responses are mocked):
+PLAYWRIGHT_CHANNEL=chrome node server/scripts/check-verification-ui.mjs http://127.0.0.1:5180
 ```
 
 The suite uses disposable MongoDB and fake accounts only. It covers default and

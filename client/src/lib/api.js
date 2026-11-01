@@ -9,11 +9,12 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api/v1';
 //  - attaches the auth token if we have one
 //  - parses the JSON response and throws on errors
 
-async function request(endpoint, {method = 'GET', body, token, renewed = false, credentials } = {}) {
+async function request(endpoint, {method = 'GET', body, token, renewed = false, credentials, csrf = false } = {}) {
     if (renewed && !isCurrentRenewalToken(token)) {
         throw Object.assign(new Error('Session changed before retry.'), { code: 'AUTH_OPERATION_STALE' });
     }
     const headers = {'Content-Type': 'application/json'};
+    if (csrf) headers['X-SDLCFlow-CSRF'] = '1';
 
     // if a token was passed, attach it way our 'Protect' middleware expects.
     if (token) {
@@ -21,6 +22,7 @@ async function request(endpoint, {method = 'GET', body, token, renewed = false, 
     }
 
     const config = {method, headers}
+    if (csrf) Object.assign(config, { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(15_000) });
     if (credentials) config.credentials = credentials;
     if (body) {
         config.body = JSON.stringify(body); // JS object -> JSON string for the wire
@@ -40,7 +42,7 @@ async function request(endpoint, {method = 'GET', body, token, renewed = false, 
         if (res.status === 401 && data?.error?.code === 'SESSION_EXPIRED'
             && token && !renewed && hasSessionRenewal()) {
             const nextToken = await renewExpiredSession(token);
-            return request(endpoint, { method, body, token: nextToken, renewed: true, credentials });
+            return request(endpoint, { method, body, token: nextToken, renewed: true, credentials, csrf });
         }
         // Surface the server's message so the UI can show it.
         const error = new Error(data?.error?.message || `Request failed with status ${res.status}`);
@@ -58,6 +60,10 @@ async function request(endpoint, {method = 'GET', body, token, renewed = false, 
 }
 
 export const authApi = {
+    // No cookie changes; only the pre-controller SESSION_EXPIRED may retry.
+    requestEmailVerification: (token) => request('/auth/verification/request', {
+        method: 'POST', body: {}, token, csrf: true, credentials: 'omit',
+    }),
     getRegistrationPolicy: () => request('/auth/registration'),
     // Cookie-changing actions belong to the provider's refresh coordinator.
     // This wrapper is only for bearer-authenticated account reads/profile edits.
