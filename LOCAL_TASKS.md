@@ -23,11 +23,12 @@ Working agreement:
 
 Current phase: authentication release gates before deployment, not new product features.
 
-1. Re-establish automated verification of the latest Profile and REST policy changes.
-   The last client test and lint attempts failed during dependency loading with
-   filesystem `ETIMEDOUT`; no test pass was established. `git diff --check` passed.
-   The machine ran Node 24.16.0, while the repository pins Node 24.22.1 / npm 11.19.1.
-   Check runtime and dependency availability before rerunning checks.
+1. Local verification is restored: installed pinned Node 24.22.1 / npm 11.19.1
+   with nvm and reinstalled both dependency trees using `npm ci` without changing
+   lockfiles. Many prior dependency files were marked `dataless` by macOS.
+   Focused checks passed: 28 client tests, 69 server tests, client lint and build.
+   Use `nvm use` from the repository root in new terminals; the shell default was
+   not changed. Avoid relying on cloud-offloaded node_modules between devices.
 2. Next implementation slice: email-verification enforcement for WebSockets.
    Inspect handshake, event authorization and session renewal first; define the
    expected rejection/reconnect behavior and add isolated regression tests.
@@ -76,8 +77,9 @@ These items describe implemented scope, not blanket deployment approval.
 
 ### Authentication and Verification
 
-- [ ] Resolve local verification tooling blocker and run latest focused tests/lint/build.
-- [ ] Verify pending REST policy behavior with the isolated server suite.
+- [x] Resolve local verification tooling blocker and run latest focused tests/lint/build.
+- [x] Verify REST policy behavior with the isolated server suite (69 tests across
+  verificationAccess and githubOAuthState; not a full-server-suite result).
 - [ ] Implement and test WebSocket verified-email enforcement.
 - [ ] Add consistent frontend handling for verification-required responses.
 - [ ] Decide and document existing-account rollout; do not silently mark users verified.
@@ -129,11 +131,15 @@ These items describe implemented scope, not blanket deployment approval.
 
 ## Latest Handoff
 
-2026-11-01: Created this tracker; the owner chose to include it in Git temporarily
-for cross-device handoffs and remove it from tracking before final deployment.
-Prior implementation
-checkpoint `c9079e2` was committed and the tree was clean before tracker setup.
-No application behavior changed in this documentation chunk. No commit/push/deploy
-performed. Next session: verify the latest auth changes, then take the socket
-enforcement slice. Commit and push this tracker with relevant changes before
-switching devices, and pull before resuming on the other machine.
+2026-11-01: Completed the verification prerequisite on the Mac mini. Initial
+attempts stalled before checks started and were stopped. Installed the pinned
+runtime through nvm, then ran clean lockfile-based client/server installs.
+All focused checks listed above passed using that runtime: 4 client test files
+(28 tests), 2 server test files (69 tests), client lint and production build.
+Server tests used disposable MongoDB. No live provider requests or application
+data changes were needed. Mongoose emitted existing `new` option deprecation
+warnings; these did not fail tests. No application source or lockfiles changed.
+The full suites, dependency audits and hosted checks were not run in this chunk.
+No commit/push/deploy performed. Next: WebSocket verified-email enforcement.
+Commit and push this tracker with relevant changes before switching devices,
+and pull before resuming on the other machine.
