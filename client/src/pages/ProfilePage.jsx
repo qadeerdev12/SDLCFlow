@@ -73,19 +73,13 @@ function ProfileSession() {
   useEffect(() => {
     let cancelled = false
 
-    async function loadAccount() {
+    async function loadProfile() {
       try {
         if (!profileLoaded.current) setLoading(true)
-        setGithubLoading(true)
         setError('')
-        setGithubError('')
-        const [profileRes, githubRes] = await Promise.all([
-          authApi.getProfile(token),
-          integrationApi.getGitHubAccount(token),
-        ])
+        const profileRes = await authApi.getProfile(token)
         if (!cancelled) {
           setProfile(profileRes.data)
-          setGithubAccount(githubRes.data.account)
           // Renewal may reload account details, but must not overwrite edits.
           if (!profileLoaded.current) {
             setName(profileRes.data.user.name || '')
@@ -96,14 +90,30 @@ function ProfileSession() {
       } catch (err) {
         if (!cancelled) setError(err.message)
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-          setGithubLoading(false)
-        }
+        if (!cancelled) setLoading(false)
       }
     }
 
-    loadAccount()
+    async function loadGitHub() {
+      setGithubLoading(true)
+      setGithubError('')
+      try {
+        const githubRes = await integrationApi.getGitHubAccount(token)
+        if (!cancelled) setGithubAccount(githubRes.data.account)
+      } catch (err) {
+        if (!cancelled) {
+          setGithubAccount(null)
+          setGithubError(err.message)
+        }
+      } finally {
+        if (!cancelled) setGithubLoading(false)
+      }
+    }
+
+    // GitHub may require verified email; it must not block the controls to verify it.
+    // Independent requests also keep a slow integration from delaying account access.
+    loadProfile()
+    loadGitHub()
     return () => { cancelled = true }
   }, [token])
 

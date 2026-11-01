@@ -2,7 +2,7 @@
  * protect loads this hidden field freshly from storage; never use a JWT claim,
  * request body, or the public emailVerified boolean as authorization evidence.
  * This guard neither authenticates sessions nor replaces board/role checks.
- * It is deliberately not mounted yet: rollout follows REST/socket/UI coverage.
+ * Resource routes use it through protectVerified, behind the rollout policy.
  */
 export function requireVerifiedEmail(req, res, next) {
     if (!req.user) {

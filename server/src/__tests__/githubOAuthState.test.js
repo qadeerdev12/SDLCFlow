@@ -70,6 +70,23 @@ function callback(attempt, query = {}) {
 }
 const failed = (response) => expect(response.headers.location).toBe('https://app.example.com/profile?github=error');
 
+// OAuth callback has no bearer header. Verification must be checked through its
+// consumed state, including when the account changes during provider requests.
+it.each(['before callback', 'during provider request'])('rejects lost verification %s', async (when) => {
+    app.locals.emailVerificationRequired = true;
+    await User.updateOne({ _id: user._id }, { emailVerifiedAt: new Date() });
+    const attempt = await start();
+    if (when === 'before callback') await User.updateOne({ _id: user._id }, { emailVerifiedAt: null });
+    else fetchGitHubProfile.mockImplementationOnce(async () => {
+        await User.updateOne({ _id: user._id }, { emailVerifiedAt: null });
+        return { id: 123, login: 'test-user' };
+    });
+    failed(await callback(attempt));
+    if (when === 'before callback') expect(exchangeCodeForToken).not.toHaveBeenCalled();
+    expect(await GitHubAccount.countDocuments()).toBe(0);
+    expect(await GitHubOAuthState.countDocuments()).toBe(0);
+});
+
 it('requires authentication before issuing state', async () => {
     await request(app).get(`${base}/start`).expect(401);
     expect(await GitHubOAuthState.countDocuments()).toBe(0);

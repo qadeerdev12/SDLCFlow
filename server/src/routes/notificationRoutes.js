@@ -1,9 +1,9 @@
 import express from 'express';
-import { protect } from '../middleware/auth.js';
+import { protectVerified } from '../middleware/auth.js';
 import { getNotifications, readNotification, readAllNotifications } from '../controllers/notificationController.js';
 
 const router = express.Router();
-router.get('/', protect, getNotifications);
-router.patch('/read-all', protect, readAllNotifications);
-router.patch('/:notificationId/read', protect, readNotification);
+router.get('/', protectVerified, getNotifications);
+router.patch('/read-all', protectVerified, readAllNotifications);
+router.patch('/:notificationId/read', protectVerified, readNotification);
 export default router;

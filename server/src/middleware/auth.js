@@ -2,6 +2,14 @@ import { verifyAccessToken } from '../utils/accessTokens.js';
 import { getAccessSessionFamily } from '../services/accessSessionService.js';
 import User from '../models/User.js';
 import { sessionVersion } from '../utils/sessionTokens.js';
+import { requireVerifiedEmail } from './requireVerifiedEmail.js';
+
+// Resource routes opt in to the rollout policy without changing account/recovery
+// routes. Always authenticate first, even while enforcement is disabled.
+export function protectVerified(req, res, next) {
+    return protect(req, res, () => req.app.locals.emailVerificationRequired
+        ? requireVerifiedEmail(req, res, next) : next());
+}
 
 /**
  * Authenticate REST requests: verify the JWT, load the account, then compare

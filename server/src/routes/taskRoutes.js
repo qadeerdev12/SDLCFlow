@@ -1,7 +1,7 @@
 import express from 'express';
-import { protect } from '../middleware/auth.js';
+import { protectVerified } from '../middleware/auth.js';
 import { getMyTasks } from '../controllers/taskController.js';
 
 const router = express.Router();
-router.get('/mine', protect, getMyTasks);
+router.get('/mine', protectVerified, getMyTasks);
 export default router;

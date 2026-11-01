@@ -146,12 +146,12 @@ not a complete secure email-change workflow.
 
 ## Remaining slices
 
-### Access-policy chunk 1: isolated REST guard
+### Access-policy chunks 1-2: REST guard and opt-in enforcement
 
 `server/src/middleware/requireVerifiedEmail.js` exports `requireVerifiedEmail`.
-It is **not mounted on any route yet**, so this chunk changes no account access.
-When adopted, place it after `protect` and before resource/role authorization and
-controllers. `protect` loads `emailVerifiedAt` from MongoDB for each request;
+Resource routes use `protectVerified`: authentication runs first, followed by
+verification when the app's rollout policy is enabled, then existing resource/role
+authorization and controllers. `protect` loads `emailVerifiedAt` from MongoDB for each request;
 the guard accepts only a valid stored Date, never body/query flags or JWT claims.
 Missing/null legacy values and malformed state fail closed with
 `403 EMAIL_VERIFICATION_REQUIRED`. Missing `req.user` returns
@@ -161,21 +161,40 @@ Keep login, registration, refresh, profile, verification, recovery, password cha
 logout and account deletion outside this guard. Verification is an additional
 authorization requirement, not authentication or a replacement for board roles.
 This guard does not protect Socket.IO or solve in-flight email-change races.
-REST mounting, socket rechecks, frontend handling and existing-user rollout remain
-separate reviewable chunks. Delivery enablement is not an enforcement switch.
+Socket rechecks, frontend handling and existing-user rollout remain separate
+reviewable chunks. Delivery enablement is not an enforcement switch.
+
+`EMAIL_VERIFICATION_REQUIRED=false` is the default. Its strict boolean value is
+validated and captured per app at startup; changing it requires restart. Leave it
+false until socket and frontend work is complete. No private `.env` is changed.
+Enabling it now protects REST only and is **not** a complete collaboration gate.
+
+Covered REST resources: boards and all nested workflows, lists, cards, comments,
+members, chat, AI, activity and GitHub data; template catalogs; my tasks; workspace
+activity; notifications; GitHub account/start/dashboard/repository endpoints.
+These require verification for reads and mutations alike. Public health endpoints
+and all `/auth` routes retain their existing auth/CSRF/rate-limit policies.
+
+The GitHub callback cannot use bearer middleware. It checks the initiating user's
+fresh verification state when consuming browser-bound OAuth state and again after
+provider requests, before saving. Failure retains the existing safe profile error
+redirect, consumes the attempt, and does not persist the connection. This is not
+an atomic lock against account changes after the final database read.
 
 The isolated guard tests need neither MongoDB nor provider credentials:
 
 ```sh
 npm --prefix server test -- src/__tests__/requireVerifiedEmail.test.js
+npm --prefix server test -- src/__tests__/verificationAccess.test.js src/__tests__/githubOAuthState.test.js --maxWorkers=2
 ```
 
 ### Delivery and rollout
 
-1. Test the complete verification flow locally with the configured sender, including
-   replay and profile status. Automated UI tests deliberately mock all delivery.
-2. Decide unverified-account permissions, enforce them in REST and sockets, and
-   define how existing users verify without an accidental lockout.
+1. Local delivery, profile verification and rejection of reused proof were reported
+   successful by the owner on 2026-11-01 after authorizing the hotspot IP in Brevo.
+   Automated tests still deliberately mock provider delivery.
+2. Complete socket enforcement, frontend handling and the existing-account rollout
+   before enabling the policy or unrestricted signup.
 3. Verify sender delivery, spam placement, link tracking/retention and production
    HTTPS behavior before unrestricted signup.
 

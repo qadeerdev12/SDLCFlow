@@ -1,7 +1,7 @@
 // server/src/routes/boardRoutes.js
 import express from 'express';
 import { createBoard, getMyBoards, getBoard, updateBoard, deleteBoard } from '../controllers/boardController.js';
-import { protect } from '../middleware/auth.js';
+import { protectVerified } from '../middleware/auth.js';
 import { createList, updateList, deleteList } from '../controllers/listController.js';
 import { createCard, updateCard, deleteCard } from '../controllers/cardController.js';
 import { createTaskDraft } from '../controllers/taskDraftController.js';
@@ -28,8 +28,8 @@ import {
 
 const router = express.Router();
 
-// Every board route requires login. Applying `protect` to all routes in this file:
-router.use(protect);
+// Covers every nested resource, including chat, AI and project GitHub data.
+router.use(protectVerified);
 
 router.post('/', createBoard);    // POST   /api/v1/boards
 router.get('/', getMyBoards); 

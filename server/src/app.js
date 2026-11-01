@@ -14,6 +14,7 @@ import activityRoutes from './routes/activityRoutes.js';
 import { mountClientBuild } from './config/clientBuild.js';
 import { databaseReady } from './services/serverLifecycle.js';
 import { httpSafety, httpError } from './middleware/httpSafety.js';
+import { emailVerificationRequired } from './config/emailVerificationPolicy.js';
 
 export function allowedClientOrigins() {
   return (process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
@@ -33,6 +34,7 @@ export function createApp({ io, refresh = authRuntimeOptions(), clientBuild = nu
     throw new Error('Configure refresh origins through CLIENT_ORIGIN, not a separate allowlist');
   }
   const app = express();
+  app.locals.emailVerificationRequired = emailVerificationRequired();
   app.disable('x-powered-by');
   app.use(httpSafety);
   app.get('/health', (req, res) => {

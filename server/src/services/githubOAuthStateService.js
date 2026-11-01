@@ -34,12 +34,18 @@ export async function issueGitHubOAuthState(req, res) {
     return state;
 }
 
-export async function assertGitHubOAuthSession(attempt) {
-    const user = await User.findById(attempt.user).select('+sessionVersion').lean();
+export async function assertGitHubOAuthSession(attempt, requireVerification = false) {
+    const user = await User.findById(attempt.user).select('+sessionVersion +emailVerifiedAt').lean();
     if (!user || user.sessionVersion !== attempt.sessionVersion
         || !await getAccessSessionFamily({ sessionId: attempt.session,
             userId: attempt.user, version: attempt.sessionVersion })) {
         throw new Error('GitHub OAuth initiating session is no longer valid');
+    }
+    // Callback has browser-bound state, not a bearer header. Recheck the stored
+    // proof both before provider exchange and after network work before saving.
+    if (requireVerification && (!(user.emailVerifiedAt instanceof Date)
+        || !Number.isFinite(user.emailVerifiedAt.getTime()))) {
+        throw new Error('GitHub OAuth requires verified email');
     }
 }
 
@@ -60,6 +66,6 @@ export async function consumeGitHubOAuthState(req, res) {
     }).lean();
     if (!attempt) throw new Error('Invalid GitHub OAuth state');
     res.clearCookie(name, options);
-    await assertGitHubOAuthSession(attempt);
+    await assertGitHubOAuthSession(attempt, req.app.locals.emailVerificationRequired);
     return attempt;
 }

@@ -122,7 +122,7 @@ export async function handleGitHubCallback(req, res) {
     ]);
 
     // Provider requests can take time; recheck logout/deletion before saving.
-    await assertGitHubOAuthSession(attempt);
+    await assertGitHubOAuthSession(attempt, req.app.locals.emailVerificationRequired);
     await GitHubAccount.findOneAndUpdate(
       { user: userId },
       {
