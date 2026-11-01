@@ -158,6 +158,7 @@ export async function updateProfile(req, res) {
     try {
         const { name, email } = authBody(req.body);
         const updates = {};
+        let emailSnapshot;
 
         if (name !== undefined) {
             updates.name = accountName(name);
@@ -173,13 +174,33 @@ export async function updateProfile(req, res) {
                 });
             }
             updates.email = safeEmail;
+            emailSnapshot = await User.findById(req.user._id).select('email +emailVerificationVersion').lean();
+            if (!emailSnapshot) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found.' } });
         }
 
-        const user = await User.findByIdAndUpdate(
-            req.user._id,
-            updates,
-            { returnDocument: 'after', runValidators: true }
-        );
+        let user;
+        if (emailSnapshot) {
+            const version = sessionVersion(emailSnapshot.emailVerificationVersion);
+            const changed = emailSnapshot.email !== updates.email;
+            if (version === null || (changed && version === Number.MAX_SAFE_INTEGER)) {
+                throw new Error('Invalid email verification generation');
+            }
+            const versionFilter = version === 0
+                ? { $or: [{ emailVerificationVersion: 0 }, { emailVerificationVersion: { $exists: false } }] }
+                : { emailVerificationVersion: version };
+            // Reset proof and advance the email generation in the same write as
+            // the address change. Same normalized email/name-only edits keep proof.
+            user = await User.findOneAndUpdate({ _id: req.user._id, email: emailSnapshot.email, ...versionFilter }, {
+                $set: { ...updates, ...(changed ? { emailVerifiedAt: null } : {}) },
+                ...(changed ? { $inc: { emailVerificationVersion: 1 } } : {}),
+            }, { returnDocument: 'after', runValidators: true });
+            if (!user) return res.status(409).json({ error: {
+                code: 'PROFILE_CHANGE_CONFLICT', message: 'Your email changed during this request. Reload your profile and try again.',
+            } });
+        } else {
+            user = await User.findByIdAndUpdate(req.user._id, updates, { returnDocument: 'after', runValidators: true });
+            if (!user) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found.' } });
+        }
 
         return res.status(200).json({
             data: {

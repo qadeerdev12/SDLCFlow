@@ -95,6 +95,13 @@ policy information. See the deployment plan for `REGISTRATION_MODE` defaults.
 `user` never includes `passwordHash`.
 Profile email updates reject duplicate emails with `409 EMAIL_TAKEN`. Authenticated password updates require the current password. New passwords must contain at least 15 characters and at most 72 UTF-8 bytes.
 
+Actual profile email changes now clear internal email-verification proof and
+advance an email generation atomically. Name-only and same-normalized-email edits
+preserve proof. Concurrent email changes can return `409 PROFILE_CHANGE_CONFLICT`;
+reload the profile before retrying. Verification fields remain private and are not
+accepted from clients. No verification endpoints or access restrictions exist yet;
+see [email verification foundation](email-verification.md).
+
 Reset completion does not require a login, but requires the configured Origin,
 `X-SDLCFlow-CSRF: 1`, and JSON (4 KB maximum). Its independent per-IP limit is 10
 attempts per 15 minutes. Password validation precedes one-time token consumption.

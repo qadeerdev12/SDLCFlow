@@ -173,6 +173,13 @@ to develop and test them without enabling public registration.
 - [ ] Staging checks for real email delivery, links, replay/expiry and revoked
   sessions. Keep `REGISTRATION_MODE=restricted` until these and other gates pass.
 
+Progress: Brevo recovery delivery and recovery pages are implemented, and the
+owner reported a successful local password-reset test. Spam placement and hosted
+delivery checks remain open. The [email verification foundation](email-verification.md)
+now covers internal status, hashed one-time tokens and email-change invalidation;
+verification routes, delivery, UI, and existing-account access policy are still
+pending. No existing account has been automatically marked verified or blocked.
+
 ## Portfolio packaging / can wait
 
 - [ ] Refresh screenshots and record a short two-account collaboration demo.

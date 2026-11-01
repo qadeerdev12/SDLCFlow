@@ -20,6 +20,14 @@ const userSchema = new mongoose.Schema(
             required: true,
             select: false, // never return this field in queries by default
         },
+        // Absence/null means unverified, including pre-feature accounts. These
+        // fields are internal until verification UI/access policy is introduced.
+        emailVerifiedAt: { type: Date, default: null, select: false },
+        // Increment on every actual email change, including A -> B -> A, so an
+        // old verification link cannot become valid when an address is restored.
+        emailVerificationVersion: {
+            type: Number, default: 0, min: 0, validate: Number.isSafeInteger, select: false,
+        },
         // Account-wide session generation. Future revocation must atomically
         // increment it, never reset it (which could revalidate older tokens).
         // Zero also keeps pre-field accounts compatible without a bulk migration.
