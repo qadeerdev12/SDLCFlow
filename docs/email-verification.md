@@ -157,6 +157,22 @@ Reference: [OWASP email verification guidance](https://cheatsheetseries.owasp.or
 
 ## Frontend behavior
 
+### Delivery diagnostics
+
+Background failures log a bounded diagnostic suffix, never provider bodies,
+addresses, keys, proof URLs or database error text:
+
+- `BREVO_HTTP_401` / `BREVO_HTTP_403`: inspect credentials, permissions and IP authorization.
+- Other `BREVO_HTTP_4xx` / `BREVO_HTTP_5xx`: inspect provider configuration, quota and service status.
+- `BREVO_NETWORK_OR_TIMEOUT`: delivery is uncertain; check provider logs before retrying.
+- `BREVO_INVALID_ACCEPTANCE`: a 201 response could not be validated; delivery is uncertain.
+- `BREVO_UNEXPECTED_RESPONSE`: an unexpected HTTP response was received.
+- `PRE_SEND_OR_INTERNAL_FAILURE`: investigate session lookup/token persistence or internal work.
+
+Failures still consume the admission cooldown. Do not repeatedly resend or restart
+production to bypass limits. These codes narrow investigation; they do not prove
+the underlying cause or guarantee that mail was not sent.
+
 `/verify-email` is public. Bootstrap captures and strips fragment proof before
 BrowserRouter mounts; query-only tokens are rejected. The mounted page retains
 proof only in memory. Reload requires reopening the original email link. Same-tab

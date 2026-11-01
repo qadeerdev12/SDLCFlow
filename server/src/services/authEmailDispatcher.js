@@ -1,3 +1,5 @@
+import { EmailDeliveryError } from './brevoEmailService.js';
+
 const HOUR = 60 * 60 * 1000;
 const COOLDOWN = 15 * 60 * 1000;
 
@@ -18,7 +20,14 @@ export function createAuthEmailDispatcher({ lifecycle, failureMessage }) {
         const finish = lifecycle?.track();
         setImmediate(async () => {
             try { await work(); }
-            catch { console.warn(failureMessage); }
+            catch (error) {
+                // Log only our bounded diagnostic codes, never raw provider/DB
+                // errors: they may contain recipient addresses or proof tokens.
+                const code = error instanceof EmailDeliveryError
+                    && /^(BREVO_HTTP_[45]\d{2}|BREVO_NETWORK_OR_TIMEOUT|BREVO_UNEXPECTED_RESPONSE|BREVO_INVALID_ACCEPTANCE)$/.test(error.diagnostic)
+                    ? error.diagnostic : 'PRE_SEND_OR_INTERNAL_FAILURE';
+                console.warn(`${failureMessage} [${code}]`);
+            }
             finally { active--; finish?.(); }
         });
         return true;
