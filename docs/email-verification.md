@@ -146,6 +146,32 @@ not a complete secure email-change workflow.
 
 ## Remaining slices
 
+### Access-policy chunk 1: isolated REST guard
+
+`server/src/middleware/requireVerifiedEmail.js` exports `requireVerifiedEmail`.
+It is **not mounted on any route yet**, so this chunk changes no account access.
+When adopted, place it after `protect` and before resource/role authorization and
+controllers. `protect` loads `emailVerifiedAt` from MongoDB for each request;
+the guard accepts only a valid stored Date, never body/query flags or JWT claims.
+Missing/null legacy values and malformed state fail closed with
+`403 EMAIL_VERIFICATION_REQUIRED`. Missing `req.user` returns
+`401 AUTHENTICATION_REQUIRED` as a defensive middleware-order check.
+
+Keep login, registration, refresh, profile, verification, recovery, password change,
+logout and account deletion outside this guard. Verification is an additional
+authorization requirement, not authentication or a replacement for board roles.
+This guard does not protect Socket.IO or solve in-flight email-change races.
+REST mounting, socket rechecks, frontend handling and existing-user rollout remain
+separate reviewable chunks. Delivery enablement is not an enforcement switch.
+
+The isolated guard tests need neither MongoDB nor provider credentials:
+
+```sh
+npm --prefix server test -- src/__tests__/requireVerifiedEmail.test.js
+```
+
+### Delivery and rollout
+
 1. Test the complete verification flow locally with the configured sender, including
    replay and profile status. Automated UI tests deliberately mock all delivery.
 2. Decide unverified-account permissions, enforce them in REST and sockets, and
