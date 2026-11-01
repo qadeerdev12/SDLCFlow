@@ -2,14 +2,63 @@
 
 ## Current scope
 
-Internal token storage and the POST reset-completion endpoint are implemented.
-There is no public token-request endpoint, reset email delivery, or recovery UI
-yet. Completion never logs the user in automatically. Public signup remains gated
-on completed recovery, verification, and reliable email delivery.
+Token storage, reset completion, and opt-in request/email delivery are implemented.
+There is no recovery UI yet. Delivery defaults off so users are not sent links to
+a missing form. Completion never logs the user in automatically. Public signup
+remains gated on completed recovery, verification, and reliable email delivery.
+
+## Request endpoint and delivery
+
+`POST /api/v1/auth/forgot-password` accepts `{ email }`, with configured Origin,
+`X-SDLCFlow-CSRF: 1`, and JSON (1 KB maximum). Invalid email/body input returns
+400; disallowed browser requests return 403. Five attempts per IP per 15 minutes
+are allowed, before parsing. Further attempts return 429 with Retry-After.
+
+With delivery disabled, all valid emails receive `503 PASSWORD_RECOVERY_UNAVAILABLE`.
+With delivery enabled, all valid emails receive the same no-store 202 response:
+
+```json
+{"data":{"message":"If an account exists for that email, a password reset link may be sent. Check your inbox and spam folder."}}
+```
+
+No account identity, token, cookie, or provider status is returned. User lookup
+and sending occur after acknowledgement, outside response handling, so response
+latency does not wait on account existence or the provider. This reduces timing
+enumeration; it is not a claim of cryptographic constant-time HTTP behavior.
+
+The handler's per-app admission controls run before any user lookup:
+
+- At most four active jobs; additional requests are acknowledged but not queued.
+- At most twenty admitted requests per one-hour window from process/window start.
+- One admitted request per normalized email per fifteen minutes. Only an email
+  digest and expiry are retained in the cooldown map, which is bounded by admission.
+- Unknown accounts and failures count too. Suppression uses the same 202 response.
+
+The request's recipient is resolved from stored account data. Client-supplied
+recipient or URL fields are ignored. Brevo gets a plain-text message with a fixed
+subject and a trusted `/reset-password#token=...` URL. HTTPS origin validation
+prevents Host-header poisoning and open redirects. The sender uses a ten-second
+timeout, rejects redirects, and never retries an ambiguous send automatically.
+After a timeout, an issued token may remain valid because the mail may have been
+accepted; the next admitted request replaces it.
+
+Background errors log only a fixed warning, not submitted email, token, URL,
+provider body, or key. Work is tracked by the server lifecycle so graceful shutdown
+waits before disconnecting MongoDB (subject to its existing overall deadline).
+
+These are best-effort in-memory controls for a single-instance demo, not a durable
+queue or distributed rate limiter. Crashes can drop accepted requests, restarts
+reset quotas, and multiple instances multiply the limits. Attackers can exhaust
+the global allowance or temporarily suppress a known recipient; account login
+remains unaffected. Before scaling or wider public use, revisit durable dispatch,
+shared quotas, and operational monitoring. A 202 is not a delivery guarantee.
+
+See [email delivery](email-delivery.md) for opt-in configuration, IP restrictions,
+spam placement, and provider tracking/retention review.
 
 ## Lifecycle
 
-1. A future request handler resolves the account using its stored email and calls
+1. The request handler resolves the account using its stored email and calls
    `issuePasswordResetToken(userId)` internally.
 2. The service creates 32 cryptographically random bytes (64 hex characters),
    stores only a SHA-256 digest, the account's session version, and a 15-minute
@@ -66,11 +115,8 @@ GET has no completion handler, so opening links cannot reset passwords.
 
 Before enabling the full public recovery flow, add:
 
-- A rate-limited request endpoint and generic request responses that do
-  not reveal account existence, including careful timing and failure handling.
-- Delivery only to the stored account address; never a client-selected recipient.
-- HTTPS reset links from trusted server configuration, not request Host headers.
-- Forms that avoid token analytics capture and referrer leakage.
+- Forms that read and promptly clear the URL fragment, avoid token analytics
+  capture/referrer leakage, and submit completion only on explicit user action.
 - End-to-end delivery/UI tests, including concurrent reset requests.
 - A separate email-verification design; these tokens are not interchangeable.
 
@@ -80,6 +126,7 @@ Reference: [OWASP Forgot Password Cheat Sheet](https://cheatsheetseries.owasp.or
 
 ```sh
 npm --prefix server test -- src/__tests__/passwordResetTokens.test.js src/__tests__/passwordResetCompletion.test.js src/__tests__/passwordSessions.test.js src/__tests__/socketSessions.test.js src/__tests__/authRateLimit.test.js --maxWorkers=2
+npm --prefix server test -- src/__tests__/forgotPassword.test.js src/__tests__/passwordRecoveryConfig.test.js src/__tests__/passwordRecoveryEmail.test.js
 ```
 
 Tests use disposable MongoDB and fake users, with no private environment files or

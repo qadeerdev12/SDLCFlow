@@ -64,7 +64,7 @@ export function createApp({ io, refresh = authRuntimeOptions(), clientBuild = nu
 
   // Cookie guards and credentialed CORS must agree on the exact origin set.
   app.use('/api/v1/auth', createAuthRoutes({
-    refresh: { ...refresh, origins: clientOrigins },
+    refresh: { ...refresh, origins: clientOrigins }, lifecycle,
   }));
   app.use(express.json());
   app.use('/api/v1/integrations', githubIntegrationRoutes);

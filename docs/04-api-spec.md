@@ -89,6 +89,7 @@ policy information. See the deployment plan for `REGISTRATION_MODE` defaults.
 | PATCH | `/auth/profile` | ✅ | `{ name?, email? }` | `200 { user }` |
 | PATCH | `/auth/password` | ✅ | `{ currentPassword, newPassword }` | `200 { updated: true }` |
 | POST | `/auth/reset-password` | Reset token + Origin/CSRF | `{ token, newPassword }` | `200 { updated: true }` |
+| POST | `/auth/forgot-password` | Origin/CSRF | `{ email }` | `202 { message }` (generic acknowledgement) |
 | DELETE | `/auth/me` | ✅ | `{ password }` | `200 { deleted: true }` |
 
 `user` never includes `passwordHash`.
@@ -103,8 +104,16 @@ refresh cookie and never returns a new login token.
 Invalid/expired/replayed tokens return `400 PASSWORD_RESET_INVALID`; concurrent
 account changes return `409 PASSWORD_RESET_CONFLICT`. Throttling returns
 `429 AUTH_RATE_LIMITED` with Retry-After. Failures after consumption require a new
-reset link. No request-email endpoint or reset UI exists yet; see
+reset link. The reset UI does not exist yet; see
 [password recovery](password-recovery.md) for the complete contract and remaining work.
+
+Forgot-password delivery is opt-in (`PASSWORD_RECOVERY_ENABLED`, default false).
+When disabled, valid requests receive `503 PASSWORD_RECOVERY_UNAVAILABLE`.
+When enabled, known/unknown/suppressed emails receive the same 202 message without
+waiting on lookup or sending. Limit: five attempts per IP per fifteen minutes,
+1 KB JSON, configured Origin and `X-SDLCFlow-CSRF: 1`. Independent per-app admission
+caps bound active work, recipient repeats and hourly sending attempts. Admission
+is best-effort and not durable; 202 is never proof of account existence or delivery.
 Deleting an account removes owned boards and their lists/cards/comments/activity, removes the user from shared boards, clears their card assignments, and deletes their comments/activity records.
 
 ### 2.2 Workflow templates

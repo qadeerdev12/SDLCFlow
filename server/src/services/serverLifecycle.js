@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
-// Track accepted socket work independently of connection lifetime: disconnecting
-// a client does not cancel a handler that is already awaiting persistence.
+// Track accepted socket/background work independently of connection lifetime:
+// disconnecting a client does not cancel persistence or recovery email dispatch.
 export function createServerLifecycle() {
     let draining = false;
     const pending = new Set();
@@ -47,7 +47,7 @@ export function createShutdown({ lifecycle, closeTransport, stopSubscriber,
         shutdown = (async () => {
             try {
                 // Closing Socket.IO also closes its shared HTTP listener. HTTP
-                // responses drain there; tracked socket handlers drain separately.
+                // responses drain there; tracked socket/background jobs drain separately.
                 await closeTransport();
                 await lifecycle.waitForIdle();
                 stopSubscriber();

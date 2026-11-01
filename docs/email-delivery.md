@@ -1,7 +1,8 @@
 # Email delivery setup
 
-This first slice is a manual Brevo delivery probe only. It does not implement
-password recovery, email verification, or change registration/session behavior.
+The manual Brevo probe is separate from opt-in password recovery delivery. Neither
+enables public signup or email verification. See [password recovery](password-recovery.md)
+for the request/completion endpoints and their limits.
 
 ## Configure locally
 
@@ -17,6 +18,13 @@ EMAIL_FROM_ADDRESS=your_verified_sender@example.com
 
 Never use a `VITE_` prefix, commit credentials, or paste keys into issue reports.
 Shell environment variables override the file. No SMTP key or new package is needed.
+
+Recovery delivery additionally requires `PASSWORD_RECOVERY_ENABLED=true` and
+`PASSWORD_RESET_ORIGIN` (the exact app origin, also in `CLIENT_ORIGIN`, without a
+trailing slash). Keep recovery disabled until the reset page is implemented.
+Production must use the HTTPS application origin on Render, not the landing page
+on Vercel. HTTP loopback is allowed only in development/test mode. Enabled invalid
+configuration fails startup and auth preflight. Restart after changing settings.
 
 ## Send one test
 
@@ -45,6 +53,8 @@ may already have been accepted.
 
 - 400: check sender verification and configuration.
 - 401: check API key validity/expiry; do not substitute an SMTP key.
+- An unauthorized outbound IP can also block API calls. Authorize only verified
+  development/hosting outbound IPs in Brevo; do not turn off protection as a shortcut.
 - 403: check transactional activation, permissions, and authorized IP settings.
 - 429: inspect quota/rate limits before another attempt.
 - Other failures: inspect provider logs; raw provider bodies are intentionally not logged.
@@ -57,3 +67,18 @@ Do not open signup merely because this probe succeeds.
 
 The key may expire after inactivity as well as its configured expiry. Rotate it
 in server secrets when necessary. No live send is part of the automated tests.
+
+## Privacy and delivery review
+
+The sender test was reported delivered to spam, with a Brevo-rewritten sender.
+That is delivery evidence, not evidence of acceptable public inbox placement.
+
+Recovery emails contain short-lived bearer secrets. Brevo necessarily receives
+their content. Restrict dashboard access and review message-preview retention.
+The recovery service sends plain text and places the token in a URL fragment,
+which avoids sending it in the initial request to our app. This does not hide
+the token from the mail provider or guarantee that links will not be rewritten.
+Brevo documents default click/open tracking; anonymization is not disabling it.
+Inspect a delivered recovery message and resolve tracking/retention concerns
+before public use. Do not assume unsupported tracking headers disable tracking.
+Reference: [Brevo tracking documentation](https://help.brevo.com/hc/en-us/articles/11643306229906-Can-I-anonymize-the-tracking-of-opens-and-clicks-for-my-emails).

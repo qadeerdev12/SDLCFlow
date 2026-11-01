@@ -6,13 +6,18 @@ import { createRefreshSecurity } from '../middleware/refreshSecurity.js';
 import createRefreshRoutes from './refreshRoutes.js';
 import { registrationMode } from '../config/registration.js';
 import { completePasswordReset } from '../controllers/passwordResetController.js';
+import { passwordRecoveryOptions } from '../config/passwordRecovery.js';
+import { createForgotPasswordHandler } from '../controllers/forgotPasswordController.js';
 
 
 // createApp supplies validated cookie options and its credentialed CORS origins.
-export default function createAuthRoutes({ refresh } = {}) {
+export default function createAuthRoutes({ refresh, lifecycle } = {}) {
   const router = express.Router();
   const mode = registrationMode();
   const security = createRefreshSecurity(refresh);
+  const requestReset = createForgotPasswordHandler({
+    options: passwordRecoveryOptions({ origins: refresh.origins, localHttp: refresh.localHttp }), lifecycle,
+  });
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
     res.locals.refreshSecurity = security;
@@ -26,6 +31,8 @@ export default function createAuthRoutes({ refresh } = {}) {
   // Each app owns its counters. Limit before JSON parsing, database access, or bcrypt.
   router.post('/register', createAuthRateLimit('register'));
   router.post('/login', createAuthRateLimit('login'));
+  router.post('/forgot-password', createAuthRateLimit('forgotPassword'), security.guard,
+    express.json({ limit: '1kb' }), requestReset);
   // Recovery needs no access token, but retains the same browser-origin policy.
   // A separate parser keeps reset requests small before the general JSON parser.
   router.post('/reset-password', createAuthRateLimit('resetPassword'), security.guard,
