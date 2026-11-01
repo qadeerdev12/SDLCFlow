@@ -6,6 +6,9 @@ import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './context/ToastContext'
 import './index.css'
 import App from './App.jsx'
+import { captureRecoveryLink } from './lib/recoveryLink'
+
+captureRecoveryLink()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

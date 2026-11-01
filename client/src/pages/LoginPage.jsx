@@ -48,6 +48,7 @@ export default function LoginPage() {
         <div className="mt-6 space-y-4">
           <Field label="Email" type="email" value={email} onChange={setEmail} />
           <Field label="Password" type="password" value={password} onChange={setPassword} />
+          <div className="text-right"><Link to="/forgot-password" className="text-sm font-semibold text-teal-700 hover:underline dark:text-teal-300">Forgot password?</Link></div>
         </div>
 
         <button
@@ -67,7 +68,7 @@ export default function LoginPage() {
   )
 }
 
-function AuthShell({ children, dark, toggle }) {
+export function AuthShell({ children, dark, toggle }) {
   return (
     <div className="grid min-h-screen bg-stone-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100 lg:grid-cols-[1.08fr_0.92fr]">
       <button

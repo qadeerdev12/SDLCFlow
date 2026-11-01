@@ -21,7 +21,8 @@ Shell environment variables override the file. No SMTP key or new package is nee
 
 Recovery delivery additionally requires `PASSWORD_RECOVERY_ENABLED=true` and
 `PASSWORD_RESET_ORIGIN` (the exact app origin, also in `CLIENT_ORIGIN`, without a
-trailing slash). Keep recovery disabled until the reset page is implemented.
+trailing slash). The reset page is now implemented; enable delivery only for
+controlled tests before the public-launch checks are complete.
 Production must use the HTTPS application origin on Render, not the landing page
 on Vercel. HTTP loopback is allowed only in development/test mode. Enabled invalid
 configuration fails startup and auth preflight. Restart after changing settings.

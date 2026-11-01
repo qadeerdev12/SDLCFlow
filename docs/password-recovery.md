@@ -3,9 +3,38 @@
 ## Current scope
 
 Token storage, reset completion, and opt-in request/email delivery are implemented.
-There is no recovery UI yet. Delivery defaults off so users are not sent links to
-a missing form. Completion never logs the user in automatically. Public signup
-remains gated on completed recovery, verification, and reliable email delivery.
+The Forgot Password and Reset Password pages are implemented. Delivery still
+defaults off until explicitly enabled for controlled testing. Completion never
+logs the user in automatically. Public signup remains gated on verified live
+recovery, email verification, and reliable email delivery.
+
+## Recovery pages
+
+Login links to `/forgot-password`, a public page with an email form and generic
+acknowledgement. It handles unavailable delivery, network failure and rate limits
+without automatically retrying. Acknowledgement does not claim mail delivery.
+
+Mail opens `/reset-password#token=...`. Bootstrap validates a single 64-character
+hex token, scrubs query/fragment with history replacement before BrowserRouter
+mounts, and hands the secret to page memory. React StrictMode replay does not
+consume it. Client-side route entry is also scrubbed. The bootstrap copy is cleared
+once mounted; no token is written to storage or included in navigation state.
+Reloading the scrubbed page requires reopening the email link (if still valid)
+or requesting a fresh link. Query-string tokens are not accepted. The HTML sets
+`Referrer-Policy` through a no-referrer meta tag as well as production HTTP policy.
+
+The form validates the shared password policy and matching confirmation before
+submitting. Opening a link makes no completion request. Duplicate submissions
+are blocked. Reset completion uses the existing Web Locks/BroadcastChannel auth
+coordinator because it clears the refresh cookie, even for signed-out visitors.
+No bearer token is required. Success clears session state, notifies other tabs
+without sharing secrets, removes password/token state and offers a login link.
+
+Only validation, CSRF and throttling errors retain the link for manual retry;
+password fields are cleared after a request. Expired/spent links, conflicts and
+ambiguous responses remove the secret and offer a new link. There is no automatic
+retry after token consumption or lost responses. Required browser coordination
+capabilities remain the same as normal login.
 
 ## Request endpoint and delivery
 
@@ -113,11 +142,9 @@ GET has no completion handler, so opening links cannot reset passwords.
 
 ## Remaining integration
 
-Before enabling the full public recovery flow, add:
+Before enabling the full public recovery flow, complete:
 
-- Forms that read and promptly clear the URL fragment, avoid token analytics
-  capture/referrer leakage, and submit completion only on explicit user action.
-- End-to-end delivery/UI tests, including concurrent reset requests.
+- Live delivery/UI checks, including concurrent reset requests and sender tracking review.
 - A separate email-verification design; these tokens are not interchangeable.
 
 Reference: [OWASP Forgot Password Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html).
@@ -131,3 +158,24 @@ npm --prefix server test -- src/__tests__/forgotPassword.test.js src/__tests__/p
 
 Tests use disposable MongoDB and fake users, with no private environment files or
 provider calls. Comments explain the security invariant behind each group.
+
+Client verification:
+
+```sh
+npm --prefix client test
+npm run lint
+npm run build
+```
+
+With Vite running on port 5180, run the mocked browser journey:
+
+```sh
+PLAYWRIGHT_CHANNEL=chrome node server/scripts/check-recovery-ui.mjs http://127.0.0.1:5180
+```
+
+This uses installed Chrome in an isolated browser context, intercepts all API calls
+and uses fake tokens only. Omit PLAYWRIGHT_CHANNEL to use an installed Playwright
+Chromium. It checks desktop/mobile layouts, login navigation, URL scrubbing,
+success, expired links, reload behavior and secret-free browser storage.
+Screenshots are written to `/private/tmp/sdlcflow-recovery-ui`. This is not proof
+of live Brevo delivery, production HTTPS behavior, or cross-browser compatibility.

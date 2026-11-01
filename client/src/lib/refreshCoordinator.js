@@ -5,8 +5,9 @@ const REVISION_KEY = 'sdlcflow:auth-revision:v1'
 const ACTIONS = {
   login: ['login', 'POST'], register: ['register', 'POST'], logout: ['logout', 'POST'],
   password: ['password', 'PATCH'], logoutAll: ['logout-all', 'POST'], deleteAccount: ['me', 'DELETE'],
+  resetPassword: ['reset-password', 'POST'],
 }
-const ENDING = new Set(['logout', 'password', 'logoutAll', 'deleteAccount'])
+const ENDING = new Set(['logout', 'password', 'resetPassword', 'logoutAll', 'deleteAccount'])
 const TERMINAL = new Set(['REFRESH_INVALID', 'REFRESH_REUSED', 'REFRESH_EXHAUSTED'])
 const failure = (code, message) => Object.assign(new Error(message), { code })
 function browserStorage() {
@@ -125,7 +126,7 @@ export function createRefreshCoordinator({
       }
       const data = payload?.data
       const grantsAccess = ['refresh', 'login', 'register'].includes(action)
-      const confirmation = action === 'password' ? 'updated' : action === 'deleteAccount' ? 'deleted' : 'loggedOut'
+      const confirmation = ['password', 'resetPassword'].includes(action) ? 'updated' : action === 'deleteAccount' ? 'deleted' : 'loggedOut'
       if ((grantsAccess && (typeof data?.token !== 'string' || !data.token
         || typeof data.expiresAt !== 'string' || !(Date.parse(data.expiresAt) > Date.now())))
         || (!grantsAccess && data?.[confirmation] !== true)) {

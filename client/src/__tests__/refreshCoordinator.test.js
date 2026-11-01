@@ -57,6 +57,16 @@ const setup = (options = {}) => {
 }
 
 describe('dormant cookie-auth coordinator', () => {
+  it('coordinates reset completion, stores no reset secret and blocks old-session renewal', async () => {
+    const ctx = setup()
+    ctx.fetchImpl.mockResolvedValue(response({ updated: true }))
+    await ctx.coordinator.mutate('resetPassword', { body: { token: 'reset-secret', newPassword: 'new-password' } })
+    expect(ctx.fetchImpl.mock.calls[0][0]).toContain('/auth/reset-password')
+    expect(ctx.fetchImpl.mock.calls[0][1]).toMatchObject({ credentials: 'include', method: 'POST' })
+    expect(JSON.stringify([...ctx.values.entries(), ctx.sent])).not.toContain('reset-secret')
+    await expect(ctx.coordinator.refresh()).rejects.toHaveProperty('code', 'AUTH_RECOVERY_REQUIRED')
+    ctx.coordinator.dispose()
+  })
   it('shares one refresh promise across callers and includes the cookie/CSRF contract', async () => {
     const ctx = setup()
     const first = ctx.coordinator.refresh(), second = ctx.coordinator.refresh()

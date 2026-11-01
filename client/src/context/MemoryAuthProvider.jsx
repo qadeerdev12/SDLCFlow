@@ -139,13 +139,13 @@ export function MemoryAuthProvider({ children }) {
       }
       const expectedVersion = ++version // Invalidate an outstanding /me immediately.
       const expectedEpoch = ++familyEpoch
-      const ending = ['logout', 'password', 'logoutAll', 'deleteAccount'].includes(action)
+      const ending = ['logout', 'password', 'resetPassword', 'logoutAll', 'deleteAccount'].includes(action)
       const operation = ending ? { epoch: expectedEpoch } : null
       endingMutation = operation
       transitioning = true
       update({ authError: '', sessionMessage: '' })
       try {
-        return await coordinator.mutate(action, { body, token })
+        return await coordinator.mutate(action, { body, token: action === 'resetPassword' ? undefined : token })
       } catch (error) {
         if (current(expectedVersion) && isSessionError(error.code) && error.code !== 'SESSION_EXPIRED') {
           clear('Your session ended. Please sign in again.')
@@ -186,6 +186,7 @@ export function MemoryAuthProvider({ children }) {
       register: (name, email, password) => mutate('register', { name, email, password }),
       logout: (expectedToken = token) => expectedToken === token ? mutate('logout') : Promise.resolve(),
       updatePassword: (currentPassword, newPassword) => mutate('password', { currentPassword, newPassword }),
+      resetPassword: (resetToken, newPassword) => mutate('resetPassword', { token: resetToken, newPassword }),
       logoutEverywhere: () => mutate('logoutAll'),
       deleteAccount: (password) => mutate('deleteAccount', { password }),
       retrySession: async () => {
@@ -229,6 +230,7 @@ export function MemoryAuthProvider({ children }) {
     login: (...args) => invoke('login', ...args), register: (...args) => invoke('register', ...args),
     logout: (...args) => invoke('logout', ...args), retrySession: () => invoke('retrySession'),
     updatePassword: (...args) => invoke('updatePassword', ...args),
+    resetPassword: (...args) => invoke('resetPassword', ...args),
     logoutEverywhere: () => invoke('logoutEverywhere'),
     deleteAccount: (...args) => invoke('deleteAccount', ...args),
     updateUser: (updates) => invoke('updateUser', updates),

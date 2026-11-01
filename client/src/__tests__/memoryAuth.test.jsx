@@ -52,6 +52,19 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('opt-in memory authentication provider', () => {
+  it('allows reset completion without a signed-in user and clears the resulting session state', async () => {
+    fetchMock.mockResolvedValueOnce(response({ error: { code: 'REFRESH_INVALID' } }, 401))
+    const { result } = hook()
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    fetchMock.mockResolvedValueOnce(response({ data: { updated: true } }))
+    await act(async () => result.current.resetPassword('reset-secret', 'replacement passphrase'))
+    const [url, options] = fetchMock.mock.calls.at(-1)
+    expect(url).toContain('/auth/reset-password')
+    expect(options.headers.Authorization).toBeUndefined()
+    expect(result.current.user).toBeNull()
+    expect(result.current.token).toBeNull()
+    expect(JSON.stringify(localStorage)).not.toContain('reset-secret')
+  })
   it('fails closed before network access if the retired token cannot be removed', async () => {
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => { throw new Error('Storage blocked') })
     const { result } = hook()
@@ -78,6 +91,7 @@ describe('opt-in memory authentication provider', () => {
 
   it.each([
     ['updatePassword', ['old password', 'new passphrase'], 'password', 'PATCH', { updated: true }],
+    ['resetPassword', ['reset-secret', 'new passphrase'], 'reset-password', 'POST', { updated: true }],
     ['logoutEverywhere', [], 'logout-all', 'POST', { loggedOut: true }],
     ['deleteAccount', ['old password'], 'me', 'DELETE', { deleted: true }],
   ])('coordinates %s and accepts HTTP confirmation after socket revocation', async (action, args, path, method, confirmation) => {
@@ -93,7 +107,7 @@ describe('opt-in memory authentication provider', () => {
     expect(fetchMock.mock.calls[2][0]).toContain(`/auth/${path}`)
     expect(fetchMock.mock.calls[2][1]).toMatchObject({
       method, credentials: 'include',
-      headers: { Authorization: 'Bearer memory-token', 'X-SDLCFlow-CSRF': '1' },
+      headers: { 'X-SDLCFlow-CSRF': '1', ...(action === 'resetPassword' ? {} : { Authorization: 'Bearer memory-token' }) },
     })
     act(() => reportSessionFailure('memory-token', 'SESSION_INVALIDATED'))
     expect(result.current.token).toBeNull()

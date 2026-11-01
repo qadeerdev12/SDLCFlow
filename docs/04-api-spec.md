@@ -104,7 +104,7 @@ refresh cookie and never returns a new login token.
 Invalid/expired/replayed tokens return `400 PASSWORD_RESET_INVALID`; concurrent
 account changes return `409 PASSWORD_RESET_CONFLICT`. Throttling returns
 `429 AUTH_RATE_LIMITED` with Retry-After. Failures after consumption require a new
-reset link. The reset UI does not exist yet; see
+reset link. Public `/forgot-password` and `/reset-password` pages now use these endpoints; see
 [password recovery](password-recovery.md) for the complete contract and remaining work.
 
 Forgot-password delivery is opt-in (`PASSWORD_RECOVERY_ENABLED`, default false).
