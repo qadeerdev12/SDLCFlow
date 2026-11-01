@@ -90,6 +90,8 @@ policy information. See the deployment plan for `REGISTRATION_MODE` defaults.
 | PATCH | `/auth/password` | ✅ | `{ currentPassword, newPassword }` | `200 { updated: true }` |
 | POST | `/auth/reset-password` | Reset token + Origin/CSRF | `{ token, newPassword }` | `200 { updated: true }` |
 | POST | `/auth/forgot-password` | Origin/CSRF | `{ email }` | `202 { message }` (generic acknowledgement) |
+| POST | `/auth/verification/request` | Bearer + Origin/CSRF | `{}` | `202 { message }` (generic acknowledgement) |
+| POST | `/auth/verify-email` | Proof token + Origin/CSRF | `{ token }` | `200 { verified: true }` |
 | DELETE | `/auth/me` | ✅ | `{ password }` | `200 { deleted: true }` |
 
 `user` never includes `passwordHash`.
@@ -99,8 +101,20 @@ Actual profile email changes now clear internal email-verification proof and
 advance an email generation atomically. Name-only and same-normalized-email edits
 preserve proof. Concurrent email changes can return `409 PROFILE_CHANGE_CONFLICT`;
 reload the profile before retrying. Verification fields remain private and are not
-accepted from clients. No verification endpoints or access restrictions exist yet;
-see [email verification foundation](email-verification.md).
+accepted from clients. Owner responses now include the boolean `emailVerified`
+(register, login, me, profile and profile updates); raw proof timestamps and generation
+counters remain internal. Access restrictions are not enabled yet.
+
+Verification delivery is opt-in via `EMAIL_VERIFICATION_ENABLED` (default false)
+and `EMAIL_VERIFICATION_ORIGIN`. Requests require a live bearer session, trusted
+Origin, CSRF header and at most 1 KB JSON. Request budget: five/IP/fifteen minutes;
+account cooldown: fifteen minutes. Only the stored account address receives mail.
+Disabled delivery returns `503 EMAIL_VERIFICATION_UNAVAILABLE`; otherwise 202 is a
+generic acknowledgement, not proof of delivery. Confirmation has a separate ten/IP/
+fifteen-minute budget and 1 KB limit, uses explicit POST, and requires no login.
+Invalid/spent/expired proof returns `400 EMAIL_VERIFICATION_INVALID`; generic 500
+after consumption requires a fresh link. Success grants no session and exposes
+no identity. See [email verification](email-verification.md) for the full contract.
 
 Reset completion does not require a login, but requires the configured Origin,
 `X-SDLCFlow-CSRF: 1`, and JSON (4 KB maximum). Its independent per-IP limit is 10

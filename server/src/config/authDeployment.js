@@ -2,6 +2,7 @@ import { createRefreshSecurity } from '../middleware/refreshSecurity.js';
 import { authRuntimeOptions } from './authRuntime.js';
 import { trustedProxies } from '../utils/trustedProxies.js';
 import { passwordRecoveryOptions } from './passwordRecovery.js';
+import { emailVerificationOptions } from './emailVerification.js';
 
 function parseUrl(value, label, path) {
     let url;
@@ -40,6 +41,7 @@ export function checkAuthDeployment({ server = {}, client = {}, mode } = {}) {
     const security = createRefreshSecurity({ ...refresh, origins });
     // Validate opt-in mail configuration without returning credentials in this report.
     const recovery = passwordRecoveryOptions({ env: server, origins, localHttp: local });
+    const verification = emailVerificationOptions({ env: server, origins, localHttp: local });
     if (!origins.includes(frontend.origin)) throw new Error('CLIENT_ORIGIN must include the exact CLIENT_URL origin');
     const loopback = ['localhost', '127.0.0.1', '[::1]'];
     for (const url of [frontend, api, socket]) {
@@ -70,5 +72,5 @@ export function checkAuthDeployment({ server = {}, client = {}, mode } = {}) {
         .map(() => 'An additional allowed frontend hostname cannot use this API URL with the current cookie policy. Use matching URLs or remove that unused origin.');
     return { mode, origins, frontend: frontend.origin, api: api.href, socket: socket.origin,
         refresh, cookieName: security.cookieName, githubCallback: githubCallback?.href || null,
-        proxyTrust, passwordRecoveryEnabled: Boolean(recovery), warnings };
+        proxyTrust, passwordRecoveryEnabled: Boolean(recovery), emailVerificationEnabled: Boolean(verification), warnings };
 }

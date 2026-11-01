@@ -11,10 +11,10 @@ const versionFilter = (field, version) => version === 0
     : { [field]: version };
 
 /** Internal only: deliver the returned secret to the returned stored email,
- * never a client-provided recipient. No HTTP endpoint or automatic mail yet.
+ * never a client-provided recipient.
  * Each successful persistence replaces the account's previous pending link.
  */
-export async function issueEmailVerificationToken(userId) {
+export async function issueEmailVerificationToken(userId, { expectedSessionVersion } = {}) {
     if (!mongoose.isObjectIdOrHexString(userId)) return null;
     const user = await User.findById(userId)
         .select('email +emailVerifiedAt +emailVerificationVersion +sessionVersion').lean();
@@ -22,6 +22,8 @@ export async function issueEmailVerificationToken(userId) {
     const emailVersion = sessionVersion(user.emailVerificationVersion);
     const accountVersion = sessionVersion(user.sessionVersion);
     if (emailVersion === null || accountVersion === null) throw new Error('Invalid verification generation');
+    // A queued request from a revoked session must not create a fresh valid link.
+    if (expectedSessionVersion !== undefined && expectedSessionVersion !== accountVersion) return null;
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_LIFETIME_MS);
     await EmailVerificationToken.findOneAndUpdate({ user: user._id }, {
@@ -32,7 +34,7 @@ export async function issueEmailVerificationToken(userId) {
 }
 
 /** Claim once, then conditionally verify the exact account/address snapshot.
- * Call only from explicit POST completion in the future, never GET (mail scans).
+ * Call only from explicit POST completion, never GET (mail scans).
  * Failures after claiming burn the link; a fresh request is required. This does
  * not authenticate the caller, change a password, or mint/renew any session.
  */

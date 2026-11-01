@@ -52,7 +52,7 @@ export async function register(req, res) {
         res.status(201).json({
             data: {
                 ...session,
-                user: { id: user._id, name: user.name, email: user.email }
+                user: { id: user._id, name: user.name, email: user.email, emailVerified: Boolean(user.emailVerifiedAt) }
             }
         });
     } catch (error) {
@@ -67,7 +67,7 @@ export async function login(req, res)  {
         const password = credentialPassword(body.password);
         // Both fields are hidden by default: one verifies credentials, the other
         // ensures the new token matches current account state rather than zero.
-        const user = await User.findOne({email}).select('+passwordHash +sessionVersion');
+        const user = await User.findOne({email}).select('+passwordHash +sessionVersion +emailVerifiedAt');
 
         // 3. If user not found, or password doesn't match, return error.
         if (!user) {
@@ -93,7 +93,7 @@ export async function login(req, res)  {
         return res.status(200).json({
             data: {
                 ...session,
-                user: { id: user._id, name: user.name, email: user.email}
+                user: { id: user._id, name: user.name, email: user.email, emailVerified: Boolean(user.emailVerifiedAt) }
             }
          });
     } catch (error) {
@@ -109,7 +109,8 @@ export async function getMe(req, res) {
         data: {
             id: req.user._id,
             name: req.user.name,
-            email: req.user.email
+            email: req.user.email,
+            emailVerified: Boolean(req.user.emailVerifiedAt),
         }
     });
 }
@@ -131,6 +132,7 @@ export async function getProfile(req, res) {
                     id: req.user._id,
                     name: req.user.name,
                     email: req.user.email,
+                    emailVerified: Boolean(req.user.emailVerifiedAt),
                     createdAt: req.user.createdAt,
                     updatedAt: req.user.updatedAt,
                 },
@@ -193,12 +195,12 @@ export async function updateProfile(req, res) {
             user = await User.findOneAndUpdate({ _id: req.user._id, email: emailSnapshot.email, ...versionFilter }, {
                 $set: { ...updates, ...(changed ? { emailVerifiedAt: null } : {}) },
                 ...(changed ? { $inc: { emailVerificationVersion: 1 } } : {}),
-            }, { returnDocument: 'after', runValidators: true });
+            }, { returnDocument: 'after', runValidators: true }).select('+emailVerifiedAt');
             if (!user) return res.status(409).json({ error: {
                 code: 'PROFILE_CHANGE_CONFLICT', message: 'Your email changed during this request. Reload your profile and try again.',
             } });
         } else {
-            user = await User.findByIdAndUpdate(req.user._id, updates, { returnDocument: 'after', runValidators: true });
+            user = await User.findByIdAndUpdate(req.user._id, updates, { returnDocument: 'after', runValidators: true }).select('+emailVerifiedAt');
             if (!user) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found.' } });
         }
 
@@ -208,6 +210,7 @@ export async function updateProfile(req, res) {
                     id: user._id,
                     name: user.name,
                     email: user.email,
+                    emailVerified: Boolean(user.emailVerifiedAt),
                     createdAt: user.createdAt,
                     updatedAt: user.updatedAt,
                 },

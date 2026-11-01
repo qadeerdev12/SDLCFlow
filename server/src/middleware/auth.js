@@ -33,9 +33,10 @@ export async function protect(req, res, next) {
             });
         }
 
-        // sessionVersion is hidden by default, so explicitly load it here.
+        // Internal fields are hidden by default. Controllers may expose only a
+        // derived verification boolean to the owner, never these raw fields.
         // Never cache this account lookup across requests: revocation needs fresh state.
-        const user = await User.findById(decoded.id).select('+sessionVersion');
+        const user = await User.findById(decoded.id).select('+sessionVersion +emailVerifiedAt');
         if (!user) {
             return res.status(401).json({
                 error: {code: 'USER_NOT_FOUND', message: 'Not Authorised - user not found'},

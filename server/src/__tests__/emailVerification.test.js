@@ -1,5 +1,5 @@
 // Real disposable MongoDB covers one-time claims and address-change races.
-// No verification endpoint or mail provider exists in this foundation slice.
+// The internal service is tested independently of verification HTTP and delivery.
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import mongoose from 'mongoose';
@@ -198,10 +198,10 @@ it.each(['email change', 'revocation'])('rejects a racing %s after token consump
 
 it('rejects a racing profile email write instead of resetting the newer email generation', async () => {
     const original = User.findOneAndUpdate.bind(User);
-    vi.spyOn(User, 'findOneAndUpdate').mockImplementationOnce(async (...args) => {
+    vi.spyOn(User, 'findOneAndUpdate').mockImplementationOnce((...args) => ({ select: async () => {
         await User.updateOne({ _id: user._id }, { $set: { email: 'winner@example.test' }, $inc: { emailVerificationVersion: 1 } });
         return original(...args);
-    });
+    } }));
     const result = await profile({ email: 'loser@example.test' }).expect(409);
     expect(result.body.error.code).toBe('PROFILE_CHANGE_CONFLICT');
     expect((await stored()).email).toBe('winner@example.test');

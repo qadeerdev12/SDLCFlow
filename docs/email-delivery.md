@@ -1,8 +1,10 @@
 # Email delivery setup
 
-The manual Brevo probe is separate from opt-in password recovery delivery. Neither
-enables public signup or email verification. See [password recovery](password-recovery.md)
-for the request/completion endpoints and their limits.
+The manual Brevo probe is separate from opt-in recovery and verification delivery.
+Neither automatically enables public signup or access restrictions. See
+[password recovery](password-recovery.md) and [email verification](email-verification.md)
+for their separate flags, origins, endpoints and limits. Both use the same Brevo key
+and sender, shared transport safeguards, and independently bounded dispatchers.
 
 ## Configure locally
 

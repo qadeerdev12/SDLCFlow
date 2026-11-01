@@ -1,11 +1,82 @@
-# Email verification foundation
+# Email verification backend
 
 ## Current scope
 
-This slice adds internal verification state, one-time proof tokens, and an internal
-completion service. There are no public verification routes, emails, resend UI,
-or restrictions on unverified accounts yet. Existing signup, login, recovery,
-REST access and sockets remain available under their current policies.
+Verification state, one-time proof tokens, request/resend and confirmation endpoints,
+and Brevo delivery are implemented. Delivery defaults off until the verification
+page and sender checks are ready. No resend UI or restrictions on unverified
+accounts exist yet. Existing signup, login, recovery, REST access and sockets
+remain available under their current policies. Signup does not automatically send mail.
+
+## Configuration
+
+Use existing server-only `BREVO_API_KEY`, `EMAIL_FROM_NAME` and `EMAIL_FROM_ADDRESS`,
+plus an independent delivery flag and trusted frontend origin:
+
+```dotenv
+EMAIL_VERIFICATION_ENABLED=false
+EMAIL_VERIFICATION_ORIGIN=http://localhost:5173
+```
+
+Keep the flag false until `/verify-email` is implemented. The origin must exactly
+match an entry in `CLIENT_ORIGIN`, without trailing slash, credentials, path,
+query or fragment. Production requires non-loopback HTTPS; local development/test
+may use HTTP loopback. Enabled invalid configuration fails app startup and auth
+preflight. Changing this flag does not enable/disable password recovery, public
+signup or verification enforcement. No .env change is made by tests.
+
+## Request and resend
+
+`POST /api/v1/auth/verification/request` takes `{}` and requires a valid bearer
+session plus the configured Origin, JSON and `X-SDLCFlow-CSRF: 1`. The server
+ignores body-supplied recipients, user IDs and origins. Five attempts per IP per
+fifteen minutes are allowed, before authentication queries or body parsing. JSON
+is limited to 1 KB. Invalid auth/CSRF requests fail before scheduling mail.
+
+With delivery disabled, authenticated valid requests return
+`503 EMAIL_VERIFICATION_UNAVAILABLE`. With delivery enabled, all eligible requests
+receive `202 { data: { message } }` with the fixed text:
+
+> If your email needs verification, a link may be sent. Check your inbox and spam folder.
+
+This acknowledgement does not mean delivery. The response is the same for already
+verified accounts, cooldown/capacity suppression and eventual provider failures.
+Work runs asynchronously, rechecks the login family and captured account generation,
+then issues only for a currently unverified account. The recipient comes from the
+issuance service's stored-address snapshot. The subject is `Verify your SDLCFlow email`,
+with a trusted `/verify-email#token=...` link and a sixty-minute lifetime.
+
+The shared dispatcher has separate counters per flow: maximum four active jobs,
+twenty admissions per hour and a fifteen-minute per-account cooldown for verification.
+Cooldown follows the account across email edits and sessions. Suppressed attempts
+do not replace the pending link; admitted resends do. Already verified accounts and
+delivery failures still consume admitted budget. Recovery retains its independent
+twenty-per-hour allowance, so together the two flows can admit forty jobs/hour.
+
+These are per-process, best-effort limits, not a durable/distributed queue. Crashes
+can drop accepted work, restarts reset budgets and replicas multiply limits.
+Shutdown tracks pending work before closing MongoDB, subject to its existing deadline.
+Provider calls use one ten-second bounded request, no redirects and no automatic
+retry. Raw provider errors, addresses and tokens are not logged. An uncertain send
+can leave a valid pending token; don't delete/retry it blindly.
+
+## Confirmation
+
+`POST /api/v1/auth/verify-email` accepts `{ token }` with the configured Origin,
+JSON and CSRF header but no login requirement. Its independent IP budget is ten
+attempts per fifteen minutes, with a 1 KB body limit. Only explicit POST confirms;
+GET does not consume a token. Existing links can be confirmed even when new mail
+delivery is disabled.
+
+Success: `200 { data: { verified: true } }`. It does not return the user's identity,
+set/clear cookies, issue tokens, change passwords or revoke sessions. A logged-in
+client can reload `/auth/me` to update its owner status; there is no automatic login.
+
+Malformed, expired, spent, changed-address, deleted-account or revoked-generation
+proof returns `400 EMAIL_VERIFICATION_INVALID`. Invalid JSON/body returns 400,
+oversized JSON 413, origin/CSRF failure 403, and throttling 429 with Retry-After.
+Unexpected storage failure returns a generic 500; failures after claim require a
+fresh link. Responses are no-store, and errors never echo submitted token values.
 
 ## Account state
 
@@ -13,8 +84,11 @@ REST access and sockets remain available under their current policies.
   a timestamp. New accounts are not verified automatically.
 - `emailVerificationVersion`: starts at zero and increments on each actual profile
   email change. A -> B -> A advances twice, so links for the original A stay invalid.
-- Both fields are hidden from default queries and existing API responses. Signup
+- Both raw fields remain hidden from default queries and API responses. Signup
   and profile input allowlists prevent clients from setting either field.
+- Owner responses from register, login, `/auth/me`, `/auth/profile`, and profile
+  updates now expose `emailVerified: boolean`. Other members' payloads do not gain
+  this status. No generation counter or verification timestamp is exposed.
 
 Old accounts without the fields are treated as unverified with email generation
 zero. No bulk backfill, grandfathering, or real-account updates are performed.
@@ -47,8 +121,8 @@ log in the caller, change credentials or issue/revoke sessions.
 
 Claim and completion are separate operations. A crash or storage failure after
 claiming burns the link and requires new issuance. Never restore spent tokens.
-There is no public GET consumer: the later endpoint must use explicit POST
-confirmation so email scanners cannot perform the action by opening a link.
+There is no GET consumer: explicit POST confirmation prevents email scanners from
+performing the action just by opening a link.
 
 Verification tokens and password-reset tokens have separate collections and
 services. Neither token type can be used for the other purpose.
@@ -71,13 +145,12 @@ not a complete secure email-change workflow.
 
 ## Remaining slices
 
-1. Add rate-limited request/resend and explicit POST confirmation endpoints,
-   trusted fragment-based URLs, Brevo delivery and account-neutral responses.
-2. Expose verification status deliberately to the account owner; add the verification
-   page and resend controls without exposing internal generation counters.
-3. Decide unverified-account permissions, enforce them in REST and sockets, and
+1. Add the verification page and owner-facing status/resend controls. Read and clear
+   the URL fragment, confirm only on user action, and do not automatically retry
+   ambiguous confirmation failures. Do not persist proof tokens in browser storage.
+2. Decide unverified-account permissions, enforce them in REST and sockets, and
    define how existing users verify without an accidental lockout.
-4. Verify sender delivery, spam placement, link tracking/retention and production
+3. Verify sender delivery, spam placement, link tracking/retention and production
    HTTPS behavior before unrestricted signup.
 
 Reference: [OWASP email verification guidance](https://cheatsheetseries.owasp.org/cheatsheets/Email_Validation_and_Verification_Cheat_Sheet.html).
@@ -86,9 +159,14 @@ Reference: [OWASP email verification guidance](https://cheatsheetseries.owasp.or
 
 ```sh
 npm --prefix server test -- src/__tests__/emailVerification.test.js src/__tests__/authValidation.test.js --maxWorkers=2
+npm --prefix server test -- src/__tests__/emailVerificationRoutes.test.js src/__tests__/emailVerificationDelivery.test.js src/__tests__/forgotPassword.test.js src/__tests__/passwordRecoveryConfig.test.js src/__tests__/passwordRecoveryEmail.test.js --maxWorkers=2
 ```
 
 The suite uses disposable MongoDB and fake accounts only. It covers default and
 legacy status, hashed persistence, expiry boundaries, replay and concurrent claims,
 concurrent issuance, purpose separation, client field spoofing, email-change races,
 revocation, failure handling, and unchanged authenticated access. No real email is sent.
+Route tests additionally cover request authorization, body limits, independent
+rate budgets, owner-only status, cooldown across email changes, background shutdown
+tracking, disabled delivery, generic failure responses, and no-login confirmation.
+Existing recovery tests cover the shared dispatcher's active/hourly capacity limits.

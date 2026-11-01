@@ -8,6 +8,8 @@ import { registrationMode } from '../config/registration.js';
 import { completePasswordReset } from '../controllers/passwordResetController.js';
 import { passwordRecoveryOptions } from '../config/passwordRecovery.js';
 import { createForgotPasswordHandler } from '../controllers/forgotPasswordController.js';
+import { emailVerificationOptions } from '../config/emailVerification.js';
+import { createVerificationRequestHandler, confirmEmailVerification } from '../controllers/emailVerificationController.js';
 
 
 // createApp supplies validated cookie options and its credentialed CORS origins.
@@ -15,6 +17,9 @@ export default function createAuthRoutes({ refresh, lifecycle } = {}) {
   const router = express.Router();
   const mode = registrationMode();
   const security = createRefreshSecurity(refresh);
+  const requestVerification = createVerificationRequestHandler({
+    options: emailVerificationOptions({ origins: refresh.origins, localHttp: refresh.localHttp }), lifecycle,
+  });
   const requestReset = createForgotPasswordHandler({
     options: passwordRecoveryOptions({ origins: refresh.origins, localHttp: refresh.localHttp }), lifecycle,
   });
@@ -31,6 +36,10 @@ export default function createAuthRoutes({ refresh, lifecycle } = {}) {
   // Each app owns its counters. Limit before JSON parsing, database access, or bcrypt.
   router.post('/register', createAuthRateLimit('register'));
   router.post('/login', createAuthRateLimit('login'));
+  router.post('/verification/request', createAuthRateLimit('requestVerification'), security.guard,
+    protect, express.json({ limit: '1kb' }), requestVerification);
+  router.post('/verify-email', createAuthRateLimit('verifyEmail'), security.guard,
+    express.json({ limit: '1kb' }), confirmEmailVerification);
   router.post('/forgot-password', createAuthRateLimit('forgotPassword'), security.guard,
     express.json({ limit: '1kb' }), requestReset);
   // Recovery needs no access token, but retains the same browser-origin policy.

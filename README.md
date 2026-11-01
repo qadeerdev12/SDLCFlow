@@ -489,7 +489,7 @@ server/src/
 | [Continuous integration](docs/continuous-integration.md) | GitHub Actions checks, isolated test data, local reproduction and required-check setup |
 | [Email delivery](docs/email-delivery.md) | Brevo sender setup, manual delivery probe and remaining public-signup gates |
 | [Password recovery](docs/password-recovery.md) | Recovery pages, request/delivery and completion endpoints, session revocation and launch checks |
-| [Email verification](docs/email-verification.md) | Internal verification state, one-time proof tokens, email-change safety and remaining rollout steps |
+| [Email verification](docs/email-verification.md) | Verification endpoints, guarded Brevo delivery, owner status, email-change safety and remaining rollout steps |
 | [Production security review](docs/production-security-review.md) | Secret startup checks, dependency remediation, proxy policy and unresolved release blockers |
 
 ---

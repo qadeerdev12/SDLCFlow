@@ -74,7 +74,7 @@ describe('opt-in login and account session integration', () => {
         const claims = jwt.verify(result.body.data.token, process.env.JWT_SECRET);
         expect(claims).toMatchObject({ purpose: 'access', sessionVersion: 0 });
         expect(claims.exp - claims.iat).toBe(900);
-        expect(result.body.data.user).toEqual({ id: claims.id, name: 'New', email: 'new@example.com' });
+        expect(result.body.data.user).toEqual({ id: claims.id, name: 'New', email: 'new@example.com', emailVerified: false });
         expect(Object.keys(result.body.data).sort()).toEqual(['expiresAt', 'token', 'user']);
         const record = await RefreshSession.findById(claims.sid).lean();
         expect(String(record.user)).toBe(claims.id);

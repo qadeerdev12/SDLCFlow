@@ -5,9 +5,14 @@ export const AUTH_LIMITS = {
   register: { limit: 10, windowMs: 60 * 60 * 1000 },
   resetPassword: { limit: 10, windowMs: 15 * 60 * 1000 },
   forgotPassword: { limit: 5, windowMs: 15 * 60 * 1000 },
+  requestVerification: { limit: 5, windowMs: 15 * 60 * 1000 },
+  verifyEmail: { limit: 10, windowMs: 15 * 60 * 1000 },
 };
 
 export function createAuthRateLimit(action) {
+  const label = ['requestVerification', 'verifyEmail'].includes(action) ? 'email-verification'
+    : ['resetPassword', 'forgotPassword'].includes(action) ? 'password-reset'
+    : action === 'login' ? 'sign-in' : 'signup';
   return rateLimit({
     ...AUTH_LIMITS[action],
     standardHeaders: 'draft-8',
@@ -21,7 +26,7 @@ export function createAuthRateLimit(action) {
       return res.status(429).json({
         error: {
           code: 'AUTH_RATE_LIMITED',
-          message: `Too many ${['resetPassword', 'forgotPassword'].includes(action) ? 'password-reset' : action === 'login' ? 'sign-in' : 'signup'} attempts. Try again in ${Math.ceil(retryAfter / 60)} minute(s).`,
+          message: `Too many ${label} attempts. Try again in ${Math.ceil(retryAfter / 60)} minute(s).`,
           retryAfter,
           resetAt: req.rateLimit.resetTime.toISOString(),
         },

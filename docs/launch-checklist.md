@@ -176,9 +176,11 @@ to develop and test them without enabling public registration.
 Progress: Brevo recovery delivery and recovery pages are implemented, and the
 owner reported a successful local password-reset test. Spam placement and hosted
 delivery checks remain open. The [email verification foundation](email-verification.md)
-now covers internal status, hashed one-time tokens and email-change invalidation;
-verification routes, delivery, UI, and existing-account access policy are still
-pending. No existing account has been automatically marked verified or blocked.
+now covers internal status, hashed one-time tokens, email-change invalidation,
+request/confirmation routes, opt-in Brevo delivery and owner status responses.
+Verification UI and existing-account access policy are still pending. No existing
+account has been automatically marked verified or blocked; verification delivery
+remains off by default until its page is ready.
 
 ## Portfolio packaging / can wait
 
