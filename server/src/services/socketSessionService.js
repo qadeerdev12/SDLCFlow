@@ -22,7 +22,7 @@ function assertLive(socket) {
 
 async function loadSessionUser(socket) {
   assertLive(socket);
-  const user = await User.findById(socket.data.session.userId).select('+sessionVersion');
+  const user = await User.findById(socket.data.session.userId).select('+sessionVersion +emailVerifiedAt');
   assertLive(socket); // Revocation can happen during the database read.
   if (!user) throw sessionError('USER_NOT_FOUND', 'User not found.');
   const version = sessionVersion(user.sessionVersion);
@@ -34,6 +34,12 @@ async function loadSessionUser(socket) {
     assertLive(socket);
     if (!family || family.expiresAt.getTime() <= Date.now()) throw sessionError('SESSION_INVALIDATED');
     session.expiresAt = Math.min(session.expiresAt, family.expiresAt.getTime());
+  }
+  // Authenticate first, then authorize collaboration from fresh database proof.
+  // Never trust handshake fields or token claims for email verification.
+  if (session.requireVerification && (!(user.emailVerifiedAt instanceof Date)
+      || !Number.isFinite(user.emailVerifiedAt.getTime()))) {
+    throw sessionError('EMAIL_VERIFICATION_REQUIRED', 'Verify your email address to access this feature.');
   }
   return user;
 }
@@ -65,7 +71,7 @@ export function revokeSocketFamily(io, familyId) {
   }
 }
 
-export function configureSocketSessions(io) {
+export function configureSocketSessions(io, { requireVerification = false } = {}) {
   const tracked = new Set();
   sessions.set(io, tracked);
   io.use(async (socket, next) => {
@@ -84,6 +90,7 @@ export function configureSocketSessions(io) {
         familyId: claims.sid || null,
         expiresAt: claims.exp === undefined ? null : claims.exp * 1000,
         revoked: null,
+        requireVerification,
       };
       socket.data.boardIds = new Set();
       tracked.add(socket);

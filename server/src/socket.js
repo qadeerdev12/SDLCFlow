@@ -1,4 +1,5 @@
 import { configureSocketSessions, startSocketSession, revokeSocketSessions } from './services/socketSessionService.js';
+import { emailVerificationRequired } from './config/emailVerificationPolicy.js';
 import Card from './models/Card.js';
 import List from './models/List.js';
 import Comment from './models/Comment.js';
@@ -220,8 +221,8 @@ function registerMutation(socket, eventName, handler) {
   });
 }
 
-export function configureSockets(io, { lifecycle } = {}) {
-  configureSocketSessions(io);
+export function configureSockets(io, { lifecycle, requireVerification = emailVerificationRequired() } = {}) {
+  configureSocketSessions(io, { requireVerification });
 
   io.on('connection', (socket) => {
     if (lifecycle?.draining) return socket.disconnect(true);

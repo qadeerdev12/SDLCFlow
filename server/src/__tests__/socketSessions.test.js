@@ -31,17 +31,20 @@ afterEach(async () => {
   if (io) await new Promise((resolve) => io.close(resolve));
   io = undefined;
   await Promise.all(Object.values(mongoose.models).map((model) => model.deleteMany({})));
+  vi.unstubAllEnvs();
 });
 afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 
-async function fixture() {
+async function fixture({ requireVerification = false, verified = false } = {}) {
+  vi.stubEnv('EMAIL_VERIFICATION_REQUIRED', String(requireVerification));
   const app = createApp();
   const http = createServer(app);
   io = new Server(http);
   app.set('io', io);
-  configureSockets(io);
+  configureSockets(io, { requireVerification: app.locals.emailVerificationRequired });
   await new Promise((resolve) => http.listen(0, '127.0.0.1', resolve));
   const user = await User.create({ name: 'Test', email: 'test@example.com', passwordHash: await bcrypt.hash(password, 4) });
+  if (verified) await User.updateOne({ _id: user._id }, { emailVerifiedAt: new Date() });
   const token = await issueAccess(user);
   const connect = (credential = token) => {
     const socket = createClient(`http://127.0.0.1:${http.address().port}`, {
@@ -236,5 +239,111 @@ describe('socket session lifecycle', () => {
     const responses = await Promise.all([attempt(), attempt()]);
     expect(responses.map((result) => result.status).sort()).toEqual([200, 401]);
     expect((await User.findById(ctx.user._id).select('+sessionVersion')).sessionVersion).toBe(1);
+  });
+});
+
+describe('socket email verification policy', () => {
+  it('rejects unverified handshakes before private rooms and allows the same token after verification', async () => {
+    const ctx = await fixture({ requireVerification: true });
+    await expect(ctx.connect()).rejects.toMatchObject({ data: { code: 'EMAIL_VERIFICATION_REQUIRED' } });
+    expect(io.sockets.sockets.size).toBe(0);
+    expect(io.sockets.adapter.rooms.has(`user:${ctx.user.id}`)).toBe(false);
+    await User.updateOne({ _id: ctx.user._id }, { emailVerifiedAt: new Date() });
+    const socket = await ctx.connect();
+    expect(io.sockets.adapter.rooms.get(`user:${ctx.user.id}`).has(socket.id)).toBe(true);
+  });
+
+  it('does not accept a forged verification claim in a valid signed token', async () => {
+    const ctx = await fixture({ requireVerification: true });
+    const token = jwt.sign({ ...jwt.decode(ctx.token), emailVerified: true, emailVerifiedAt: new Date().toISOString() }, process.env.JWT_SECRET);
+    await expect(ctx.connect(token)).rejects.toMatchObject({ data: { code: 'EMAIL_VERIFICATION_REQUIRED' } });
+  });
+
+  it('keeps session invalidation ahead of verification and retains the startup policy', async () => {
+    const ctx = await fixture({ requireVerification: true });
+    vi.stubEnv('EMAIL_VERIFICATION_REQUIRED', 'false');
+    await expect(ctx.connect()).rejects.toMatchObject({ data: { code: 'EMAIL_VERIFICATION_REQUIRED' } });
+    await User.updateOne({ _id: ctx.user._id }, { $inc: { sessionVersion: 1 } });
+    await expect(ctx.connect()).rejects.toMatchObject({ data: { code: 'SESSION_INVALIDATED' } });
+  });
+
+  // Every event passes the same middleware, including read/subscription events.
+  it.each(['board:join', 'card:create', 'message:create', 'chat:typing', 'list:move'])(
+    'checks fresh proof before dispatching %s', async (event) => {
+      const ctx = await fixture({ requireVerification: true, verified: true });
+      const socket = await ctx.connect();
+      const handler = vi.fn();
+      io.sockets.sockets.get(socket.id).on(event, handler);
+      await User.updateOne({ _id: ctx.user._id }, { emailVerifiedAt: null });
+      const disconnected = ended(socket);
+      const result = await socket.timeout(2000).emitWithAck(event, { emailVerified: true });
+      expect(result.error.code).toBe('EMAIL_VERIFICATION_REQUIRED');
+      expect(await disconnected).toEqual(['EMAIL_VERIFICATION_REQUIRED']);
+      expect(handler).not.toHaveBeenCalled();
+      expect(io.sockets.adapter.rooms.has(`user:${ctx.user.id}`)).toBe(false);
+    },
+  );
+
+  it('evicts all idle tabs after an email change but leaves REST account access available', async () => {
+    const ctx = await fixture({ requireVerification: true, verified: true });
+    const first = await ctx.connect();
+    const second = await ctx.connect();
+    const board = (await request(ctx.app).post('/api/v1/boards').set('Authorization', `Bearer ${ctx.token}`)
+      .send({ name: 'Verified project' }).expect(201)).body.data.board;
+    expect((await first.timeout(2000).emitWithAck('board:join', { boardId: board._id })).ok).toBe(true);
+    const firstEnded = ended(first), secondEnded = ended(second);
+    await request(ctx.app).patch('/api/v1/auth/profile').set('Authorization', `Bearer ${ctx.token}`)
+      .send({ email: 'changed@example.test' }).expect(200);
+    expect(await firstEnded).toEqual(['EMAIL_VERIFICATION_REQUIRED']);
+    expect(await secondEnded).toEqual(['EMAIL_VERIFICATION_REQUIRED']);
+    expect(io.sockets.adapter.rooms.has(`board:${board._id}`)).toBe(false);
+    expect(io.sockets.adapter.rooms.has(`user:${ctx.user.id}`)).toBe(false);
+    await request(ctx.app).get('/api/v1/auth/profile').set('Authorization', `Bearer ${ctx.token}`).expect(200);
+    await expect(ctx.connect()).rejects.toMatchObject({ data: { code: 'EMAIL_VERIFICATION_REQUIRED' } });
+  });
+
+  it('does not evict on email changes when enforcement is disabled', async () => {
+    const ctx = await fixture();
+    const socket = await ctx.connect();
+    await request(ctx.app).patch('/api/v1/auth/profile').set('Authorization', `Bearer ${ctx.token}`)
+      .send({ email: 'changed@example.test' }).expect(200);
+    expect(io.sockets.sockets.has(socket.id)).toBe(true);
+  });
+
+  it('preserves verified connections on name-only and normalized same-address edits', async () => {
+    const ctx = await fixture({ requireVerification: true, verified: true });
+    const socket = await ctx.connect();
+    for (const updates of [{ name: 'Updated name' }, { email: ' TEST@example.com ' }]) {
+      await request(ctx.app).patch('/api/v1/auth/profile').set('Authorization', `Bearer ${ctx.token}`)
+        .send(updates).expect(200);
+      expect(io.sockets.sockets.has(socket.id)).toBe(true);
+    }
+  });
+
+  it('invalidates a stale in-flight handshake when the verified address changes', async () => {
+    const ctx = await fixture({ requireVerification: true, verified: true });
+    let arrived, release;
+    const read = new Promise((resolve) => { arrived = resolve; });
+    const paused = new Promise((resolve) => { release = resolve; });
+    const originalFind = User.findById.bind(User);
+    vi.spyOn(User, 'findById').mockImplementationOnce((...args) => {
+      const query = originalFind(...args);
+      const exec = query.exec.bind(query);
+      query.exec = async () => {
+        const staleUser = await exec();
+        arrived();
+        await paused;
+        return staleUser;
+      };
+      return query;
+    });
+    const rejected = expect(ctx.connect()).rejects.toMatchObject({ data: { code: 'EMAIL_VERIFICATION_REQUIRED' } });
+    await read;
+    try {
+      await request(ctx.app).patch('/api/v1/auth/profile').set('Authorization', `Bearer ${ctx.token}`)
+        .send({ email: 'changed@example.test' }).expect(200);
+    } finally { release(); }
+    await rejected;
+    expect(io.sockets.sockets.size).toBe(0);
   });
 });

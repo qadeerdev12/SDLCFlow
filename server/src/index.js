@@ -41,7 +41,8 @@ try {
     await connectDB();
     if (!lifecycle.draining) {
         stopSubscriber = registerNotificationSubscriber(appEvents, { io });
-        configureSockets(io, { lifecycle });
+        // HTTP and sockets use the same startup policy snapshot.
+        configureSockets(io, { lifecycle, requireVerification: app.locals.emailVerificationRequired });
         const port = process.env.PORT || 5050;
         await new Promise((resolve, reject) => {
             httpServer.once('error', reject);

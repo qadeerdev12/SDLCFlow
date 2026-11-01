@@ -29,10 +29,13 @@ Current phase: authentication release gates before deployment, not new product f
    Focused checks passed: 28 client tests, 69 server tests, client lint and build.
    Use `nvm use` from the repository root in new terminals; the shell default was
    not changed. Avoid relying on cloud-offloaded node_modules between devices.
-2. Next implementation slice: email-verification enforcement for WebSockets.
-   Inspect handshake, event authorization and session renewal first; define the
-   expected rejection/reconnect behavior and add isolated regression tests.
-3. Follow with frontend handling and an explicit existing-account rollout policy.
+2. WebSocket enforcement is implemented and tested: startup policy snapshot,
+   handshake/per-event proof checks and eviction after persisted email changes.
+   Full server suite: 892 tests passed across 51 files on 2026-11-01.
+3. Next implementation slice: frontend handling for EMAIL_VERIFICATION_REQUIRED.
+   Preserve authentication and guide users to Profile verification, including
+   socket connection failures and invalidation events. Follow with an explicit
+   existing-account rollout policy.
    Do not enable enforcement or unrestricted signup before these gates are ready.
 
 Focused checks to resume with (from repository root):
@@ -40,6 +43,7 @@ Focused checks to resume with (from repository root):
 ```sh
 npm --prefix client test -- src/__tests__/profileLoading.test.jsx src/__tests__/profileSessions.test.jsx src/__tests__/profilePassword.test.jsx src/__tests__/emailVerification.test.jsx
 npm --prefix server test -- src/__tests__/verificationAccess.test.js src/__tests__/githubOAuthState.test.js --maxWorkers=2
+npm --prefix server test -- src/__tests__/socketSessions.test.js --maxWorkers=2
 npm --prefix client run lint
 npm --prefix client run build
 git diff --check
@@ -80,7 +84,8 @@ These items describe implemented scope, not blanket deployment approval.
 - [x] Resolve local verification tooling blocker and run latest focused tests/lint/build.
 - [x] Verify REST policy behavior with the isolated server suite (69 tests across
   verificationAccess and githubOAuthState; not a full-server-suite result).
-- [ ] Implement and test WebSocket verified-email enforcement.
+- [x] Implement and test WebSocket verified-email enforcement (handshake, packets,
+  idle tabs and pending-handshake eviction on email changes).
 - [ ] Add consistent frontend handling for verification-required responses.
 - [ ] Decide and document existing-account rollout; do not silently mark users verified.
 - [ ] Review secure email changes: reauthentication, pending-address verification,
@@ -131,15 +136,17 @@ These items describe implemented scope, not blanket deployment approval.
 
 ## Latest Handoff
 
-2026-11-01: Completed the verification prerequisite on the Mac mini. Initial
-attempts stalled before checks started and were stopped. Installed the pinned
-runtime through nvm, then ran clean lockfile-based client/server installs.
-All focused checks listed above passed using that runtime: 4 client test files
-(28 tests), 2 server test files (69 tests), client lint and production build.
-Server tests used disposable MongoDB. No live provider requests or application
-data changes were needed. Mongoose emitted existing `new` option deprecation
-warnings; these did not fail tests. No application source or lockfiles changed.
-The full suites, dependency audits and hosted checks were not run in this chunk.
-No commit/push/deploy performed. Next: WebSocket verified-email enforcement.
+2026-11-01: Implemented the opt-in WebSocket verified-email gate in the shared
+session loader; production passes the REST startup policy snapshot to sockets.
+Profile email changes evict idle and pending sockets after proof is reset, without
+revoking REST sessions needed to verify the new address. Added 12 socket regression
+cases and documented behavior and single-process/in-flight limitations.
+Focused server run: 74 tests passed. Full server run: 892 tests across 51 files
+passed on Node 24.22.1 / npm 11.19.1. Tests used disposable MongoDB and local sockets;
+no live provider or application data changes. Existing Mongoose deprecation
+warnings remain. Client tests/build were not rerun in this server-only chunk;
+their prior successful results remain recorded above. No lockfile or private
+environment changes. Keep enforcement disabled pending frontend and rollout work.
+No commit/push/deploy performed. Next: frontend verification-required handling.
 Commit and push this tracker with relevant changes before switching devices,
 and pull before resuming on the other machine.

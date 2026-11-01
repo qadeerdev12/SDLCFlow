@@ -5,9 +5,10 @@
 Verification state, one-time proof tokens, request/resend and confirmation endpoints,
 and Brevo delivery are implemented, alongside the public verification page and
 profile status/resend controls. Delivery still defaults off pending controlled
-delivery checks. No restrictions on unverified accounts exist yet.
-Existing signup, login, recovery, REST access and sockets
-remain available under their current policies. Signup does not automatically send mail.
+delivery checks. Optional REST and socket access enforcement is implemented but
+defaults off until frontend handling and existing-account rollout are ready.
+Signup, login, recovery and account verification remain accessible under their
+existing authentication policies. Signup does not automatically send mail.
 
 ## Configuration
 
@@ -160,14 +161,15 @@ Missing/null legacy values and malformed state fail closed with
 Keep login, registration, refresh, profile, verification, recovery, password change,
 logout and account deletion outside this guard. Verification is an additional
 authorization requirement, not authentication or a replacement for board roles.
-This guard does not protect Socket.IO or solve in-flight email-change races.
-Socket rechecks, frontend handling and existing-user rollout remain separate
-reviewable chunks. Delivery enablement is not an enforcement switch.
+Socket.IO uses the separate session checks described below. Frontend handling and
+existing-user rollout remain separate reviewable chunks. Delivery enablement is
+not an enforcement switch.
 
 `EMAIL_VERIFICATION_REQUIRED=false` is the default. Its strict boolean value is
 validated and captured per app at startup; changing it requires restart. Leave it
-false until socket and frontend work is complete. No private `.env` is changed.
-Enabling it now protects REST only and is **not** a complete collaboration gate.
+false until frontend handling and rollout are complete. No private `.env` is changed.
+Production startup passes the app's policy snapshot to Socket.IO so HTTP and
+socket authorization use the same setting.
 
 Covered REST resources: boards and all nested workflows, lists, cards, comments,
 members, chat, AI, activity and GitHub data; template catalogs; my tasks; workspace
@@ -188,12 +190,40 @@ npm --prefix server test -- src/__tests__/requireVerifiedEmail.test.js
 npm --prefix server test -- src/__tests__/verificationAccess.test.js src/__tests__/githubOAuthState.test.js --maxWorkers=2
 ```
 
+### Access-policy chunk 3: Socket enforcement
+
+The shared socket session loader selects stored `emailVerifiedAt` at handshake
+and before every incoming event. When enforcement is enabled, missing or invalid
+proof returns `EMAIL_VERIFICATION_REQUIRED` after session authentication succeeds.
+Handshake failure happens before private user/board rooms are joined. Per-event
+failure acknowledges the error when a callback is present, emits
+`session:invalidated` with that code and disconnects the socket, removing rooms,
+presence and typing state. JWT claims and client verification flags cannot grant access.
+
+Changing the address through Profile persists proof invalidation first, then
+evicts all that account's tracked sockets, including pending handshakes and idle
+tabs. Normalized same-address and name-only edits do not evict sockets. This does
+not revoke refresh sessions or REST access to account/verification routes: after
+verification, a still-valid access token can reconnect. Database failures retain
+the existing temporary `AUTH_UNAVAILABLE` behavior rather than claiming proof is absent.
+
+This is single-process enforcement, not transactional cancellation. An operation
+already authorized may finish; direct database edits are detected on the next
+packet/reconnect, not proactively on idle sockets. Cluster-wide eviction and
+secure pending-address email changes remain separate work. The frontend must
+handle this authorization code without treating it as expired credentials before
+the rollout flag is enabled.
+
+```sh
+npm --prefix server test -- src/__tests__/socketSessions.test.js src/__tests__/verificationAccess.test.js --maxWorkers=2
+```
+
 ### Delivery and rollout
 
 1. Local delivery, profile verification and rejection of reused proof were reported
    successful by the owner on 2026-11-01 after authorizing the hotspot IP in Brevo.
    Automated tests still deliberately mock provider delivery.
-2. Complete socket enforcement, frontend handling and the existing-account rollout
+2. Complete frontend handling and the existing-account rollout
    before enabling the policy or unrestricted signup.
 3. Verify sender delivery, spam placement, link tracking/retention and production
    HTTPS behavior before unrestricted signup.

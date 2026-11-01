@@ -199,6 +199,11 @@ export async function updateProfile(req, res) {
             if (!user) return res.status(409).json({ error: {
                 code: 'PROFILE_CHANGE_CONFLICT', message: 'Your email changed during this request. Reload your profile and try again.',
             } });
+            // Persist the new address first, then evict idle readers and pending
+            // handshakes. Keep REST sessions alive so the owner can verify it.
+            if (changed && req.app.locals.emailVerificationRequired) {
+                revokeSocketSessions(req.app.get('io'), user._id, Infinity, 'EMAIL_VERIFICATION_REQUIRED');
+            }
         } else {
             user = await User.findByIdAndUpdate(req.user._id, updates, { returnDocument: 'after', runValidators: true }).select('+emailVerifiedAt');
             if (!user) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found.' } });
