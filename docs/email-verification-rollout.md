@@ -1,7 +1,7 @@
 # Email Verification Rollout
 
 Updated: 2026-11-02 (Australia/Sydney).
-Status: policy ready for owner review; rollout is not authorized or enabled.
+Status: policy reviewed; recovery-path tests implemented. Rollout is not authorized or enabled.
 
 This runbook complements [the implementation notes](email-verification.md).
 It does not change configuration, migrate users or authorize sending email.
@@ -10,8 +10,8 @@ It does not change configuration, migrate users or authorize sending email.
 
 | Chunk | Deliverable | Status |
 | --- | --- | --- |
-| 1 | Existing-account policy and access boundaries | Written; awaiting owner review |
-| 2 | Focused recovery-path regression tests with enforcement enabled | Pending |
+| 1 | Existing-account policy and access boundaries | Reviewed by owner |
+| 2 | Focused recovery-path regression tests with enforcement enabled | Implemented; awaiting owner review |
 | 3 | Isolated staging checklist, test-account matrix and evidence record | Pending |
 | 4 | Rollback procedure and rehearsal evidence | Pending |
 
@@ -79,9 +79,45 @@ Existing authenticated sessions may be restricted without being logged out.
 - [x] Account recovery and verification routes remain outside collaboration gating.
 - [x] Server-wide scope and isolated staging are explicit.
 - [x] No automatic verification, mass mail, data migration or flag change is authorized.
-- [ ] Owner reviews the policy before the next chunk.
+- [x] Owner reviewed the policy before the next chunk.
 
 Implementation references: `server/src/routes/authRoutes.js`,
 `server/src/middleware/requireVerifiedEmail.js`,
 `server/src/config/emailVerificationPolicy.js` and
 `client/src/components/ProtectedRoute.jsx`.
+
+## Chunk 2: Recovery-Path Regression Tests
+
+`server/src/__tests__/verificationRecoveryPaths.test.js` exercises the assembled
+Express app with `EMAIL_VERIFICATION_REQUIRED=true` and signup restricted.
+Real authentication, proof consumption and session records use disposable MongoDB;
+only email transport is mocked. No real messages or existing accounts are touched.
+
+The eight cases cover:
+
+- Profile reads/edits, verification request/resend cooldown, confirmation and
+  resource access restored with the original bearer; replay is rejected.
+- Login, cookie refresh and logout of one session without revoking another.
+- Log out everywhere, followed by successful but still-unverified login.
+- Password change with current-password validation and old-session revocation.
+- Password recovery without a bearer, old-password/session rejection and a
+  fresh verification request after login; reset does not grant verification.
+- Account deletion while unverified, retaining the correct-password requirement.
+- Authentication, browser-origin and restricted-signup boundaries remaining active.
+- Failed email delivery leaving Profile/logout available without granting access.
+
+```sh
+npm --prefix server test -- src/__tests__/verificationRecoveryPaths.test.js --maxWorkers=2
+```
+
+The new suite passed 8/8 cases on 2026-11-02 using Node 24.22.1 / npm 11.19.1.
+The combined run with `verificationAccess`, `emailVerificationRoutes`,
+`socketSessions` and `authSessionIntegration` passed 118 tests across five files.
+Existing socket and client regression suites cover connection rejection,
+verification-required navigation and credential preservation; these HTTP tests
+do not substitute for a real browser/mail/HTTPS staging journey. GitHub-linked
+account deletion still has its existing provider-revocation checks and requires
+separate staging verification.
+
+- [x] Automated recovery journeys pass with enforcement enabled in tests.
+- [ ] Owner reviews chunk 2 before staging checklist work begins.

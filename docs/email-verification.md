@@ -220,9 +220,9 @@ npm --prefix server test -- src/__tests__/socketSessions.test.js src/__tests__/v
 ### Delivery and rollout
 
 See [Email Verification Rollout](email-verification-rollout.md) for the
-existing-account policy and the four reviewable rollout chunks. Its policy is
-ready for review; recovery-path tests, staging evidence and rollback rehearsal
-are separate pending deliverables, not implied by the implementation below.
+existing-account policy and the four reviewable rollout chunks. The policy is
+reviewed and recovery-path regression tests pass; staging evidence and rollback
+rehearsal remain pending, not implied by the implementation below.
 
 1. Local delivery, profile verification and rejection of reused proof were reported
    successful by the owner on 2026-11-01 after authorizing the hotspot IP in Brevo.

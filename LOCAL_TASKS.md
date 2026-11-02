@@ -1,8 +1,8 @@
 # SDLCFlow Work Tracker
 
 Last updated: 2026-11-02 (Australia/Sydney)
-Latest checked implementation commit: `00a70b5` - feat(auth): guide verification-required users without ending sessions
-Current uncommitted chunk: rollout chunk 1, existing-account policy documentation.
+Latest checked commit: `50c9399` - docs(auth): define existing-account verification rollout policy
+Current uncommitted chunk: rollout chunk 2, recovery-path integration tests.
 
 ## Read First When Resuming
 
@@ -37,9 +37,10 @@ Current phase: authentication release gates before deployment, not new product f
    preserve authentication, protected workspace routes redirect to Profile,
    notifications pause, and an explicit status check reloads the owner's proof.
    Full client suite: 332 tests passed across 34 files; production build passed.
-4. Rollout chunk 1 is written in `docs/email-verification-rollout.md`, awaiting
-   owner review. Next: chunk 2, focused recovery-path tests with enforcement on.
-   Then chunk 3, staging checklist/evidence; chunk 4, rollback procedure/rehearsal.
+4. Rollout chunk 1 is reviewed and committed. Chunk 2 recovery-path tests pass:
+   8 new cases; 118 tests across 5 related suites passed together.
+   Review/commit chunk 2 next. Then chunk 3, staging checklist/evidence;
+   chunk 4, rollback procedure/rehearsal.
    Stop for review and commit after each. Secure email changes remain a separate
    pre-public-enforcement gate. Do not enable enforcement or unrestricted signup.
 
@@ -49,6 +50,7 @@ Focused checks to resume with (from repository root):
 npm --prefix client test -- src/__tests__/profileLoading.test.jsx src/__tests__/profileSessions.test.jsx src/__tests__/profilePassword.test.jsx src/__tests__/emailVerification.test.jsx
 npm --prefix server test -- src/__tests__/verificationAccess.test.js src/__tests__/githubOAuthState.test.js --maxWorkers=2
 npm --prefix server test -- src/__tests__/socketSessions.test.js --maxWorkers=2
+npm --prefix server test -- src/__tests__/verificationRecoveryPaths.test.js --maxWorkers=2
 npm --prefix client run lint
 npm --prefix client run build
 git diff --check
@@ -95,8 +97,8 @@ These items describe implemented scope, not blanket deployment approval.
 - [ ] Decide and document existing-account rollout; do not silently mark users verified.
 
 Rollout sub-chunks (complete the overall item only after all are reviewed):
-- [x] Chunk 1: write existing-account policy and access boundaries; owner review pending.
-- [ ] Chunk 2: test restricted-account recovery paths and verification recovery.
+- [x] Chunk 1: write existing-account policy and access boundaries; owner reviewed.
+- [x] Chunk 2: test restricted-account recovery paths and verification recovery; owner review pending.
 - [ ] Chunk 3: prepare staging matrix/checklist and record available evidence honestly.
 - [ ] Chunk 4: document and rehearse rollback; hosted changes require explicit approval.
 
@@ -149,13 +151,15 @@ Other authentication gates:
 
 ## Latest Handoff
 
-2026-11-02 rollout chunk 1: documented equal verification requirements for old/new
-accounts, no owner/admin bypass, preserved account access, server-wide flag scope
-and release prerequisites. Linked the runbook from the implementation notes.
-Working tree was clean at start; frontend work is committed as `00a70b5`.
-No application behavior, environment flags, accounts or mail changed. Documentation
-review and whitespace checks only; no runtime tests needed or claimed in this chunk.
-Owner review/commit comes next, then rollout chunk 2 recovery-path tests.
+2026-11-02 rollout chunk 2: added verificationRecoveryPaths.test.js with 8 complete
+HTTP recovery journeys under enabled verification enforcement and restricted signup.
+All 8 passed individually; 118 tests across verificationRecoveryPaths,
+verificationAccess, emailVerificationRoutes, socketSessions and
+authSessionIntegration passed together using Node 24.22.1 / npm 11.19.1.
+Disposable MongoDB and mocked mail only. No application implementation, private
+flags, lockfiles or live accounts changed. Updated rollout coverage and policy
+review status. Client/full-server suites and hosted checks were not rerun in this
+test-only chunk. Owner review/commit comes next, then chunk 3 staging checklist.
 No commit/push/deploy performed.
 
 ### Previous Implementation Evidence
