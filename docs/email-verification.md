@@ -222,8 +222,10 @@ npm --prefix server test -- src/__tests__/socketSessions.test.js src/__tests__/v
 See [Email Verification Rollout](email-verification-rollout.md) for the
 existing-account policy and the four reviewable rollout chunks. The policy is
 reviewed and recovery-path regression tests pass. The staging checklist and
-evidence template are prepared; hosted execution and rollback rehearsal remain
-pending, not implied by the implementation below.
+evidence template are reviewed. Rollback is documented and locally rehearsed;
+hosted execution and hosted rollback rehearsal remain pending, not implied by
+the implementation below. Already-restricted tabs need a full reload after a
+server rollback; a status check alone does not clear an unverified account's gate.
 
 1. Local delivery, profile verification and rejection of reused proof were reported
    successful by the owner on 2026-11-01 after authorizing the hotspot IP in Brevo.

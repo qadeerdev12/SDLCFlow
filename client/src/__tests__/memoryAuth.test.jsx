@@ -54,6 +54,25 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('opt-in memory authentication provider', () => {
+  it('drops the memory-only verification gate on reload without falsely verifying the restored account', async () => {
+    const first = hook()
+    await waitFor(() => expect(first.result.current.user).toEqual(user))
+    act(() => reportVerificationRequired('memory-token', 'EMAIL_VERIFICATION_REQUIRED'))
+    expect(first.result.current.verificationRequired).toBe(true)
+    first.unmount()
+    // A reload creates a fresh provider; restoration still uses its normal
+    // refresh-cookie flow. A disabled server policy will not reassert the gate.
+    fetchMock.mockImplementation(async (url) => url.endsWith('/auth/me')
+      ? response({ data: { ...user, emailVerified: false } })
+      : response({ data: access('restored-token') }))
+    const restored = hook()
+    await waitFor(() => expect(restored.result.current.user?.emailVerified).toBe(false))
+    expect(restored.result.current.verificationRequired).toBe(false)
+    expect(restored.result.current.token).toBe('restored-token')
+    fetchMock.mockResolvedValueOnce(response({ data: { boards: [] } }))
+    await act(async () => boardApi.list('restored-token'))
+    expect(restored.result.current.verificationRequired).toBe(false)
+  })
   it('does not turn unrelated permission errors into a verification gate', async () => {
     const { result } = hook()
     await waitFor(() => expect(result.current.user).toEqual(user))

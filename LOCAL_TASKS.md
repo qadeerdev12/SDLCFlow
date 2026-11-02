@@ -1,8 +1,8 @@
 # SDLCFlow Work Tracker
 
 Last updated: 2026-11-02 (Australia/Sydney)
-Latest checked commit: `a6357ac` - test(auth): cover recovery paths under verification enforcement
-Current uncommitted chunk: rollout chunk 3, staging checklist and evidence template.
+Latest checked commit: `024e916` - docs(auth): add verification staging checklist and evidence requirements
+Current uncommitted chunk: rollout chunk 4, rollback procedure and local rehearsal tests.
 
 ## Read First When Resuming
 
@@ -39,9 +39,10 @@ Current phase: authentication release gates before deployment, not new product f
    Full client suite: 332 tests passed across 34 files; production build passed.
 4. Rollout chunk 1 is reviewed and committed. Chunk 2 recovery-path tests pass:
    8 new cases; 118 tests across 5 related suites passed together.
-   Owner reviewed chunk 2. Chunk 3 staging checklist/evidence template is prepared,
-   awaiting review; hosted checks are NOT RUN. Next: chunk 4, rollback
-   procedure/rehearsal, before an approved staging enforcement-on run.
+   Owner reviewed chunks 2 and 3. Chunk 4 rollback procedure and local rehearsal
+   are complete, awaiting review: 83 server tests and 75 client tests passed.
+   Hosted staging and rollback checks are NOT RUN. After review, next implementation
+   item is secure email changes; prepare its design in small chunks before edits.
    Stop for review and commit after each. Secure email changes remain a separate
    pre-public-enforcement gate. Do not enable enforcement or unrestricted signup.
 
@@ -100,9 +101,10 @@ These items describe implemented scope, not blanket deployment approval.
 Rollout sub-chunks (complete the overall item only after all are reviewed):
 - [x] Chunk 1: write existing-account policy and access boundaries; owner reviewed.
 - [x] Chunk 2: test restricted-account recovery paths and verification recovery; owner reviewed.
-- [x] Chunk 3: prepare staging matrix/checklist and record available evidence honestly; owner review pending.
+- [x] Chunk 3: prepare staging matrix/checklist and record available evidence honestly; owner reviewed.
 - [ ] Execute hosted staging checks after explicit approval; checklist preparation is not hosted verification.
-- [ ] Chunk 4: document and rehearse rollback; hosted changes require explicit approval.
+- [x] Chunk 4: document and locally rehearse rollback; owner review pending.
+- [ ] Rehearse hosted rollback after explicit approval; local recreation is not host lifecycle evidence.
 
 Other authentication gates:
 - [ ] Review secure email changes: reauthentication, pending-address verification,
@@ -153,17 +155,18 @@ Other authentication gates:
 
 ## Latest Handoff
 
-2026-11-02 rollout chunk 3: prepared prerequisites, five fictional account roles,
-delivery checks with enforcement off and enforcement-on staging checks, plus
-sanitized evidence and exit criteria in docs/email-verification-rollout.md.
-Delivery checks use explicitly approved mail delivery with access enforcement off;
-enforcement-on execution requires reviewed rollback and separate owner approval.
-All hosted results remain Not run. Prior chunk 2 was reviewed and committed as
-`a6357ac`; its recorded 118-test pass remains historical evidence, not a new run.
-Documentation-only chunk: reviewed configuration names/topology against repository
-docs and .env.example, and ran whitespace checks. No runtime tests, provider mail,
-hosting, configuration or data changes. Next: review/commit chunk 3, then chunk 4
-rollback procedure/rehearsal. Secure email changes remain a public-enforcement gate.
+2026-11-02 rollout chunk 4: documented rollback triggers, approval, flag change,
+restart/readiness, browser full reload, acceptance and re-enable criteria.
+Added verificationRollback.test.js (real local HTTP/Socket.IO, disposable DB) and
+a memoryAuth provider-remount test. The flag rollback does not auto-verify accounts,
+bypass membership, change project data or resurrect revoked sessions. An already
+restricted tab must reload; checking proof alone leaves an unverified user gated.
+Combined verification: 83 server tests / 4 files, 75 client tests / 4 files, client
+lint and whitespace checks passed. Full suites/build were not rerun. No production
+code, private configuration, provider mail, live data or hosted resources changed.
+Chunk 3 was reviewed/committed as `024e916`. Chunk 4 awaits review; all hosted
+checks remain Not run. Next implementation: secure email-change design, followed
+by small implementation slices. Keep enforcement and public signup disabled.
 No commit/push/deploy performed.
 
 ### Previous Implementation Evidence

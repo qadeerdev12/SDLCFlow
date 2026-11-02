@@ -1,7 +1,8 @@
 # Email Verification Rollout
 
 Updated: 2026-11-02 (Australia/Sydney).
-Status: policy and recovery-path tests reviewed; staging checklist prepared.
+Status: policy, recovery-path tests and staging checklist reviewed; rollback
+procedure prepared and locally rehearsed, awaiting owner review.
 Rollout is not authorized or enabled, and hosted checks have not been run.
 
 This runbook complements [the implementation notes](email-verification.md).
@@ -13,8 +14,8 @@ It does not change configuration, migrate users or authorize sending email.
 | --- | --- | --- |
 | 1 | Existing-account policy and access boundaries | Reviewed by owner |
 | 2 | Focused recovery-path regression tests with enforcement enabled | Reviewed by owner |
-| 3 | Isolated staging checklist, test-account matrix and evidence record | Prepared; awaiting owner review; hosted execution pending |
-| 4 | Rollback procedure and rehearsal evidence | Pending |
+| 3 | Isolated staging checklist, test-account matrix and evidence record | Reviewed by owner; hosted execution pending |
+| 4 | Rollback procedure and rehearsal evidence | Locally rehearsed; awaiting owner review; hosted rehearsal pending |
 
 Stop for review and a separate commit after each chunk. Actual hosting changes,
 provider email sends and enabling enforcement require a separate explicit decision.
@@ -231,7 +232,8 @@ Current evidence snapshot, 2026-11-02:
 | Local recovery suite plus related backend suites | Previously passed: 118 tests / 5 files in chunk 2 |
 | Local full client suite, lint and build | Previously passed: 332 tests / 34 files in frontend chunk |
 | Hosting, HTTPS, provider delivery and A/B checks above | Not run; no staging environment verified in this chunk |
-| Rollback rehearsal | Pending chunk 4 |
+| Local rollback rehearsal | Passed in chunk 4; see evidence below |
+| Hosted rollback rehearsal | Not run |
 
 For each executed check record: check ID, commit SHA, environment alias, operator,
 timestamp/timezone, browser/version, account alias, expected/observed result,
@@ -245,4 +247,103 @@ sensitive operational details privately, not in this repository or task tracker.
 - [ ] Owner reviews results before any wider rollout; no automatic public launch.
 
 Chunk 3 completes the checklist preparation only. Hosted execution, unresolved
-launch gates and chunk 4 remain open even after this document is reviewed.
+launch gates and hosted rollback rehearsal remain open after document review.
+
+## Chunk 4: Rollback Procedure
+
+### When to Stop
+
+Pause rollout if approved testers cannot obtain mail, reach Profile/recovery or
+resume access after verification; if REST/socket policies disagree; or if there
+are repeated login/refresh/reconnect loops. Record the affected scenario and
+last known-good release without including credentials or proof URLs.
+
+Disabling verification enforcement intentionally permits unverified authenticated
+accounts to use collaboration again. It is an availability rollback, not a fix
+for unauthorized access, token theft or other security incidents. For suspected
+compromise, stop the rollout and choose an incident response with the owner; do
+not automatically relax this guard. Do not automatically undo user data changes.
+
+### Operator Steps
+
+1. Obtain approval from the designated owner/operator for the exact environment.
+   Record the current commit, instance count, setting names/previous non-secret
+   values and timestamp. Keep signup restricted and AI disabled. Do not copy the
+   whole environment or secrets into an incident record.
+2. Set only server-side `EMAIL_VERIFICATION_REQUIRED=false`. Keep delivery switches,
+   origins, JWT/encryption keys, cookies, database and role rules unchanged unless
+   a separate incident decision explicitly requires otherwise. If email delivery
+   itself must stop, use its independent switch and record that separate action.
+3. Restart/redeploy the single service with that configuration. HTTP and Socket.IO
+   capture the policy at startup; editing a hosted variable without a restart is
+   insufficient. Verify the intended commit/configuration and no old instance
+   remains serving traffic. Expect existing sockets to disconnect on restart.
+4. Wait for `/health` and `/ready` through the actual HTTPS origin. Check logs for
+   safe failure codes and startup/shutdown status. If startup/readiness fails,
+   halt here and use the host-specific release recovery procedure; do not claim
+   success from a changed dashboard setting alone.
+5. Have restricted testers fully reload the application. The restriction is held
+   in browser memory; **Check verification status** alone does not clear it while
+   the account is still unverified. A reload restores the normal session through
+   its refresh cookie and lets the server policy be checked afresh. Do not ask
+   testers to delete cookies/storage, share tokens or repeatedly log in.
+6. Confirm the rollback acceptance checks below with disposable accounts. If
+   credentials have expired/revoked, normal sign-in may still be required; rollback
+   must not make an invalid session valid. Record observed results and notify testers.
+7. Leave enforcement off until the cause is resolved and the relevant staging
+   checks pass. Re-enabling requires explicit approval and another restart; it
+   again affects every account on this service, not just a test cohort.
+
+Do not bulk-set `emailVerifiedAt`, reset passwords, rotate secrets, change project
+ownership or restore the database to bypass this gate. Preserve successfully
+verified accounts and all projects/messages created before or during the rehearsal.
+If code rollback is also needed, first review database/configuration compatibility
+of the selected release; the feature-flag rehearsal is not proof that an arbitrary
+older build is compatible.
+
+### Hosted Rollback Acceptance
+
+All checks below are **Not run** until executed against an approved hosted target.
+
+| ID | Check | Expected result | Hosted result |
+| --- | --- | --- | --- |
+| R1 | Unverified tester reloads and opens existing project | REST access and socket join recover; existing data remains | Not run |
+| R2 | Another tab/browser profile reconnects | No stale instance rejects verification while the new instance allows it | Not run |
+| R3 | Verified tester resumes collaboration | Verification is retained; rooms/presence resettle without duplicate writes | Not run |
+| R4 | Outsider and revoked-session attempts | Membership and authentication still deny access | Not run |
+| R5 | Registration policy, AI and mail settings | Original restricted/signup and disabled/AI settings retained; mail changes only if separately approved | Not run |
+| R6 | Owner approves a private re-enable rehearsal | After restart, unverified REST/sockets are denied again; account routes remain usable | Not run |
+
+After a rehearsal, restore the explicitly agreed safe baseline and record the
+effective settings, readiness and operator sign-off. Do not leave an environment
+in a test state or infer approval for public signup from a successful rollback.
+Use the chunk 3 evidence format; attach sanitized observations, never raw HARs.
+
+### Local Rehearsal Evidence
+
+On 2026-11-02, `verificationRollback.test.js` passed using Node 24.22.1 / npm 11.19.1
+and disposable MongoDB. It starts real local HTTP/Socket.IO servers against the
+same test database, closes/recreates them across off/on/off/on/off transitions,
+and checks startup snapshots, restored joins, membership denial, unchanged email
+proof/session generation/project data, restricted signup and revoked-session denial.
+This does not simulate an OS signal, HTTPS edge, production proxy or host deployment.
+
+The client regression in `memoryAuth.test.jsx` recreates the auth provider to model
+a full reload. It checks that cookie-based restoration clears the old in-memory
+gate without falsely verifying the account. Browser networking is mocked; actual
+browser reload and hosted cookies remain staging checks.
+
+The combined commands below passed 83 server tests across four files and 75 client
+tests across four files on 2026-11-02. Client lint also passed. Full suites and
+production build were not rerun for this test/documentation-only chunk.
+
+```sh
+npm --prefix server test -- src/__tests__/verificationRollback.test.js src/__tests__/verificationRecoveryPaths.test.js src/__tests__/verificationAccess.test.js src/__tests__/socketSessions.test.js --maxWorkers=2
+npm --prefix client test -- src/__tests__/memoryAuth.test.jsx src/__tests__/appRoutes.test.jsx src/__tests__/socketSession.test.jsx src/__tests__/verificationNotice.test.jsx
+```
+
+- [x] Rollback steps and browser recovery requirements documented.
+- [x] Local server policy-restart rehearsal passed.
+- [x] Client memory-state restoration regression passed.
+- [ ] Owner reviews chunk 4.
+- [ ] Approved hosted rehearsal completes with evidence; no hosted flag changed here.
