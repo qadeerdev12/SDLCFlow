@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 import { isSessionError, reportSessionFailure } from '../lib/sessionEvents'
 import { hasSessionRenewal, renewExpiredSession } from '../lib/sessionRenewal'
+import { reportVerificationRequired } from '../lib/verificationEvents'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5050'
 
@@ -29,6 +30,14 @@ export function useSocket(token) {
     let retryDelay = 3000
     let renewal
     const endSession = (code) => {
+      if (active && code === 'EMAIL_VERIFICATION_REQUIRED') {
+        clearTimeout(retryTimer)
+        socket.disconnect()
+        setConnected(false)
+        setConnectionError('Verify your email address in Profile to resume collaboration.')
+        reportVerificationRequired(token, code)
+        return
+      }
       if (!active || !isSessionError(code)) return
       clearTimeout(retryTimer)
       socket.disconnect() // Stop reconnect attempts with credentials known to be invalid.

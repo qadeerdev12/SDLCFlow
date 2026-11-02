@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppHeader from '../components/AppHeader'
 import ConfirmDialog from '../components/ConfirmDialog'
 import EmailVerificationStatus from '../components/EmailVerificationStatus'
+import VerificationRequiredNotice from '../components/VerificationRequiredNotice'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
 import { authApi, integrationApi } from '../lib/api'
@@ -115,7 +116,7 @@ function ProfileSession() {
     loadProfile()
     loadGitHub()
     return () => { cancelled = true }
-  }, [token])
+  }, [token, user?.emailVerified])
 
   useEffect(() => {
     const githubStatus = searchParams.get('github')
@@ -287,6 +288,7 @@ function ProfileSession() {
       <AppHeader />
 
       <main className="mx-auto max-w-5xl px-5 py-6 sm:px-6">
+        <VerificationRequiredNotice />
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">Account</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Profile</h1>

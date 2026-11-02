@@ -50,6 +50,20 @@ afterEach(() => {
 })
 
 describe('lazy application routes', () => {
+  it.each(['/dashboard', '/activity', '/my-tasks', '/boards/project-1', '/profile'])(
+    'keeps verification-restricted users signed in and directs %s to Profile', async (path) => {
+      mocks.auth = { user: { id: 'one' }, loading: false, verificationRequired: true }
+      show(path)
+      expect(await screen.findByRole('heading', { name: 'Profile' })).toBeTruthy()
+      expect(screen.getByText('/profile')).toBeTruthy()
+      expect(screen.queryByRole('heading', { name: 'Login' })).toBeNull()
+    },
+  )
+  it('does not block unverified users before the server requires verification', async () => {
+    mocks.auth = { user: { id: 'one', emailVerified: false }, loading: false, verificationRequired: false }
+    show('/dashboard')
+    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeTruthy()
+  })
   it.each([['/forgot-password', 'Forgot Password'], ['/reset-password', 'Reset Password'], ['/verify-email', 'Verify Email']])(
     'allows signed-out visitors to open %s', async (path, heading) => {
       mocks.auth = { user: null, loading: false }

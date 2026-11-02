@@ -4,9 +4,10 @@ import { authApi } from '../lib/api'
 import { createRefreshCoordinator } from '../lib/refreshCoordinator'
 import { isSessionError, onSessionFailure } from '../lib/sessionEvents'
 import { registerSessionRenewal } from '../lib/sessionRenewal'
+import { onVerificationRequired } from '../lib/verificationEvents'
 
 const emptySession = { user: null, token: null, sessionKey: null, expiresAt: null, loading: true,
-  authError: '', sessionMessage: '', needsSignIn: false }
+  authError: '', sessionMessage: '', needsSignIn: false, verificationRequired: false }
 const validUser = (user) => user && typeof user.id === 'string' && typeof user.name === 'string'
 
 /** Access credentials live only in memory. The old stored credential is removed,
@@ -61,7 +62,8 @@ export function MemoryAuthProvider({ children }) {
         if (!current(expectedVersion) || token !== expectedToken) return
         const nextUser = response.data?.user ?? response.data
         if (!validUser(nextUser)) throw new Error('Invalid user response')
-        update({ user: nextUser, loading: false, authError: '', needsSignIn: false })
+        update({ user: nextUser, loading: false, authError: '', needsSignIn: false,
+          ...(nextUser.emailVerified === true ? { verificationRequired: false } : {}) })
       } catch (error) {
         if (!current(expectedVersion) || token !== expectedToken) return
         if (isSessionError(error.code)) clear('Your session ended. Please sign in again.')
@@ -88,6 +90,7 @@ export function MemoryAuthProvider({ children }) {
         // Even signing into the same account again must discard old drafts.
         const nextSessionKey = action === 'refresh' && sessionKey ? sessionKey : crypto.randomUUID()
         update({ token: data.token, sessionKey: nextSessionKey, expiresAt: data.expiresAt, user: nextUser,
+          ...(action !== 'refresh' ? { verificationRequired: false } : {}),
           loading: !nextUser, authError: '', sessionMessage: '', needsSignIn: false })
         if (!nextUser) void loadUser(data.token, nextVersion)
       },
@@ -200,6 +203,9 @@ export function MemoryAuthProvider({ children }) {
       updateUser: (updates) => { if (user) update({ user: { ...user, ...updates } }) },
     }
     actionsRef.current = actions
+    const unsubscribeVerification = onVerificationRequired(({ token: failedToken }) => {
+      if (active && token && failedToken === token) update({ verificationRequired: true })
+    })
     const unsubscribe = onSessionFailure(({ token: failedToken }) => {
       if (active && token && failedToken === token) {
         // Our account action can revoke sockets before its HTTP response arrives.
@@ -216,6 +222,7 @@ export function MemoryAuthProvider({ children }) {
       active = false
       version++
       unsubscribe()
+      unsubscribeVerification()
       unregisterRenewal()
       coordinator.dispose()
       if (actionsRef.current === actions) actionsRef.current = null

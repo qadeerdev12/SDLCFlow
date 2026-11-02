@@ -1,4 +1,5 @@
 import { reportSessionFailure } from './sessionEvents';
+import { reportVerificationRequired } from './verificationEvents';
 import { hasSessionRenewal, renewExpiredSession, isCurrentRenewalToken } from './sessionRenewal';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api/v1';
@@ -53,6 +54,7 @@ async function request(endpoint, {method = 'GET', body, token, renewed = false, 
         error.resetAt = data?.error?.resetAt;
         // Wrong passwords, permission failures, and outages are not revocation.
         if (res.status === 401) reportSessionFailure(token, error.code);
+        if (res.status === 403) reportVerificationRequired(token, error.code);
         throw error;
     }
 

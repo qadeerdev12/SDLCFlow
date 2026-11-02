@@ -32,7 +32,7 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/activity" element={<ProtectedRoute><ActivityPage /></ProtectedRoute>} />
           <Route path="/my-tasks" element={<ProtectedRoute><MyTasksPage /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute allowUnverified><ProfilePage /></ProtectedRoute>} />
           <Route path="/boards/:boardId" element={<ProtectedRoute><BoardPage /></ProtectedRoute>} />
           <Route path="/boards/:boardId/activity" element={<ProtectedRoute><ActivityPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />

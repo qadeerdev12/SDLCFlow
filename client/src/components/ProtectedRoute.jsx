@@ -2,8 +2,8 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import PageLoading from './PageLoading'
 
-export default function ProtectedRoute({ children }) {
-    const { user, loading, authError, retrySession, needsSignIn } = useAuth()
+export default function ProtectedRoute({ children, allowUnverified = false }) {
+    const { user, loading, authError, retrySession, needsSignIn, verificationRequired } = useAuth()
 
     if (loading) {
         return <PageLoading />
@@ -22,5 +22,8 @@ export default function ProtectedRoute({ children }) {
         return <Navigate to="/login" replace />
     }
 
+    // Only a server rejection enables this gate; unverified accounts still work
+    // normally while the server rollout policy is disabled.
+    if (verificationRequired && !allowUnverified) return <Navigate to="/profile" replace />
     return children
 }

@@ -16,7 +16,7 @@ function initials(name) {
 }
 
 export default function AppHeader() {
-  const { user, logout } = useAuth()
+  const { user, logout, verificationRequired } = useAuth()
   const { dark, toggle } = useTheme()
   const navigate = useNavigate()
 
@@ -90,7 +90,7 @@ export default function AppHeader() {
         </div>
 
         <div className="flex items-center gap-2">
-          <NotificationBell onOpen={() => setOpen(false)} />
+          {!verificationRequired && <NotificationBell onOpen={() => setOpen(false)} />}
           <button
             onClick={toggle}
             aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}

@@ -6,7 +6,7 @@ Verification state, one-time proof tokens, request/resend and confirmation endpo
 and Brevo delivery are implemented, alongside the public verification page and
 profile status/resend controls. Delivery still defaults off pending controlled
 delivery checks. Optional REST and socket access enforcement is implemented but
-defaults off until frontend handling and existing-account rollout are ready.
+defaults off until the existing-account rollout is reviewed and staging is verified.
 Signup, login, recovery and account verification remain accessible under their
 existing authentication policies. Signup does not automatically send mail.
 
@@ -161,13 +161,13 @@ Missing/null legacy values and malformed state fail closed with
 Keep login, registration, refresh, profile, verification, recovery, password change,
 logout and account deletion outside this guard. Verification is an additional
 authorization requirement, not authentication or a replacement for board roles.
-Socket.IO uses the separate session checks described below. Frontend handling and
-existing-user rollout remain separate reviewable chunks. Delivery enablement is
+Socket.IO uses the separate session checks described below. Existing-user rollout
+remains a separate reviewable chunk. Delivery enablement is
 not an enforcement switch.
 
 `EMAIL_VERIFICATION_REQUIRED=false` is the default. Its strict boolean value is
 validated and captured per app at startup; changing it requires restart. Leave it
-false until frontend handling and rollout are complete. No private `.env` is changed.
+false until rollout and staging checks are complete. No private `.env` is changed.
 Production startup passes the app's policy snapshot to Socket.IO so HTTP and
 socket authorization use the same setting.
 
@@ -210,9 +210,8 @@ the existing temporary `AUTH_UNAVAILABLE` behavior rather than claiming proof is
 This is single-process enforcement, not transactional cancellation. An operation
 already authorized may finish; direct database edits are detected on the next
 packet/reconnect, not proactively on idle sockets. Cluster-wide eviction and
-secure pending-address email changes remain separate work. The frontend must
-handle this authorization code without treating it as expired credentials before
-the rollout flag is enabled.
+secure pending-address email changes remain separate work. The frontend handles
+this authorization code separately from expired credentials as described below.
 
 ```sh
 npm --prefix server test -- src/__tests__/socketSessions.test.js src/__tests__/verificationAccess.test.js --maxWorkers=2
@@ -223,7 +222,7 @@ npm --prefix server test -- src/__tests__/socketSessions.test.js src/__tests__/v
 1. Local delivery, profile verification and rejection of reused proof were reported
    successful by the owner on 2026-11-01 after authorizing the hotspot IP in Brevo.
    Automated tests still deliberately mock provider delivery.
-2. Complete frontend handling and the existing-account rollout
+2. Complete the existing-account rollout and frontend staging checks
    before enabling the policy or unrestricted signup.
 3. Verify sender delivery, spam placement, link tracking/retention and production
    HTTPS behavior before unrestricted signup.
@@ -231,6 +230,36 @@ npm --prefix server test -- src/__tests__/socketSessions.test.js src/__tests__/v
 Reference: [OWASP email verification guidance](https://cheatsheetseries.owasp.org/cheatsheets/Email_Validation_and_Verification_Cheat_Sheet.html).
 
 ## Frontend behavior
+
+### Verification-required access
+
+REST `403 EMAIL_VERIFICATION_REQUIRED` and matching socket handshake,
+invalidation and acknowledgement errors report an in-memory authorization event.
+The auth provider accepts only events for its current access token; this does not
+clear credentials, refresh cookies, replay mutations or mark the account verified.
+Socket rejection cancels scheduled retries and disconnects. Other permission
+failures retain their existing handling.
+
+Once restricted, protected workspace routes redirect to Profile. Profile and
+public verification/recovery routes remain accessible. The notification inbox
+unmounts while restricted, pausing its API requests and socket. Profile displays
+an inline explanation and an explicit **Check verification status** action.
+This reloads the authenticated owner's `/auth/me`; only confirmed verification
+clears the restriction. A still-unverified account or network failure leaves it
+in place. Successful confirmation in the verification page also reloads the owner.
+Returning to the workspace then remounts the normal subscriptions and data loads.
+Profile details reload when the owner's verification status changes without
+overwriting unsaved edits.
+
+The gate follows server rejection, not just `user.emailVerified === false`, so
+accounts continue to work normally when enforcement is disabled. It survives
+same-session token renewal, resets on logout/new login, and is rediscovered from
+the server after a page reload. No status is persisted in browser storage and no
+background polling or automatic verification-email sending is introduced.
+
+```sh
+npm --prefix client test -- src/__tests__/memoryAuth.test.jsx src/__tests__/socketSession.test.jsx src/__tests__/appRoutes.test.jsx src/__tests__/verificationNotice.test.jsx src/__tests__/profileLoading.test.jsx
+```
 
 ### Delivery diagnostics
 

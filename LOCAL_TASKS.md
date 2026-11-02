@@ -1,7 +1,8 @@
 # SDLCFlow Work Tracker
 
-Last updated: 2026-11-01 (Australia/Sydney)
-Latest checked implementation commit: `c9079e2` - fix(profile): isolate GitHub loading from account verification
+Last updated: 2026-11-02 (Australia/Sydney)
+Latest checked implementation commit: `ed2a95c` - feat(auth): enforce opt-in email verification on WebSockets
+Current uncommitted chunk: frontend verification-required handling.
 
 ## Read First When Resuming
 
@@ -32,10 +33,12 @@ Current phase: authentication release gates before deployment, not new product f
 2. WebSocket enforcement is implemented and tested: startup policy snapshot,
    handshake/per-event proof checks and eviction after persisted email changes.
    Full server suite: 892 tests passed across 51 files on 2026-11-01.
-3. Next implementation slice: frontend handling for EMAIL_VERIFICATION_REQUIRED.
-   Preserve authentication and guide users to Profile verification, including
-   socket connection failures and invalidation events. Follow with an explicit
-   existing-account rollout policy.
+3. Frontend verification-required handling is implemented: REST/socket errors
+   preserve authentication, protected workspace routes redirect to Profile,
+   notifications pause, and an explicit status check reloads the owner's proof.
+   Full client suite: 332 tests passed across 34 files; production build passed.
+4. Next slice: review and document the existing-account rollout policy and
+   staging acceptance checks. Secure email-change policy remains a separate gate.
    Do not enable enforcement or unrestricted signup before these gates are ready.
 
 Focused checks to resume with (from repository root):
@@ -86,7 +89,7 @@ These items describe implemented scope, not blanket deployment approval.
   verificationAccess and githubOAuthState; not a full-server-suite result).
 - [x] Implement and test WebSocket verified-email enforcement (handshake, packets,
   idle tabs and pending-handshake eviction on email changes).
-- [ ] Add consistent frontend handling for verification-required responses.
+- [x] Add consistent frontend handling for verification-required responses.
 - [ ] Decide and document existing-account rollout; do not silently mark users verified.
 - [ ] Review secure email changes: reauthentication, pending-address verification,
   notifications and reset-proof invalidation. Current address changes reset verification.
@@ -136,17 +139,19 @@ These items describe implemented scope, not blanket deployment approval.
 
 ## Latest Handoff
 
-2026-11-01: Implemented the opt-in WebSocket verified-email gate in the shared
-session loader; production passes the REST startup policy snapshot to sockets.
-Profile email changes evict idle and pending sockets after proof is reset, without
-revoking REST sessions needed to verify the new address. Added 12 socket regression
-cases and documented behavior and single-process/in-flight limitations.
-Focused server run: 74 tests passed. Full server run: 892 tests across 51 files
-passed on Node 24.22.1 / npm 11.19.1. Tests used disposable MongoDB and local sockets;
-no live provider or application data changes. Existing Mongoose deprecation
-warnings remain. Client tests/build were not rerun in this server-only chunk;
-their prior successful results remain recorded above. No lockfile or private
-environment changes. Keep enforcement disabled pending frontend and rollout work.
-No commit/push/deploy performed. Next: frontend verification-required handling.
+2026-11-02: Implemented client handling for EMAIL_VERIFICATION_REQUIRED using a
+separate in-memory access-restriction event. Current-token checks ignore old
+account responses. Socket rejection stops retries without renewing or replaying;
+workspace routes redirect to Profile and the notification inbox unmounts.
+Profile offers an explicit status check; only the authenticated owner's confirmed
+verification clears the gate. Same-session renewal retains the restriction;
+new login/logout resets it. Unverified users are not blocked without a server
+rejection, preserving disabled-policy behavior.
+Full client suite: 332 tests across 34 files passed; client lint and production build passed.
+Tests mock network/browser boundaries; no live accounts or mail were used.
+Server code and private configuration were unchanged; server tests were not rerun
+in this client-only chunk. Hosted/browser end-to-end checks remain outstanding.
+Keep enforcement disabled pending rollout and staging review.
+No commit/push/deploy performed. Next: existing-account rollout policy.
 Commit and push this tracker with relevant changes before switching devices,
 and pull before resuming on the other machine.

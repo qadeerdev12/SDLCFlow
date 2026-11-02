@@ -12,6 +12,8 @@ import { reportSessionFailure } from '../lib/sessionEvents'
 import ProtectedRoute from '../components/ProtectedRoute'
 import { authApi } from '../lib/api'
 import { renewExpiredSession } from '../lib/sessionRenewal'
+import { reportVerificationRequired } from '../lib/verificationEvents'
+import { boardApi } from '../lib/api'
 
 const user = { id: 'one', name: 'Test', email: 'test@example.com' }
 const access = (token = 'memory-token', nextUser) => ({ token,
@@ -52,6 +54,53 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('opt-in memory authentication provider', () => {
+  it('does not turn unrelated permission errors into a verification gate', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    fetchMock.mockResolvedValueOnce(response({ error: { code: 'FORBIDDEN' } }, 403))
+    await act(async () => {
+      await expect(boardApi.list('memory-token')).rejects.toHaveProperty('code', 'FORBIDDEN')
+    })
+    expect(result.current.verificationRequired).toBe(false)
+    expect(result.current.token).toBe('memory-token')
+  })
+  it('preserves credentials on a REST verification rejection and clears the gate only after confirmed verification', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    const originalKey = result.current.sessionKey
+    fetchMock.mockResolvedValueOnce(response({ error: { code: 'EMAIL_VERIFICATION_REQUIRED' } }, 403))
+    await act(async () => {
+      await expect(boardApi.list('memory-token')).rejects.toHaveProperty('code', 'EMAIL_VERIFICATION_REQUIRED')
+    })
+    expect(result.current.verificationRequired).toBe(true)
+    expect(result.current.token).toBe('memory-token')
+    expect(result.current.sessionKey).toBe(originalKey)
+    expect(result.current.user).toEqual(user)
+    fetchMock.mockResolvedValueOnce(response({ data: { ...user, emailVerified: false } }))
+    await act(async () => result.current.retrySession())
+    expect(result.current.verificationRequired).toBe(true)
+    fetchMock.mockResolvedValueOnce(response({ data: { ...user, emailVerified: true } }))
+    await act(async () => result.current.retrySession())
+    expect(result.current.verificationRequired).toBe(false)
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/auth/refresh'))).toHaveLength(1)
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/boards'))).toHaveLength(1)
+  })
+
+  it('ignores stale restrictions and retains the gate through renewal but resets it on a new login', async () => {
+    const { result } = hook()
+    await waitFor(() => expect(result.current.user).toEqual(user))
+    act(() => reportVerificationRequired('old-login', 'EMAIL_VERIFICATION_REQUIRED'))
+    expect(result.current.verificationRequired).toBe(false)
+    act(() => reportVerificationRequired('memory-token', 'EMAIL_VERIFICATION_REQUIRED'))
+    fetchMock.mockResolvedValueOnce(response({ data: access('renewed-token', user) }))
+    await act(async () => renewExpiredSession('memory-token'))
+    expect(result.current.verificationRequired).toBe(true)
+    fetchMock.mockResolvedValueOnce(response({ data: access('new-login', user) }))
+    await act(async () => result.current.login(user.email, 'password'))
+    expect(result.current.verificationRequired).toBe(false)
+    act(() => reportVerificationRequired('memory-token', 'EMAIL_VERIFICATION_REQUIRED'))
+    expect(result.current.verificationRequired).toBe(false)
+  })
   it('allows reset completion without a signed-in user and clears the resulting session state', async () => {
     fetchMock.mockResolvedValueOnce(response({ error: { code: 'REFRESH_INVALID' } }, 401))
     const { result } = hook()

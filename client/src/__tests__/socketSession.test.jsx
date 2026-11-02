@@ -8,15 +8,18 @@ import { io } from 'socket.io-client'
 import { useSocket } from '../hooks/useSocket'
 import { onSessionFailure } from '../lib/sessionEvents'
 import { registerSessionRenewal } from '../lib/sessionRenewal'
+import { onVerificationRequired } from '../lib/verificationEvents'
 
 vi.mock('socket.io-client', () => ({ io: vi.fn() }))
-let sockets, failures, stop, unregister
+let sockets, failures, stop, unregister, verification, stopVerification
 // receive() injects server events and ack captures a pending mutation reply.
 // Keeping old doubles lets tests deliver late callbacks after token replacement.
 beforeEach(() => {
   sockets = []
   failures = vi.fn()
   stop = onSessionFailure(failures)
+  verification = vi.fn()
+  stopVerification = onVerificationRequired(verification)
   io.mockImplementation((url, options) => {
     const handlers = new Map()
     const socket = {
@@ -34,7 +37,34 @@ beforeEach(() => {
     return socket
   })
 })
-afterEach(() => { cleanup(); stop(); unregister?.(); unregister = null; vi.clearAllMocks(); vi.useRealTimers() })
+afterEach(() => { cleanup(); stop(); stopVerification(); unregister?.(); unregister = null; vi.clearAllMocks(); vi.useRealTimers() })
+
+it.each(['connect_error', 'session:invalidated', 'ack'])('pauses verification-required %s without logout, renewal or replay', async (event) => {
+  vi.useFakeTimers()
+  const renew = vi.fn()
+  unregister = registerSessionRenewal({ renew, isCurrent: () => true })
+  const { result } = renderHook(() => useSocket('token'))
+  // A previously scheduled outage retry must also be cancelled by this gate.
+  act(() => sockets[0].receive('connect_error', { data: { code: 'AUTH_UNAVAILABLE' } }))
+  const code = 'EMAIL_VERIFICATION_REQUIRED'
+  await act(async () => {
+    if (event === 'ack') {
+      sockets[0].receive('connect')
+      const request = result.current.emitWithAck('card:create', {})
+      const rejected = expect(request).rejects.toHaveProperty('code', code)
+      sockets[0].ack(null, { ok: false, error: { code } })
+      await rejected
+    } else sockets[0].receive(event, event === 'connect_error' ? { data: { code } } : { code })
+  })
+  act(() => vi.advanceTimersByTime(60000))
+  expect(verification).toHaveBeenCalledWith({ token: 'token' })
+  expect(result.current.connected).toBe(false)
+  expect(result.current.connectionError).toContain('Profile')
+  expect(renew).not.toHaveBeenCalled()
+  expect(failures).not.toHaveBeenCalled()
+  expect(sockets[0].connect).not.toHaveBeenCalled()
+  expect(sockets[0].emit).toHaveBeenCalledTimes(event === 'ack' ? 1 : 0)
+})
 
 it.each(['connect_error', 'session:invalidated'])('renews %s expiry once and replaces the socket on token change', async (event) => {
   const renew = vi.fn(async () => 'new')
