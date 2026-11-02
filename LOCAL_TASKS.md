@@ -1,8 +1,8 @@
 # SDLCFlow Work Tracker
 
 Last updated: 2026-11-02 (Australia/Sydney)
-Latest checked commit: `50c9399` - docs(auth): define existing-account verification rollout policy
-Current uncommitted chunk: rollout chunk 2, recovery-path integration tests.
+Latest checked commit: `a6357ac` - test(auth): cover recovery paths under verification enforcement
+Current uncommitted chunk: rollout chunk 3, staging checklist and evidence template.
 
 ## Read First When Resuming
 
@@ -39,8 +39,9 @@ Current phase: authentication release gates before deployment, not new product f
    Full client suite: 332 tests passed across 34 files; production build passed.
 4. Rollout chunk 1 is reviewed and committed. Chunk 2 recovery-path tests pass:
    8 new cases; 118 tests across 5 related suites passed together.
-   Review/commit chunk 2 next. Then chunk 3, staging checklist/evidence;
-   chunk 4, rollback procedure/rehearsal.
+   Owner reviewed chunk 2. Chunk 3 staging checklist/evidence template is prepared,
+   awaiting review; hosted checks are NOT RUN. Next: chunk 4, rollback
+   procedure/rehearsal, before an approved staging enforcement-on run.
    Stop for review and commit after each. Secure email changes remain a separate
    pre-public-enforcement gate. Do not enable enforcement or unrestricted signup.
 
@@ -98,8 +99,9 @@ These items describe implemented scope, not blanket deployment approval.
 
 Rollout sub-chunks (complete the overall item only after all are reviewed):
 - [x] Chunk 1: write existing-account policy and access boundaries; owner reviewed.
-- [x] Chunk 2: test restricted-account recovery paths and verification recovery; owner review pending.
-- [ ] Chunk 3: prepare staging matrix/checklist and record available evidence honestly.
+- [x] Chunk 2: test restricted-account recovery paths and verification recovery; owner reviewed.
+- [x] Chunk 3: prepare staging matrix/checklist and record available evidence honestly; owner review pending.
+- [ ] Execute hosted staging checks after explicit approval; checklist preparation is not hosted verification.
 - [ ] Chunk 4: document and rehearse rollback; hosted changes require explicit approval.
 
 Other authentication gates:
@@ -151,15 +153,17 @@ Other authentication gates:
 
 ## Latest Handoff
 
-2026-11-02 rollout chunk 2: added verificationRecoveryPaths.test.js with 8 complete
-HTTP recovery journeys under enabled verification enforcement and restricted signup.
-All 8 passed individually; 118 tests across verificationRecoveryPaths,
-verificationAccess, emailVerificationRoutes, socketSessions and
-authSessionIntegration passed together using Node 24.22.1 / npm 11.19.1.
-Disposable MongoDB and mocked mail only. No application implementation, private
-flags, lockfiles or live accounts changed. Updated rollout coverage and policy
-review status. Client/full-server suites and hosted checks were not rerun in this
-test-only chunk. Owner review/commit comes next, then chunk 3 staging checklist.
+2026-11-02 rollout chunk 3: prepared prerequisites, five fictional account roles,
+delivery checks with enforcement off and enforcement-on staging checks, plus
+sanitized evidence and exit criteria in docs/email-verification-rollout.md.
+Delivery checks use explicitly approved mail delivery with access enforcement off;
+enforcement-on execution requires reviewed rollback and separate owner approval.
+All hosted results remain Not run. Prior chunk 2 was reviewed and committed as
+`a6357ac`; its recorded 118-test pass remains historical evidence, not a new run.
+Documentation-only chunk: reviewed configuration names/topology against repository
+docs and .env.example, and ran whitespace checks. No runtime tests, provider mail,
+hosting, configuration or data changes. Next: review/commit chunk 3, then chunk 4
+rollback procedure/rehearsal. Secure email changes remain a public-enforcement gate.
 No commit/push/deploy performed.
 
 ### Previous Implementation Evidence
