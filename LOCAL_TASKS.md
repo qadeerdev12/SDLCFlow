@@ -1,8 +1,8 @@
 # SDLCFlow Work Tracker
 
 Last updated: 2026-11-02 (Australia/Sydney)
-Latest checked implementation commit: `ed2a95c` - feat(auth): enforce opt-in email verification on WebSockets
-Current uncommitted chunk: frontend verification-required handling.
+Latest checked implementation commit: `00a70b5` - feat(auth): guide verification-required users without ending sessions
+Current uncommitted chunk: rollout chunk 1, existing-account policy documentation.
 
 ## Read First When Resuming
 
@@ -37,9 +37,11 @@ Current phase: authentication release gates before deployment, not new product f
    preserve authentication, protected workspace routes redirect to Profile,
    notifications pause, and an explicit status check reloads the owner's proof.
    Full client suite: 332 tests passed across 34 files; production build passed.
-4. Next slice: review and document the existing-account rollout policy and
-   staging acceptance checks. Secure email-change policy remains a separate gate.
-   Do not enable enforcement or unrestricted signup before these gates are ready.
+4. Rollout chunk 1 is written in `docs/email-verification-rollout.md`, awaiting
+   owner review. Next: chunk 2, focused recovery-path tests with enforcement on.
+   Then chunk 3, staging checklist/evidence; chunk 4, rollback procedure/rehearsal.
+   Stop for review and commit after each. Secure email changes remain a separate
+   pre-public-enforcement gate. Do not enable enforcement or unrestricted signup.
 
 Focused checks to resume with (from repository root):
 
@@ -91,6 +93,14 @@ These items describe implemented scope, not blanket deployment approval.
   idle tabs and pending-handshake eviction on email changes).
 - [x] Add consistent frontend handling for verification-required responses.
 - [ ] Decide and document existing-account rollout; do not silently mark users verified.
+
+Rollout sub-chunks (complete the overall item only after all are reviewed):
+- [x] Chunk 1: write existing-account policy and access boundaries; owner review pending.
+- [ ] Chunk 2: test restricted-account recovery paths and verification recovery.
+- [ ] Chunk 3: prepare staging matrix/checklist and record available evidence honestly.
+- [ ] Chunk 4: document and rehearse rollback; hosted changes require explicit approval.
+
+Other authentication gates:
 - [ ] Review secure email changes: reauthentication, pending-address verification,
   notifications and reset-proof invalidation. Current address changes reset verification.
 - [ ] Reconcile stale launch-checklist items with the completed recovery/verification work.
@@ -138,6 +148,17 @@ These items describe implemented scope, not blanket deployment approval.
 - `server/src/__tests__/verificationAccess.test.js`: REST verification policy tests.
 
 ## Latest Handoff
+
+2026-11-02 rollout chunk 1: documented equal verification requirements for old/new
+accounts, no owner/admin bypass, preserved account access, server-wide flag scope
+and release prerequisites. Linked the runbook from the implementation notes.
+Working tree was clean at start; frontend work is committed as `00a70b5`.
+No application behavior, environment flags, accounts or mail changed. Documentation
+review and whitespace checks only; no runtime tests needed or claimed in this chunk.
+Owner review/commit comes next, then rollout chunk 2 recovery-path tests.
+No commit/push/deploy performed.
+
+### Previous Implementation Evidence
 
 2026-11-02: Implemented client handling for EMAIL_VERIFICATION_REQUIRED using a
 separate in-memory access-restriction event. Current-token checks ignore old
